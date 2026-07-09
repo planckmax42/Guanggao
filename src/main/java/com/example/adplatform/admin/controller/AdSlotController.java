@@ -1,0 +1,48 @@
+package com.example.adplatform.admin.controller;
+
+import com.example.adplatform.admin.dto.CreateAdSlotRequest;
+import com.example.adplatform.admin.service.AdSlotService;
+import com.example.adplatform.admin.vo.AdSlotVO;
+import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.Result;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RequiredArgsConstructor
+@RestController
+@RequestMapping("/api/admin/ad-slots")
+public class AdSlotController {
+
+    private final AdSlotService adSlotService;
+
+    /**
+     * 创建广告位，用于表示客户端场景中的广告投放位置。
+     */
+    @PostMapping
+    public Result<ResourceRefVO> create(@Valid @RequestBody CreateAdSlotRequest request) {
+        return Result.success(adSlotService.create(request));
+    }
+
+    /**
+     * 分页查询广告位，支持按广告位编码关键字和启用状态筛选。
+     */
+    @GetMapping("/page")
+    public Result<PageResponse<AdSlotVO>> page(
+            @RequestParam(defaultValue = "1") @Min(1) long current,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
+            @RequestParam(required = false) String slotCode,
+            @RequestParam(required = false) Integer status) {
+        return Result.success(adSlotService.pageQuery(current, size, slotCode, status));
+    }
+}
