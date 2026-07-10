@@ -28,7 +28,10 @@ public class TargetingRuleServiceImpl implements TargetingRuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ResourceRefVO createOrUpdate(CreateTargetingRuleRequest request) {
-        ensureCampaignExists(request.campaignId());
+        CampaignEntity campaign = campaignMapper.selectById(request.campaignId());
+        if (campaign == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        }
 
         TargetingRuleEntity entity = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
                 .eq(TargetingRuleEntity::getCampaignId, request.campaignId()));
@@ -37,7 +40,11 @@ public class TargetingRuleServiceImpl implements TargetingRuleService {
             try {
                 targetingRuleMapper.insert(entity);
             } catch (DuplicateKeyException ex) {
-                entity = getByCampaignIdForUpdate(request.campaignId());
+                entity = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
+                        .eq(TargetingRuleEntity::getCampaignId, request.campaignId()));
+                if (entity == null) {
+                    throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
+                }
                 targetingRuleConverter.updateEntity(request, entity);
                 targetingRuleMapper.updateById(entity);
             }
@@ -57,21 +64,5 @@ public class TargetingRuleServiceImpl implements TargetingRuleService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
         }
         return targetingRuleConverter.toVO(entity);
-    }
-
-    private void ensureCampaignExists(Long campaignId) {
-        CampaignEntity campaign = campaignMapper.selectById(campaignId);
-        if (campaign == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-    }
-
-    private TargetingRuleEntity getByCampaignIdForUpdate(Long campaignId) {
-        TargetingRuleEntity entity = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
-                .eq(TargetingRuleEntity::getCampaignId, campaignId));
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
-        }
-        return entity;
     }
 }

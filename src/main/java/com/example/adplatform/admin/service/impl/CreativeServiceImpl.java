@@ -34,8 +34,14 @@ public class CreativeServiceImpl implements CreativeService {
 
     @Override
     public ResourceRefVO create(CreateCreativeRequest request) {
-        ensureCampaignExists(request.campaignId());
-        ensureAdSlotExists(request.adSlotId());
+        CampaignEntity campaign = campaignMapper.selectById(request.campaignId());
+        if (campaign == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        }
+        AdSlotEntity adSlot = adSlotMapper.selectById(request.adSlotId());
+        if (adSlot == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
 
         CreativeEntity entity = creativeConverter.toEntity(request);
         creativeMapper.insert(entity);
@@ -44,7 +50,10 @@ public class CreativeServiceImpl implements CreativeService {
 
     @Override
     public CreativeVO audit(Long id, AuditCreativeRequest request) {
-        CreativeEntity entity = getCreativeOrThrow(id);
+        CreativeEntity entity = creativeMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
+        }
         entity.setAuditStatus(request.auditStatus());
         creativeMapper.updateById(entity);
         return creativeConverter.toVO(creativeMapper.selectById(id));
@@ -60,27 +69,5 @@ public class CreativeServiceImpl implements CreativeService {
         Page<CreativeEntity> result = creativeMapper.selectPage(page, query);
         List<CreativeVO> records = result.getRecords().stream().map(creativeConverter::toVO).toList();
         return PageResponse.of(result, records);
-    }
-
-    private void ensureCampaignExists(Long campaignId) {
-        CampaignEntity campaign = campaignMapper.selectById(campaignId);
-        if (campaign == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-    }
-
-    private void ensureAdSlotExists(Long adSlotId) {
-        AdSlotEntity adSlot = adSlotMapper.selectById(adSlotId);
-        if (adSlot == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-        }
-    }
-
-    private CreativeEntity getCreativeOrThrow(Long id) {
-        CreativeEntity entity = creativeMapper.selectById(id);
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
-        }
-        return entity;
     }
 }

@@ -30,7 +30,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,7 +58,12 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        AdSlotEntity adSlot = getEnabledAdSlot(request.slotCode());
+        AdSlotEntity adSlot = adSlotMapper.selectOne(new LambdaQueryWrapper<AdSlotEntity>()
+                .eq(AdSlotEntity::getSlotCode, request.slotCode())
+                .eq(AdSlotEntity::getStatus, CommonStatus.ENABLED));
+        if (adSlot == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
+        }
 
         // 先按广告位召回可用素材，后续再逐个检查计划、预算、频控和定向。
         List<CreativeEntity> creatives = creativeMapper.selectList(new LambdaQueryWrapper<CreativeEntity>()
@@ -68,82 +73,91 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .orderByDesc(CreativeEntity::getId));
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
+        List<ScoredCreative> scoredCreatives = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (CreativeEntity creative : creatives) {
+            CampaignEntity campaign = campaignMapper.selectById(creative.getCampaignId());
+
+            // 计划必须上线且处于投放时间内。
+            if (campaign == null || !CampaignStatus.ONLINE.name().equals(campaign.getStatus())) {
+                continue;
+            }
+            if (now.isBefore(campaign.getStartTime()) || now.isAfter(campaign.getEndTime())) {
+                continue;
+            }
+
+            // 预算不足的广告不再返回，避免后续曝光/点击继续扩大消耗。
+            long dailyCost = adStatsDailyMapper.sumCostByCampaignOnDate(today, campaign.getId());
+            long totalCost = adStatsDailyMapper.sumCostByCampaign(campaign.getId());
+            if (dailyCost >= campaign.getBudgetDaily() || totalCost >= campaign.getBudgetTotal()) {
+                continue;
+            }
+
+            // 简化版用户频控：同一用户每天最多看到同一个计划 5 次。
+            LocalDateTime dayStart = today.atStartOfDay();
+            LocalDateTime dayEnd = dayStart.plusDays(1);
+            long impressions = adEventMapper.countUserCampaignImpressions(
+                    request.userId(),
+                    campaign.getId(),
+                    dayStart,
+                    dayEnd);
+            if (impressions >= MAX_FREQUENCY_PER_USER_DAY) {
+                continue;
+            }
+
+            // 定向规则为空表示不限；存在规则时，地域、设备、性别、年龄、标签都要通过。
+            TargetingRuleEntity rule = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
+                    .eq(TargetingRuleEntity::getCampaignId, campaign.getId()));
+            if (rule != null) {
+                boolean regionMatched = matchesList(rule.getRegion(), request.region());
+                boolean deviceMatched = matchesList(rule.getDeviceType(), request.deviceType());
+                boolean genderMatched = !StringUtils.hasText(rule.getGender())
+                        || (StringUtils.hasText(request.gender()) && rule.getGender().equalsIgnoreCase(request.gender()));
+                boolean ageMatched = true;
+                if (rule.getAgeMin() != null || rule.getAgeMax() != null) {
+                    ageMatched = request.age() != null
+                            && (rule.getAgeMin() == null || request.age() >= rule.getAgeMin())
+                            && (rule.getAgeMax() == null || request.age() <= rule.getAgeMax());
+                }
+                boolean tagsMatched = true;
+                List<String> ruleTags = parseList(rule.getUserTags());
+                if (!ruleTags.isEmpty()) {
+                    tagsMatched = false;
+                    if (request.tags() != null && !request.tags().isEmpty()) {
+                        Set<String> normalizedRequestTags = new HashSet<>();
+                        request.tags().forEach(tag -> normalizedRequestTags.add(tag.toLowerCase()));
+                        tagsMatched = ruleTags.stream()
+                                .map(String::toLowerCase)
+                                .anyMatch(normalizedRequestTags::contains);
+                    }
+                }
+                if (!regionMatched || !deviceMatched || !genderMatched || !ageMatched || !tagsMatched) {
+                    continue;
+                }
+            }
+
+            long campaignImpressions = adStatsDailyMapper.sumImpressionsByCampaign(today, campaign.getId());
+            long campaignClicks = adStatsDailyMapper.sumClicksByCampaign(today, campaign.getId());
+            double ctr = campaignImpressions <= 0
+                    ? 0.02D
+                    : Math.min((double) campaignClicks / campaignImpressions, 1D);
+            // 简化版 eCPM 排序：出价权重最高，CTR 和默认质量分用于模拟广告效果因素。
+            double score = campaign.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
+            scoredCreatives.add(new ScoredCreative(creative, campaign, score));
+        }
+
         // 模拟广告系统的核心投放链路：召回候选 -> 过滤不可投广告 -> 计算分数 -> 返回 TopN。
-        List<ScoredCreative> scoredCreatives = creatives.stream()
-                .map(creative -> toScoredCreative(creative, request))
-                .flatMap(List::stream)
-                .sorted(Comparator.comparing(ScoredCreative::score).reversed())
+        scoredCreatives = scoredCreatives.stream()
+                .sorted((left, right) -> Double.compare(right.score(), left.score()))
                 .limit(limit)
                 .toList();
 
         List<AdItemVO> ads = scoredCreatives.stream()
-                .map(this::toAdItemVO)
+                .map(item -> adDeliveryConverter.toAdItemVO(item.creative(), item.campaign(), item.score()))
                 .toList();
         return new AdDeliveryResponse(requestId, creatives.size(), ads.size(), ads);
-    }
-
-    private AdSlotEntity getEnabledAdSlot(String slotCode) {
-        AdSlotEntity adSlot = adSlotMapper.selectOne(new LambdaQueryWrapper<AdSlotEntity>()
-                .eq(AdSlotEntity::getSlotCode, slotCode)
-                .eq(AdSlotEntity::getStatus, CommonStatus.ENABLED));
-        if (adSlot == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
-        }
-        return adSlot;
-    }
-
-    private List<ScoredCreative> toScoredCreative(CreativeEntity creative, AdDeliveryRequest request) {
-        CampaignEntity campaign = campaignMapper.selectById(creative.getCampaignId());
-        // 只有上线、在投放时间内、预算未超、未超过用户频控且命中定向的素材才进入排序。
-        if (!isCampaignDeliverable(campaign)) {
-            return List.of();
-        }
-        if (isBudgetExceeded(campaign)) {
-            return List.of();
-        }
-        if (isFrequencyExceeded(request.userId(), campaign.getId())) {
-            return List.of();
-        }
-        TargetingRuleEntity rule = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
-                .eq(TargetingRuleEntity::getCampaignId, campaign.getId()));
-        if (!matchesTargeting(rule, request)) {
-            return List.of();
-        }
-        return List.of(new ScoredCreative(creative, campaign, calculateScore(campaign)));
-    }
-
-    private boolean isCampaignDeliverable(CampaignEntity campaign) {
-        if (campaign == null || !CampaignStatus.ONLINE.name().equals(campaign.getStatus())) {
-            return false;
-        }
-        LocalDateTime now = LocalDateTime.now();
-        return !now.isBefore(campaign.getStartTime()) && !now.isAfter(campaign.getEndTime());
-    }
-
-    private boolean isBudgetExceeded(CampaignEntity campaign) {
-        LocalDate today = LocalDate.now();
-        // 投放前先看历史消耗，避免继续返回已经超出日预算或总预算的广告。
-        long dailyCost = adStatsDailyMapper.sumCostByCampaignOnDate(today, campaign.getId());
-        long totalCost = adStatsDailyMapper.sumCostByCampaign(campaign.getId());
-        return dailyCost >= campaign.getBudgetDaily() || totalCost >= campaign.getBudgetTotal();
-    }
-
-    private boolean isFrequencyExceeded(Long userId, Long campaignId) {
-        LocalDateTime startTime = LocalDate.now().atStartOfDay();
-        LocalDateTime endTime = startTime.plusDays(1);
-        long impressions = adEventMapper.countUserCampaignImpressions(userId, campaignId, startTime, endTime);
-        return impressions >= MAX_FREQUENCY_PER_USER_DAY;
-    }
-
-    private boolean matchesTargeting(TargetingRuleEntity rule, AdDeliveryRequest request) {
-        if (rule == null) {
-            return true;
-        }
-        return matchesList(rule.getRegion(), request.region())
-                && matchesList(rule.getDeviceType(), request.deviceType())
-                && matchesGender(rule.getGender(), request.gender())
-                && matchesAge(rule.getAgeMin(), rule.getAgeMax(), request.age())
-                && matchesTags(rule.getUserTags(), request.tags());
     }
 
     private boolean matchesList(String ruleValue, String requestValue) {
@@ -157,37 +171,6 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         return ruleItems.stream().anyMatch(item -> item.equalsIgnoreCase(requestValue));
     }
 
-    private boolean matchesGender(String ruleGender, String requestGender) {
-        if (!StringUtils.hasText(ruleGender)) {
-            return true;
-        }
-        return StringUtils.hasText(requestGender) && ruleGender.equalsIgnoreCase(requestGender);
-    }
-
-    private boolean matchesAge(Integer ageMin, Integer ageMax, Integer requestAge) {
-        if (ageMin == null && ageMax == null) {
-            return true;
-        }
-        if (requestAge == null) {
-            return false;
-        }
-        return (ageMin == null || requestAge >= ageMin) && (ageMax == null || requestAge <= ageMax);
-    }
-
-    private boolean matchesTags(String ruleValue, List<String> requestTags) {
-        List<String> ruleTags = parseList(ruleValue);
-        if (ruleTags.isEmpty()) {
-            return true;
-        }
-        if (requestTags == null || requestTags.isEmpty()) {
-            return false;
-        }
-        Set<String> normalizedRequestTags = new HashSet<>();
-        requestTags.forEach(tag -> normalizedRequestTags.add(tag.toLowerCase()));
-        return ruleTags.stream()
-                .map(String::toLowerCase)
-                .anyMatch(normalizedRequestTags::contains);
-    }
 
     private List<String> parseList(String value) {
         if (!StringUtils.hasText(value)) {
@@ -198,26 +181,6 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         } catch (JsonProcessingException ex) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "定向规则解析失败");
         }
-    }
-
-    private double calculateScore(CampaignEntity campaign) {
-        double ctr = readCtr(campaign.getId());
-        // 简化版 eCPM 排序：出价权重最高，CTR 和默认质量分用于模拟广告效果因素。
-        return campaign.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
-    }
-
-    private double readCtr(Long campaignId) {
-        LocalDate today = LocalDate.now();
-        long impressions = adStatsDailyMapper.sumImpressionsByCampaign(today, campaignId);
-        long clicks = adStatsDailyMapper.sumClicksByCampaign(today, campaignId);
-        if (impressions <= 0) {
-            return 0.02D;
-        }
-        return Math.min((double) clicks / impressions, 1D);
-    }
-
-    private AdItemVO toAdItemVO(ScoredCreative item) {
-        return adDeliveryConverter.toAdItemVO(item.creative(), item.campaign(), item.score());
     }
 
     private record ScoredCreative(

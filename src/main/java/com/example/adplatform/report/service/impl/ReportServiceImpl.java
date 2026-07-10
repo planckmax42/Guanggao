@@ -72,7 +72,10 @@ public class ReportServiceImpl implements ReportService {
         if (endDate.isBefore(startDate)) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束日期不能早于开始日期");
         }
-        int actualLimit = normalizeLimit(limit);
+        int actualLimit = DEFAULT_TOP_LIMIT;
+        if (limit != null && limit >= 1) {
+            actualLimit = Math.min(limit, MAX_TOP_LIMIT);
+        }
         LambdaQueryWrapper<AdStatsDailyEntity> query = new LambdaQueryWrapper<AdStatsDailyEntity>()
                 .ge(AdStatsDailyEntity::getStatDate, startDate)
                 .le(AdStatsDailyEntity::getStatDate, endDate)
@@ -99,16 +102,6 @@ public class ReportServiceImpl implements ReportService {
             return 0D;
         }
         return (double) numerator / denominator;
-    }
-
-    private int normalizeLimit(Integer limit) {
-        if (limit == null) {
-            return DEFAULT_TOP_LIMIT;
-        }
-        if (limit < 1) {
-            return DEFAULT_TOP_LIMIT;
-        }
-        return Math.min(limit, MAX_TOP_LIMIT);
     }
 
     private class CreativeStatsAccumulator {
