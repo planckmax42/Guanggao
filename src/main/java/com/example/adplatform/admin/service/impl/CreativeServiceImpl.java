@@ -2,18 +2,17 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.adplatform.admin.converter.CreativeConverter;
 import com.example.adplatform.admin.dto.AuditCreativeRequest;
 import com.example.adplatform.admin.dto.CreateCreativeRequest;
 import com.example.adplatform.admin.entity.AdSlotEntity;
 import com.example.adplatform.admin.entity.CampaignEntity;
-import com.example.adplatform.admin.entity.CreativeAuditStatus;
 import com.example.adplatform.admin.entity.CreativeEntity;
 import com.example.adplatform.admin.mapper.AdSlotMapper;
 import com.example.adplatform.admin.mapper.CampaignMapper;
 import com.example.adplatform.admin.mapper.CreativeMapper;
 import com.example.adplatform.admin.service.CreativeService;
 import com.example.adplatform.admin.vo.CreativeVO;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
@@ -31,23 +30,16 @@ public class CreativeServiceImpl implements CreativeService {
     private final CreativeMapper creativeMapper;
     private final CampaignMapper campaignMapper;
     private final AdSlotMapper adSlotMapper;
+    private final CreativeConverter creativeConverter;
 
     @Override
     public ResourceRefVO create(CreateCreativeRequest request) {
         ensureCampaignExists(request.campaignId());
         ensureAdSlotExists(request.adSlotId());
 
-        CreativeEntity entity = new CreativeEntity();
-        entity.setCampaignId(request.campaignId());
-        entity.setAdSlotId(request.adSlotId());
-        entity.setTitle(request.title());
-        entity.setDescription(request.description());
-        entity.setImageUrl(request.imageUrl());
-        entity.setLandingPageUrl(request.landingPageUrl());
-        entity.setAuditStatus(CreativeAuditStatus.PENDING.name());
-        entity.setStatus(CommonStatus.ENABLED);
+        CreativeEntity entity = creativeConverter.toEntity(request);
         creativeMapper.insert(entity);
-        return new ResourceRefVO(entity.getId(), entity.getTitle());
+        return creativeConverter.toRef(entity);
     }
 
     @Override
@@ -55,7 +47,7 @@ public class CreativeServiceImpl implements CreativeService {
         CreativeEntity entity = getCreativeOrThrow(id);
         entity.setAuditStatus(request.auditStatus());
         creativeMapper.updateById(entity);
-        return toVO(creativeMapper.selectById(id));
+        return creativeConverter.toVO(creativeMapper.selectById(id));
     }
 
     @Override
@@ -66,7 +58,7 @@ public class CreativeServiceImpl implements CreativeService {
                 .eq(StringUtils.hasText(auditStatus), CreativeEntity::getAuditStatus, auditStatus)
                 .orderByDesc(CreativeEntity::getId);
         Page<CreativeEntity> result = creativeMapper.selectPage(page, query);
-        List<CreativeVO> records = result.getRecords().stream().map(this::toVO).toList();
+        List<CreativeVO> records = result.getRecords().stream().map(creativeConverter::toVO).toList();
         return PageResponse.of(result, records);
     }
 
@@ -90,20 +82,5 @@ public class CreativeServiceImpl implements CreativeService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
         }
         return entity;
-    }
-
-    private CreativeVO toVO(CreativeEntity entity) {
-        return new CreativeVO(
-                entity.getId(),
-                entity.getCampaignId(),
-                entity.getAdSlotId(),
-                entity.getTitle(),
-                entity.getDescription(),
-                entity.getImageUrl(),
-                entity.getLandingPageUrl(),
-                entity.getAuditStatus(),
-                entity.getStatus(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt());
     }
 }

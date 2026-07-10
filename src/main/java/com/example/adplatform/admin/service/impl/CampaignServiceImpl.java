@@ -2,10 +2,10 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.adplatform.admin.converter.CampaignConverter;
 import com.example.adplatform.admin.dto.CreateCampaignRequest;
 import com.example.adplatform.admin.dto.UpdateCampaignRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
-import com.example.adplatform.admin.entity.BillingType;
 import com.example.adplatform.admin.entity.CampaignEntity;
 import com.example.adplatform.admin.entity.CampaignStatus;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
@@ -31,23 +31,15 @@ public class CampaignServiceImpl implements CampaignService {
 
     private final CampaignMapper campaignMapper;
     private final AdvertiserMapper advertiserMapper;
+    private final CampaignConverter campaignConverter;
 
     @Override
     public ResourceRefVO create(CreateCampaignRequest request) {
         ensureAdvertiserEnabled(request.advertiserId());
 
-        CampaignEntity entity = new CampaignEntity();
-        entity.setAdvertiserId(request.advertiserId());
-        entity.setName(request.name());
-        entity.setBudgetTotal(request.budgetTotal());
-        entity.setBudgetDaily(request.budgetDaily());
-        entity.setBidPrice(request.bidPrice());
-        entity.setBillingType(BillingType.normalizeOrDefault(request.billingType()));
-        entity.setStartTime(request.startTime());
-        entity.setEndTime(request.endTime());
-        entity.setStatus(CampaignStatus.DRAFT.name());
+        CampaignEntity entity = campaignConverter.toEntity(request);
         campaignMapper.insert(entity);
-        return new ResourceRefVO(entity.getId(), entity.getName());
+        return campaignConverter.toRef(entity);
     }
 
     @Override
@@ -57,15 +49,9 @@ public class CampaignServiceImpl implements CampaignService {
         if (CampaignStatus.OFFLINE.name().equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "已下线的广告计划不能修改");
         }
-        entity.setName(request.name());
-        entity.setBudgetTotal(request.budgetTotal());
-        entity.setBudgetDaily(request.budgetDaily());
-        entity.setBidPrice(request.bidPrice());
-        entity.setBillingType(BillingType.normalizeOrDefault(request.billingType()));
-        entity.setStartTime(request.startTime());
-        entity.setEndTime(request.endTime());
+        campaignConverter.updateEntity(request, entity);
         campaignMapper.updateById(entity);
-        return toVO(campaignMapper.selectById(id));
+        return campaignConverter.toVO(campaignMapper.selectById(id));
     }
 
     @Override
@@ -77,7 +63,7 @@ public class CampaignServiceImpl implements CampaignService {
         }
         entity.setStatus(CampaignStatus.ONLINE.name());
         campaignMapper.updateById(entity);
-        return toVO(campaignMapper.selectById(id));
+        return campaignConverter.toVO(campaignMapper.selectById(id));
     }
 
     @Override
@@ -88,7 +74,7 @@ public class CampaignServiceImpl implements CampaignService {
         }
         entity.setStatus(CampaignStatus.PAUSED.name());
         campaignMapper.updateById(entity);
-        return toVO(campaignMapper.selectById(id));
+        return campaignConverter.toVO(campaignMapper.selectById(id));
     }
 
     @Override
@@ -96,7 +82,7 @@ public class CampaignServiceImpl implements CampaignService {
         CampaignEntity entity = getCampaignOrThrow(id);
         entity.setStatus(CampaignStatus.OFFLINE.name());
         campaignMapper.updateById(entity);
-        return toVO(campaignMapper.selectById(id));
+        return campaignConverter.toVO(campaignMapper.selectById(id));
     }
 
     @Override
@@ -107,7 +93,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .eq(StringUtils.hasText(status), CampaignEntity::getStatus, status)
                 .orderByDesc(CampaignEntity::getId);
         Page<CampaignEntity> result = campaignMapper.selectPage(page, query);
-        List<CampaignVO> records = result.getRecords().stream().map(this::toVO).toList();
+        List<CampaignVO> records = result.getRecords().stream().map(campaignConverter::toVO).toList();
         return PageResponse.of(result, records);
     }
 
@@ -127,21 +113,5 @@ public class CampaignServiceImpl implements CampaignService {
         if (advertiser.getStatus() == null || advertiser.getStatus() != CommonStatus.ENABLED) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
         }
-    }
-
-    private CampaignVO toVO(CampaignEntity entity) {
-        return new CampaignVO(
-                entity.getId(),
-                entity.getAdvertiserId(),
-                entity.getName(),
-                entity.getBudgetTotal(),
-                entity.getBudgetDaily(),
-                entity.getBidPrice(),
-                entity.getBillingType(),
-                entity.getStartTime(),
-                entity.getEndTime(),
-                entity.getStatus(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt());
     }
 }

@@ -14,6 +14,7 @@ import com.example.adplatform.admin.mapper.TargetingRuleMapper;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.delivery.converter.AdDeliveryConverter;
 import com.example.adplatform.delivery.dto.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.vo.AdDeliveryResponse;
@@ -52,12 +53,14 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final AdStatsDailyMapper adStatsDailyMapper;
     private final AdEventMapper adEventMapper;
     private final ObjectMapper objectMapper;
+    private final AdDeliveryConverter adDeliveryConverter;
 
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
         AdSlotEntity adSlot = getEnabledAdSlot(request.slotCode());
 
+        // 先按广告位召回可用素材，后续再逐个检查计划、预算、频控和定向。
         List<CreativeEntity> creatives = creativeMapper.selectList(new LambdaQueryWrapper<CreativeEntity>()
                 .eq(CreativeEntity::getAdSlotId, adSlot.getId())
                 .eq(CreativeEntity::getStatus, CommonStatus.ENABLED)
@@ -65,6 +68,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .orderByDesc(CreativeEntity::getId));
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
+        // 模拟广告系统的核心投放链路：召回候选 -> 过滤不可投广告 -> 计算分数 -> 返回 TopN。
         List<ScoredCreative> scoredCreatives = creatives.stream()
                 .map(creative -> toScoredCreative(creative, request))
                 .flatMap(List::stream)
@@ -90,6 +94,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
     private List<ScoredCreative> toScoredCreative(CreativeEntity creative, AdDeliveryRequest request) {
         CampaignEntity campaign = campaignMapper.selectById(creative.getCampaignId());
+        // 只有上线、在投放时间内、预算未超、未超过用户频控且命中定向的素材才进入排序。
         if (!isCampaignDeliverable(campaign)) {
             return List.of();
         }
@@ -117,6 +122,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
     private boolean isBudgetExceeded(CampaignEntity campaign) {
         LocalDate today = LocalDate.now();
+        // 投放前先看历史消耗，避免继续返回已经超出日预算或总预算的广告。
         long dailyCost = adStatsDailyMapper.sumCostByCampaignOnDate(today, campaign.getId());
         long totalCost = adStatsDailyMapper.sumCostByCampaign(campaign.getId());
         return dailyCost >= campaign.getBudgetDaily() || totalCost >= campaign.getBudgetTotal();
@@ -196,6 +202,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
     private double calculateScore(CampaignEntity campaign) {
         double ctr = readCtr(campaign.getId());
+        // 简化版 eCPM 排序：出价权重最高，CTR 和默认质量分用于模拟广告效果因素。
         return campaign.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
     }
 
@@ -210,18 +217,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     }
 
     private AdItemVO toAdItemVO(ScoredCreative item) {
-        CreativeEntity creative = item.creative();
-        CampaignEntity campaign = item.campaign();
-        return new AdItemVO(
-                campaign.getId(),
-                creative.getId(),
-                creative.getAdSlotId(),
-                creative.getTitle(),
-                creative.getDescription(),
-                creative.getImageUrl(),
-                creative.getLandingPageUrl(),
-                campaign.getBidPrice(),
-                item.score());
+        return adDeliveryConverter.toAdItemVO(item.creative(), item.campaign(), item.score());
     }
 
     private record ScoredCreative(

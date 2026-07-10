@@ -2,12 +2,12 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.adplatform.admin.converter.AdSlotConverter;
 import com.example.adplatform.admin.dto.CreateAdSlotRequest;
 import com.example.adplatform.admin.entity.AdSlotEntity;
 import com.example.adplatform.admin.mapper.AdSlotMapper;
 import com.example.adplatform.admin.service.AdSlotService;
 import com.example.adplatform.admin.vo.AdSlotVO;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
@@ -24,22 +24,17 @@ import java.util.List;
 public class AdSlotServiceImpl implements AdSlotService {
 
     private final AdSlotMapper adSlotMapper;
+    private final AdSlotConverter adSlotConverter;
 
     @Override
     public ResourceRefVO create(CreateAdSlotRequest request) {
-        AdSlotEntity entity = new AdSlotEntity();
-        entity.setSlotCode(request.slotCode());
-        entity.setName(request.name());
-        entity.setWidth(request.width());
-        entity.setHeight(request.height());
-        entity.setScene(request.scene());
-        entity.setStatus(CommonStatus.ENABLED);
+        AdSlotEntity entity = adSlotConverter.toEntity(request);
         try {
             adSlotMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
-        return new ResourceRefVO(entity.getId(), entity.getSlotCode());
+        return adSlotConverter.toRef(entity);
     }
 
     @Override
@@ -50,20 +45,7 @@ public class AdSlotServiceImpl implements AdSlotService {
                 .eq(status != null, AdSlotEntity::getStatus, status)
                 .orderByDesc(AdSlotEntity::getId);
         Page<AdSlotEntity> result = adSlotMapper.selectPage(page, query);
-        List<AdSlotVO> records = result.getRecords().stream().map(this::toVO).toList();
+        List<AdSlotVO> records = result.getRecords().stream().map(adSlotConverter::toVO).toList();
         return PageResponse.of(result, records);
-    }
-
-    private AdSlotVO toVO(AdSlotEntity entity) {
-        return new AdSlotVO(
-                entity.getId(),
-                entity.getSlotCode(),
-                entity.getName(),
-                entity.getWidth(),
-                entity.getHeight(),
-                entity.getScene(),
-                entity.getStatus(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt());
     }
 }

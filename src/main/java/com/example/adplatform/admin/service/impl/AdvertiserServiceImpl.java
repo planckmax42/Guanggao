@@ -2,12 +2,12 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.adplatform.admin.converter.AdvertiserConverter;
 import com.example.adplatform.admin.dto.CreateAdvertiserRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.service.AdvertiserService;
 import com.example.adplatform.admin.vo.AdvertiserVO;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
@@ -24,21 +24,17 @@ import java.util.List;
 public class AdvertiserServiceImpl implements AdvertiserService {
 
     private final AdvertiserMapper advertiserMapper;
+    private final AdvertiserConverter advertiserConverter;
 
     @Override
     public ResourceRefVO create(CreateAdvertiserRequest request) {
-        AdvertiserEntity entity = new AdvertiserEntity();
-        entity.setName(request.name());
-        entity.setIndustry(request.industry());
-        entity.setContactName(request.contactName());
-        entity.setContactEmail(request.contactEmail());
-        entity.setStatus(CommonStatus.ENABLED);
+        AdvertiserEntity entity = advertiserConverter.toEntity(request);
         try {
             advertiserMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告主名称已存在");
         }
-        return new ResourceRefVO(entity.getId(), entity.getName());
+        return advertiserConverter.toRef(entity);
     }
 
     @Override
@@ -49,19 +45,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
                 .eq(status != null, AdvertiserEntity::getStatus, status)
                 .orderByDesc(AdvertiserEntity::getId);
         Page<AdvertiserEntity> result = advertiserMapper.selectPage(page, query);
-        List<AdvertiserVO> records = result.getRecords().stream().map(this::toVO).toList();
+        List<AdvertiserVO> records = result.getRecords().stream().map(advertiserConverter::toVO).toList();
         return PageResponse.of(result, records);
-    }
-
-    private AdvertiserVO toVO(AdvertiserEntity entity) {
-        return new AdvertiserVO(
-                entity.getId(),
-                entity.getName(),
-                entity.getIndustry(),
-                entity.getContactName(),
-                entity.getContactEmail(),
-                entity.getStatus(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt());
     }
 }

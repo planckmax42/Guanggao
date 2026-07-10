@@ -8,6 +8,7 @@ import com.example.adplatform.admin.mapper.CreativeMapper;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.report.mapper.AdStatsDailyMapper;
+import com.example.adplatform.tracking.converter.AdEventConverter;
 import com.example.adplatform.tracking.dto.AdEventRequest;
 import com.example.adplatform.tracking.entity.AdEventEntity;
 import com.example.adplatform.tracking.entity.AdEventType;
@@ -26,13 +27,11 @@ import java.time.LocalDateTime;
 @Service
 public class AdEventServiceImpl implements AdEventService {
 
-    private static final int CHARGED = 1;
-    private static final int NOT_CHARGED = 0;
-
     private final AdEventMapper adEventMapper;
     private final AdStatsDailyMapper adStatsDailyMapper;
     private final CampaignMapper campaignMapper;
     private final CreativeMapper creativeMapper;
+    private final AdEventConverter adEventConverter;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -45,17 +44,27 @@ public class AdEventServiceImpl implements AdEventService {
         LocalDateTime eventTime = request.eventTime() == null ? LocalDateTime.now() : request.eventTime();
         LocalDate statDate = eventTime.toLocalDate();
         String billingType = BillingType.normalizeOrDefault(campaign.getBillingType());
+        // 根据计划计费方式判断本次事件是否应该产生扣费，再校验预算是否足够。
         long costAmount = calculateCost(campaign, billingType, eventType, statDate);
         boolean charged = costAmount > 0 && canCharge(campaign, statDate, costAmount);
         long finalCostAmount = charged ? costAmount : 0L;
 
-        AdEventEntity event = buildEvent(request, eventType, creative, billingType, charged, finalCostAmount, eventTime);
+        AdEventEntity event = adEventConverter.toEntity(
+                request,
+                eventType,
+                creative,
+                billingType,
+                charged,
+                finalCostAmount,
+                eventTime);
         try {
             adEventMapper.insert(event);
         } catch (DuplicateKeyException ex) {
+            // event_id 有唯一索引，重复上报直接返回幂等结果，不重复累计统计和扣费。
             return duplicateResponse(request.eventId(), eventType);
         }
 
+        // 写入原始事件成功后，同步累加日统计表，报表接口可以直接查询聚合结果。
         adStatsDailyMapper.upsertIncrement(
                 statDate,
                 campaign.getId(),
@@ -105,6 +114,7 @@ public class AdEventServiceImpl implements AdEventService {
     }
 
     private long calculateCost(CampaignEntity campaign, String billingType, AdEventType eventType, LocalDate statDate) {
+        // CPC/CPA 是单事件扣费，CPM 是每满 1000 次曝光扣一次出价。
         if (BillingType.CPC.name().equals(billingType) && eventType == AdEventType.CLICK) {
             return campaign.getBidPrice();
         }
@@ -123,28 +133,5 @@ public class AdEventServiceImpl implements AdEventService {
         long totalCost = adStatsDailyMapper.sumCostByCampaign(campaign.getId());
         return dailyCost + costAmount <= campaign.getBudgetDaily()
                 && totalCost + costAmount <= campaign.getBudgetTotal();
-    }
-
-    private AdEventEntity buildEvent(
-            AdEventRequest request,
-            AdEventType eventType,
-            CreativeEntity creative,
-            String billingType,
-            boolean charged,
-            long costAmount,
-            LocalDateTime eventTime) {
-        AdEventEntity event = new AdEventEntity();
-        event.setEventId(request.eventId());
-        event.setRequestId(request.requestId());
-        event.setEventType(eventType.name());
-        event.setCampaignId(request.campaignId());
-        event.setCreativeId(request.creativeId());
-        event.setAdSlotId(creative.getAdSlotId());
-        event.setUserId(request.userId());
-        event.setBillingType(billingType);
-        event.setCharged(charged ? CHARGED : NOT_CHARGED);
-        event.setCostAmount(costAmount);
-        event.setEventTime(eventTime);
-        return event;
     }
 }

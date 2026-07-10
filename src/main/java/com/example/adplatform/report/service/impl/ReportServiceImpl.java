@@ -3,6 +3,7 @@ package com.example.adplatform.report.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.report.converter.ReportConverter;
 import com.example.adplatform.report.entity.AdStatsDailyEntity;
 import com.example.adplatform.report.mapper.AdStatsDailyMapper;
 import com.example.adplatform.report.service.ReportService;
@@ -26,6 +27,7 @@ public class ReportServiceImpl implements ReportService {
     private static final int MAX_TOP_LIMIT = 50;
 
     private final AdStatsDailyMapper adStatsDailyMapper;
+    private final ReportConverter reportConverter;
 
     @Override
     public List<DailyStatsVO> daily(LocalDate statDate, Long campaignId) {
@@ -35,7 +37,7 @@ public class ReportServiceImpl implements ReportService {
                 .orderByDesc(AdStatsDailyEntity::getCostAmount)
                 .orderByDesc(AdStatsDailyEntity::getClickCount);
         return adStatsDailyMapper.selectList(query).stream()
-                .map(this::toDailyStatsVO)
+                .map(reportConverter::toDailyStatsVO)
                 .toList();
     }
 
@@ -90,20 +92,6 @@ public class ReportServiceImpl implements ReportService {
                         .thenComparing(TopCreativeVO::impressionCount, Comparator.reverseOrder()))
                 .limit(actualLimit)
                 .toList();
-    }
-
-    private DailyStatsVO toDailyStatsVO(AdStatsDailyEntity entity) {
-        return new DailyStatsVO(
-                entity.getStatDate(),
-                entity.getCampaignId(),
-                entity.getCreativeId(),
-                entity.getAdSlotId(),
-                entity.getImpressionCount(),
-                entity.getClickCount(),
-                entity.getConversionCount(),
-                entity.getCostAmount(),
-                divide(entity.getClickCount(), entity.getImpressionCount()),
-                divide(entity.getConversionCount(), entity.getClickCount()));
     }
 
     private double divide(long numerator, long denominator) {

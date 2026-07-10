@@ -10,6 +10,10 @@ import java.time.LocalDate;
 
 public interface AdStatsDailyMapper extends BaseMapper<AdStatsDailyEntity> {
 
+    /**
+     * 统计表按“日期 + 计划 + 素材 + 广告位”做唯一约束。
+     * 如果记录不存在则插入，存在则在原值基础上累加，保证事件上报后可以实时更新报表。
+     */
     @Insert("""
             INSERT INTO ad_stats_daily
                 (stat_date, campaign_id, creative_id, ad_slot_id,
