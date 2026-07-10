@@ -31,6 +31,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -150,7 +151,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
         // 模拟广告系统的核心投放链路：召回候选 -> 过滤不可投广告 -> 计算分数 -> 返回 TopN。
         scoredCreatives = scoredCreatives.stream()
-                .sorted((left, right) -> Double.compare(right.score(), left.score()))
+                .sorted(Comparator.comparingDouble(ScoredCreative::score).reversed())
                 .limit(limit)
                 .toList();
 
