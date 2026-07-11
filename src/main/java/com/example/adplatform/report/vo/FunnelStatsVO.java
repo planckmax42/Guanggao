@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public record FunnelStatsVO(
         LocalDate startDate,
         LocalDate endDate,
-        Long campaignId,
+        Long planId,
         Long impressionCount,
         Long clickCount,
         Long conversionCount,

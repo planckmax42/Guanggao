@@ -2,11 +2,11 @@
 
 ## 运行前准备
 
-1. 先启动本地 MySQL 和 Spring Boot 服务。当前压测脚本针对现有 MySQL 同步版业务，不要求 Redis、Kafka、Elasticsearch。
-2. 执行项目 SQL 初始化脚本，建议先执行 `99-seed-demo-data.sql`，保证存在固定测试数据：
+1. 先启动本地 MySQL、Redis、Kafka 和 Spring Boot 服务。当前事件采集接口会先写 Kafka，再由消费者异步写入明细和实时统计。
+2. 表结构已统一为新命名，建议先重建本地库，再按顺序执行 `00-create-database.sql`、`01-admin-schema.sql`、`02-delivery-schema.sql`、`04-tracking-report-schema.sql`、`99-seed-demo-data.sql`，保证存在固定测试数据：
    - 广告位：`HOME_BANNER`、`FEED_CARD`、`SEARCH_TEXT`
-   - 在线计划：`campaignId=1`、`campaignId=2`
-   - 已审核素材：`creativeId=1`、`creativeId=2`、`creativeId=3`、`creativeId=4`
+   - 在线计划：`planId=1`、`planId=2`
+   - 已审核素材：`materialId=1`、`materialId=2`、`materialId=3`、`materialId=4`
 3. 确认接口可访问：
 
 ```bash
@@ -43,8 +43,8 @@ jmeter -n \
 ## 重点观察的问题
 
 - 投放接口是否因为循环查询计划、定向、预算、频控出现 RT 升高，即 N+1 查询问题。
-- 事件采集接口同步写 `ad_event` 和 `ad_stats_daily` 时，高并发下是否拖慢请求。
-- `ad_stats_daily` 的 `ON DUPLICATE KEY UPDATE` 在热点计划/素材上是否出现锁竞争。
+- 事件采集接口写 Kafka 是否稳定，消费者是否能持续处理消息。
+- Redis 实时统计刷入 `daily_report` 时，热点计划/素材是否出现锁竞争。
 - 重复事件压测下，`event_id` 唯一索引是否能正确兜底，接口是否返回成功但 `duplicate=true`。
 - Hikari 连接池默认 `maximum-pool-size=10`，高并发时是否出现等待连接导致响应时间上升。
 - 报表接口在事件写入同时查询时，是否出现响应时间抖动。
@@ -55,4 +55,4 @@ jmeter -n \
 2. 将 `deliveryThreads` 提高到 100 以上，观察投放接口 P95/P99。
 3. 将 `eventThreads` 提高到 100 以上，观察事件接口和 MySQL CPU/连接数。
 4. 单独启用重复事件线程组，观察幂等处理是否稳定。
-5. 后续引入 Redis/Kafka/Elasticsearch 后，再用同一套压测维度对比改造前后的吞吐量和 P95/P99。
+5. 后续引入 Elasticsearch/ClickHouse 后，再用同一套压测维度对比分析型存储改造前后的吞吐量和 P95/P99。

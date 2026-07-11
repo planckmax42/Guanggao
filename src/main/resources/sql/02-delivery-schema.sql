@@ -4,12 +4,12 @@ SET @column_exists := (
     SELECT COUNT(*)
     FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'ad_creative'
-      AND COLUMN_NAME = 'ad_slot_id'
+      AND TABLE_NAME = 'material'
+      AND COLUMN_NAME = 'slot_id'
 );
 SET @add_column_sql := IF(
     @column_exists = 0,
-    'ALTER TABLE ad_creative ADD COLUMN ad_slot_id BIGINT NULL AFTER campaign_id',
+    'ALTER TABLE material ADD COLUMN slot_id BIGINT NULL AFTER plan_id',
     'SELECT 1'
 );
 PREPARE add_column_stmt FROM @add_column_sql;
@@ -20,12 +20,12 @@ SET @index_exists := (
     SELECT COUNT(*)
     FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'ad_creative'
-      AND INDEX_NAME = 'idx_creative_slot_status_audit'
+      AND TABLE_NAME = 'material'
+      AND INDEX_NAME = 'idx_material_slot_status_audit'
 );
 SET @add_index_sql := IF(
     @index_exists = 0,
-    'CREATE INDEX idx_creative_slot_status_audit ON ad_creative (ad_slot_id, status, audit_status)',
+    'CREATE INDEX idx_material_slot_status_audit ON material (slot_id, status, audit_status)',
     'SELECT 1'
 );
 PREPARE add_index_stmt FROM @add_index_sql;

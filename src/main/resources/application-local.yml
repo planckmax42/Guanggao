@@ -32,14 +32,14 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: ad-platform-tracking
+      group-id: tracking-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       auto-offset-reset: earliest
       properties:
         spring.json.trusted.packages: com.example.adplatform.*
         spring.json.use.type.headers: false
-        spring.json.value.default.type: com.example.adplatform.tracking.message.AdEventMessage
+        spring.json.value.default.type: com.example.adplatform.tracking.message.EventMessage
     listener:
       concurrency: 3
 
@@ -52,4 +52,4 @@ app:
     flush-initial-delay-ms: 10000
   kafka:
     topics:
-      ad-event: ad-event-topic
+      event: event-topic

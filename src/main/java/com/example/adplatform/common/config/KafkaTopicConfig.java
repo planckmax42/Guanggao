@@ -10,7 +10,7 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaTopicConfig {
 
     @Bean
-    public NewTopic adEventTopic(@Value("${app.kafka.topics.ad-event}") String topicName) {
+    public NewTopic eventTopic(@Value("${app.kafka.topics.event}") String topicName) {
         return TopicBuilder.name(topicName)
                 .partitions(3)
                 .replicas(1)

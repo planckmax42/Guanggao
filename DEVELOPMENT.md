@@ -223,23 +223,23 @@ ad-platform
 
 核心表：
 
-- `advertiser`
-- `ad_campaign`
-- `ad_creative`
-- `ad_targeting_rule`
-- `ad_slot`
+- `user`
+- `slot`
+- `plan`
+- `material`
+- `rule`
 
 接口：
 
-- `POST /api/admin/advertisers`
-- `GET /api/admin/advertisers/page`
-- `POST /api/admin/campaigns`
-- `PUT /api/admin/campaigns/{id}`
-- `PUT /api/admin/campaigns/{id}/online`
-- `PUT /api/admin/campaigns/{id}/pause`
-- `POST /api/admin/creatives`
-- `PUT /api/admin/creatives/{id}/audit`
-- `POST /api/admin/targeting-rules`
+- `POST /api/admin/users`
+- `GET /api/admin/users/page`
+- `POST /api/admin/plans`
+- `PUT /api/admin/plans/{id}`
+- `PUT /api/admin/plans/{id}/online`
+- `PUT /api/admin/plans/{id}/pause`
+- `POST /api/admin/materials`
+- `PUT /api/admin/materials/{id}/audit`
+- `POST /api/admin/rules`
 
 验收标准：
 
@@ -301,16 +301,16 @@ score = bidPrice * 0.7 + ctrScore * 0.2 + qualityScore * 0.1
 任务：
 
 - 给广告计划增加 `billing_type`
-- 新建 `ad_event` 原始事件表
-- 新建 `ad_stats_daily` 日统计表
+- 新建 `event` 原始事件表
+- 新建 `daily_report` 日统计表
 - 实现统一事件上报接口
 - 根据 `eventId` 做幂等去重
 - 根据计费方式计算费用
 - 根据总预算和日预算判断是否允许扣费
 - 同步累加曝光、点击、转化和消耗
 - 提供日统计、漏斗统计和素材排行查询接口
-- 投放接口通过 `ad_stats_daily` 判断预算和 CTR
-- 投放接口通过 `ad_event` 中的真实曝光事件判断用户频控
+- 投放接口通过 `daily_report` 判断预算和 CTR
+- 投放接口通过 `event` 中的真实曝光事件判断用户频控
 
 计费规则第一版：
 
@@ -325,7 +325,7 @@ CPA：转化事件扣 bid_price
 - `POST /api/tracking/events`
 - `GET /api/report/daily`
 - `GET /api/report/funnel`
-- `GET /api/report/top-creatives`
+- `GET /api/report/top-materials`
 
 验收标准：
 
@@ -358,12 +358,12 @@ CPA：转化事件扣 bid_price
 核心 Key：
 
 ```text
-ad:delivery:candidates:{slotCode}
-ad:stats:rt:{yyyyMMdd}:{campaignId}
-ad:creative:stats:rt:{yyyyMMdd}:{creativeId}
-ad:freq:user:{userId}:{campaignId}:{yyyyMMdd}
-ad:dedup:click:{userId}:{creativeId}:{yyyyMMdd}
-ad:budget:daily:{yyyyMMdd}:{campaignId}
+delivery:candidates:{slotCode}
+stats:rt:{yyyyMMdd}:{planId}
+material:stats:rt:{yyyyMMdd}:{materialId}
+freq:viewer:{viewerId}:{planId}:{yyyyMMdd}
+dedup:click:{viewerId}:{materialId}:{yyyyMMdd}
+budget:daily:{yyyyMMdd}:{planId}
 rate:api:{apiName}:{ip}:{timestampSecond}
 ```
 
@@ -402,7 +402,7 @@ ad-event
 - 事件接口快速返回
 - Kafka 能收到消息
 - Consumer 能正常消费
-- `ad_event` 表有事件记录
+- `event` 表有事件记录
 - Redis 实时统计同步增加
 - 重复 eventId 不会重复落库
 
@@ -426,7 +426,7 @@ ad-event
 
 - `GET /api/report/realtime`
 - `GET /api/report/daily`
-- `GET /api/report/top-creatives`
+- `GET /api/report/top-materials`
 - `GET /api/report/funnel`
 
 验收标准：
@@ -455,14 +455,14 @@ ad-event
 索引：
 
 ```text
-ad_creative_index
-ad_event_index_yyyyMMdd
+material_index
+event_index_yyyyMMdd
 ad_stats_index
 ```
 
 接口：
 
-- `GET /api/search/creatives`
+- `GET /api/search/materials`
 - `GET /api/search/events`
 
 验收标准：
@@ -661,8 +661,8 @@ private static final Logger log = LoggerFactory.getLogger(Xxx.class);
 
 - `requestId`
 - `eventId`
-- `campaignId`
-- `creativeId`
+- `planId`
+- `materialId`
 - 错误原因
 
 禁止记录：
@@ -703,7 +703,7 @@ infra.redis.RedisKeyConstants
 Key 必须包含业务前缀：
 
 ```text
-ad:stats:rt:{date}:{campaignId}
+stats:rt:{date}:{planId}
 ```
 
 需要设置 TTL 的 Key 必须明确过期时间。
@@ -721,9 +721,9 @@ infra.kafka.KafkaTopicConstants
 - `eventId`
 - `eventType`
 - `requestId`
-- `campaignId`
-- `creativeId`
-- `userId`
+- `planId`
+- `materialId`
+- `viewerId`
 - `eventTime`
 
 消费者必须考虑：
@@ -749,8 +749,8 @@ infra.kafka.KafkaTopicConstants
 
 关键唯一约束：
 
-- `ad_event.event_id`
-- `ad_stats_daily(stat_date, campaign_id, creative_id)`
+- `event.event_id`
+- `daily_report(stat_date, plan_id, material_id)`
 
 ### 6.11 Elasticsearch 使用规范
 
@@ -815,7 +815,7 @@ type: description
 示例：
 
 ```text
-feat: add campaign management api
+feat: add plan management api
 docs: add development plan
 fix: handle duplicated ad event consumption
 ```

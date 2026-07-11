@@ -1,16 +1,16 @@
 package com.example.adplatform.delivery.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.adplatform.admin.entity.AdSlotEntity;
-import com.example.adplatform.admin.entity.CampaignEntity;
-import com.example.adplatform.admin.entity.CampaignStatus;
-import com.example.adplatform.admin.entity.CreativeAuditStatus;
-import com.example.adplatform.admin.entity.CreativeEntity;
-import com.example.adplatform.admin.entity.TargetingRuleEntity;
-import com.example.adplatform.admin.mapper.AdSlotMapper;
-import com.example.adplatform.admin.mapper.CampaignMapper;
-import com.example.adplatform.admin.mapper.CreativeMapper;
-import com.example.adplatform.admin.mapper.TargetingRuleMapper;
+import com.example.adplatform.admin.entity.SlotEntity;
+import com.example.adplatform.admin.entity.PlanEntity;
+import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.entity.MaterialAuditStatus;
+import com.example.adplatform.admin.entity.MaterialEntity;
+import com.example.adplatform.admin.entity.RuleEntity;
+import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.mapper.PlanMapper;
+import com.example.adplatform.admin.mapper.MaterialMapper;
+import com.example.adplatform.admin.mapper.RuleMapper;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
@@ -19,8 +19,8 @@ import com.example.adplatform.delivery.dto.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.vo.AdDeliveryResponse;
 import com.example.adplatform.delivery.vo.AdItemVO;
-import com.example.adplatform.report.mapper.AdStatsDailyMapper;
-import com.example.adplatform.tracking.mapper.AdEventMapper;
+import com.example.adplatform.report.mapper.DailyReportMapper;
+import com.example.adplatform.tracking.mapper.EventMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,61 +47,61 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final int MAX_FREQUENCY_PER_USER_DAY = 5;
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
-    private final AdSlotMapper adSlotMapper;
-    private final CreativeMapper creativeMapper;
-    private final CampaignMapper campaignMapper;
-    private final TargetingRuleMapper targetingRuleMapper;
-    private final AdStatsDailyMapper adStatsDailyMapper;
-    private final AdEventMapper adEventMapper;
+    private final SlotMapper slotMapper;
+    private final MaterialMapper materialMapper;
+    private final PlanMapper planMapper;
+    private final RuleMapper ruleMapper;
+    private final DailyReportMapper dailyReportMapper;
+    private final EventMapper eventMapper;
     private final ObjectMapper objectMapper;
     private final AdDeliveryConverter adDeliveryConverter;
 
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        AdSlotEntity adSlot = adSlotMapper.selectOne(new LambdaQueryWrapper<AdSlotEntity>()
-                .eq(AdSlotEntity::getSlotCode, request.slotCode())
-                .eq(AdSlotEntity::getStatus, CommonStatus.ENABLED));
-        if (adSlot == null) {
+        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getSlotCode, request.slotCode())
+                .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
+        if (slot == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
         }
 
         // 先按广告位召回可用素材，后续再逐个检查计划、预算、频控和定向。
-        List<CreativeEntity> creatives = creativeMapper.selectList(new LambdaQueryWrapper<CreativeEntity>()
-                .eq(CreativeEntity::getAdSlotId, adSlot.getId())
-                .eq(CreativeEntity::getStatus, CommonStatus.ENABLED)
-                .eq(CreativeEntity::getAuditStatus, CreativeAuditStatus.APPROVED.name())
-                .orderByDesc(CreativeEntity::getId));
+        List<MaterialEntity> materials = materialMapper.selectList(new LambdaQueryWrapper<MaterialEntity>()
+                .eq(MaterialEntity::getSlotId, slot.getId())
+                .eq(MaterialEntity::getStatus, CommonStatus.ENABLED)
+                .eq(MaterialEntity::getAuditStatus, MaterialAuditStatus.APPROVED.name())
+                .orderByDesc(MaterialEntity::getId));
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
-        List<ScoredCreative> scoredCreatives = new ArrayList<>();
+        List<ScoredMaterial> scoredMaterials = new ArrayList<>();
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
 
-        for (CreativeEntity creative : creatives) {
-            CampaignEntity campaign = campaignMapper.selectById(creative.getCampaignId());
+        for (MaterialEntity material : materials) {
+            PlanEntity plan = planMapper.selectById(material.getPlanId());
 
             // 计划必须上线且处于投放时间内。
-            if (campaign == null || !CampaignStatus.ONLINE.name().equals(campaign.getStatus())) {
+            if (plan == null || !PlanStatus.ONLINE.name().equals(plan.getStatus())) {
                 continue;
             }
-            if (now.isBefore(campaign.getStartTime()) || now.isAfter(campaign.getEndTime())) {
+            if (now.isBefore(plan.getStartTime()) || now.isAfter(plan.getEndTime())) {
                 continue;
             }
 
             // 预算不足的广告不再返回，避免后续曝光/点击继续扩大消耗。
-            long dailyCost = adStatsDailyMapper.sumCostByCampaignOnDate(today, campaign.getId());
-            long totalCost = adStatsDailyMapper.sumCostByCampaign(campaign.getId());
-            if (dailyCost >= campaign.getBudgetDaily() || totalCost >= campaign.getBudgetTotal()) {
+            long dailyCost = dailyReportMapper.sumCostByPlanOnDate(today, plan.getId());
+            long totalCost = dailyReportMapper.sumCostByPlan(plan.getId());
+            if (dailyCost >= plan.getBudgetDaily() || totalCost >= plan.getBudgetTotal()) {
                 continue;
             }
 
             // 简化版用户频控：同一用户每天最多看到同一个计划 5 次。
             LocalDateTime dayStart = today.atStartOfDay();
             LocalDateTime dayEnd = dayStart.plusDays(1);
-            long impressions = adEventMapper.countUserCampaignImpressions(
-                    request.userId(),
-                    campaign.getId(),
+            long impressions = eventMapper.countViewerPlanImpressions(
+                    request.viewerId(),
+                    plan.getId(),
                     dayStart,
                     dayEnd);
             if (impressions >= MAX_FREQUENCY_PER_USER_DAY) {
@@ -109,8 +109,8 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             }
 
             // 定向规则为空表示不限；存在规则时，地域、设备、性别、年龄、标签都要通过。
-            TargetingRuleEntity rule = targetingRuleMapper.selectOne(new LambdaQueryWrapper<TargetingRuleEntity>()
-                    .eq(TargetingRuleEntity::getCampaignId, campaign.getId()));
+            RuleEntity rule = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
+                    .eq(RuleEntity::getPlanId, plan.getId()));
             if (rule != null) {
                 boolean regionMatched = matchesList(rule.getRegion(), request.region());
                 boolean deviceMatched = matchesList(rule.getDeviceType(), request.deviceType());
@@ -139,26 +139,26 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 }
             }
 
-            long campaignImpressions = adStatsDailyMapper.sumImpressionsByCampaign(today, campaign.getId());
-            long campaignClicks = adStatsDailyMapper.sumClicksByCampaign(today, campaign.getId());
-            double ctr = campaignImpressions <= 0
+            long planImpressions = dailyReportMapper.sumImpressionsByPlan(today, plan.getId());
+            long planClicks = dailyReportMapper.sumClicksByPlan(today, plan.getId());
+            double ctr = planImpressions <= 0
                     ? 0.02D
-                    : Math.min((double) campaignClicks / campaignImpressions, 1D);
+                    : Math.min((double) planClicks / planImpressions, 1D);
             // 简化版 eCPM 排序：出价权重最高，CTR 和默认质量分用于模拟广告效果因素。
-            double score = campaign.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
-            scoredCreatives.add(new ScoredCreative(creative, campaign, score));
+            double score = plan.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
+            scoredMaterials.add(new ScoredMaterial(material, plan, score));
         }
 
         // 模拟广告系统的核心投放链路：召回候选 -> 过滤不可投广告 -> 计算分数 -> 返回 TopN。
-        scoredCreatives = scoredCreatives.stream()
-                .sorted(Comparator.comparingDouble(ScoredCreative::score).reversed())
+        scoredMaterials = scoredMaterials.stream()
+                .sorted(Comparator.comparingDouble(ScoredMaterial::score).reversed())
                 .limit(limit)
                 .toList();
 
-        List<AdItemVO> ads = scoredCreatives.stream()
-                .map(item -> adDeliveryConverter.toAdItemVO(item.creative(), item.campaign(), item.score()))
+        List<AdItemVO> ads = scoredMaterials.stream()
+                .map(item -> adDeliveryConverter.toAdItemVO(item.material(), item.plan(), item.score()))
                 .toList();
-        return new AdDeliveryResponse(requestId, creatives.size(), ads.size(), ads);
+        return new AdDeliveryResponse(requestId, materials.size(), ads.size(), ads);
     }
 
     private boolean matchesList(String ruleValue, String requestValue) {
@@ -184,9 +184,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         }
     }
 
-    private record ScoredCreative(
-            CreativeEntity creative,
-            CampaignEntity campaign,
+    private record ScoredMaterial(
+            MaterialEntity material,
+            PlanEntity plan,
             double score) {
     }
 }

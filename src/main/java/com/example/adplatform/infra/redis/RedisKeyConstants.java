@@ -10,23 +10,23 @@ public final class RedisKeyConstants {
     private RedisKeyConstants() {
     }
 
-    public static String userCampaignFrequency(Long userId, Long campaignId, LocalDate date) {
-        return "ad:freq:user:%d:%d:%s".formatted(userId, campaignId, BASIC_DATE.format(date));
+    public static String viewerPlanFrequency(Long viewerId, Long planId, LocalDate date) {
+        return "freq:viewer:%d:%d:%s".formatted(viewerId, planId, BASIC_DATE.format(date));
     }
 
-    public static String campaignDailyBudget(LocalDate date, Long campaignId) {
-        return "ad:budget:daily:%s:%d".formatted(BASIC_DATE.format(date), campaignId);
+    public static String planDailyBudget(LocalDate date, Long planId) {
+        return "budget:daily:%s:%d".formatted(BASIC_DATE.format(date), planId);
     }
 
-    public static String realtimeCampaignStats(LocalDate date, Long campaignId) {
-        return "ad:stats:rt:%s:%d".formatted(BASIC_DATE.format(date), campaignId);
+    public static String realtimePlanStats(LocalDate date, Long planId) {
+        return "stats:rt:%s:%d".formatted(BASIC_DATE.format(date), planId);
     }
 
-    public static String dailyStats(LocalDate date, Long campaignId, Long creativeId, Long adSlotId) {
-        return "ad:stats:daily:%s:%d:%d:%d".formatted(BASIC_DATE.format(date), campaignId, creativeId, adSlotId);
+    public static String dailyStats(LocalDate date, Long planId, Long materialId, Long slotId) {
+        return "stats:daily:%s:%d:%d:%d".formatted(BASIC_DATE.format(date), planId, materialId, slotId);
     }
 
     public static String dailyStatsDirtySet(LocalDate date) {
-        return "ad:stats:dirty:%s".formatted(BASIC_DATE.format(date));
+        return "stats:dirty:%s".formatted(BASIC_DATE.format(date));
     }
 }
