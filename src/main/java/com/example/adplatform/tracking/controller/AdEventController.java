@@ -19,7 +19,7 @@ public class AdEventController {
     private final AdEventService adEventService;
 
     /**
-     * 接收曝光、点击、转化事件，并同步完成去重、计费和日统计累加。
+     * 接收曝光、点击、转化事件，写入 Kafka 后立即返回；明细入库和统计累加由消费者异步完成。
      */
     @PostMapping
     public Result<AdEventResponse> collect(@Valid @RequestBody AdEventRequest request) {

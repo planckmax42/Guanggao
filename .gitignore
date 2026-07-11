@@ -9,3 +9,4 @@ logs/
 arthas-boot.jar
 *.jtl
 scripts/jmeter/report/
+kafka_*/

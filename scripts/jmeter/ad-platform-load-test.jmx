@@ -52,7 +52,7 @@
         </collectionProp>
       </HeaderManager>
       <hashTree/>
-      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0">
+      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0" enabled="true">
         <collectionProp name="Asserion.test_strings">
           <stringProp name="67791721">&quot;code&quot;:0</stringProp>
         </collectionProp>
@@ -99,7 +99,7 @@
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -368,7 +368,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-召回排序广告">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-召回排序广告" enabled="true">
           <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -395,7 +395,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件" enabled="true">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -410,7 +410,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件" enabled="true">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -425,7 +425,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-曝光事件">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-曝光事件" enabled="true">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
