@@ -34,22 +34,16 @@ public class AdEventServiceImpl implements AdEventService {
     private final AdEventConverter adEventConverter;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    //@Transactional(rollbackFor = Exception.class)
     public AdEventResponse collect(AdEventRequest request) {
         AdEventType eventType = AdEventType.parse(request.eventType());
         CreativeEntity creative = creativeMapper.selectById(request.creativeId());
         if (creative == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
         }
-        CampaignEntity campaign = campaignMapper.selectById(request.campaignId());
+        CampaignEntity campaign = campaignMapper.selectById(creative.getCampaignId());
         if (campaign == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-        if (!request.campaignId().equals(creative.getCampaignId())) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "广告素材不属于该广告计划");
-        }
-        if (request.adSlotId() != null && !request.adSlotId().equals(creative.getAdSlotId())) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "广告素材不属于该广告位");
         }
 
         LocalDateTime eventTime = request.eventTime() == null ? LocalDateTime.now() : request.eventTime();

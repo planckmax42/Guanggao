@@ -13,12 +13,17 @@ import java.time.LocalDateTime;
 public interface AdEventConverter {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "eventId", source = "request.eventId")
+    @Mapping(target = "requestId", source = "request.requestId")
     @Mapping(target = "eventType", expression = "java(eventType.name())")
-    @Mapping(target = "campaignId", source = "request.campaignId")
+    @Mapping(target = "campaignId", source = "creative.campaignId")
     @Mapping(target = "creativeId", source = "request.creativeId")
     @Mapping(target = "adSlotId", source = "creative.adSlotId")
     @Mapping(target = "userId", source = "request.userId")
+    @Mapping(target = "billingType", source = "billingType")
     @Mapping(target = "charged", expression = "java(charged ? 1 : 0)")
+    @Mapping(target = "costAmount", source = "costAmount")
+    @Mapping(target = "eventTime", source = "eventTime")
     @Mapping(target = "createdAt", ignore = true)
     AdEventEntity toEntity(
             AdEventRequest request,

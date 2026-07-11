@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="广告投放与实时数据分析平台-全链路压测" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="广告投放与实时数据分析平台-全链路压测">
       <stringProp name="TestPlan.comments">覆盖后台管理、广告投放、事件采集、重复事件幂等和报表查询。</stringProp>
-      <boolProp name="TestPlan.functional_mode">false</boolProp>
-      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户变量" enabled="true">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户变量">
         <collectionProp name="Arguments.arguments">
           <elementProp name="slot_1" elementType="Argument">
             <stringProp name="Argument.name">slot_1</stringProp>
@@ -24,15 +22,21 @@
           </elementProp>
         </collectionProp>
       </elementProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
     </TestPlan>
     <hashTree>
-      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP 默认配置" enabled="true">
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP 默认配置">
+        <intProp name="HTTPSampler.connect_timeout">3000</intProp>
+        <intProp name="HTTPSampler.response_timeout">10000</intProp>
         <stringProp name="HTTPSampler.domain">${__P(host,127.0.0.1)}</stringProp>
         <stringProp name="HTTPSampler.port">${__P(port,8080)}</stringProp>
         <stringProp name="HTTPSampler.protocol">http</stringProp>
         <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
-        <stringProp name="HTTPSampler.connect_timeout">3000</stringProp>
-        <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.implementation"></stringProp>
       </ConfigTestElement>
       <hashTree/>
       <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header" enabled="true">
@@ -48,9 +52,9 @@
         </collectionProp>
       </HeaderManager>
       <hashTree/>
-      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0" enabled="true">
+      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0">
         <collectionProp name="Asserion.test_strings">
-          <stringProp name="49586">&quot;code&quot;:0</stringProp>
+          <stringProp name="67791721">&quot;code&quot;:0</stringProp>
         </collectionProp>
         <stringProp name="Assertion.custom_message">接口未返回统一成功响应 code=0</stringProp>
         <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
@@ -58,7 +62,7 @@
         <intProp name="Assertion.test_type">2</intProp>
       </ResponseAssertion>
       <hashTree/>
-      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -95,7 +99,7 @@
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -132,18 +136,15 @@
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="01-后台管理完整业务流" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="01-后台管理完整业务流" enabled="false">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
-          <stringProp name="LoopController.loops">${__P(adminLoops,10)}</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(adminThreads,5)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(adminRamp,10)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
-        <stringProp name="ThreadGroup.duration"></stringProp>
-        <stringProp name="ThreadGroup.delay"></stringProp>
       </ThreadGroup>
       <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告主" enabled="true">
@@ -233,6 +234,10 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-上线广告计划" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/campaigns/${campaignId}/online</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建素材" enabled="true">
@@ -291,52 +296,79 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-查询定向规则" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/targeting-rules/${campaignId}</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告主" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/advertisers/page?current=1&amp;size=20&amp;status=1</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告位" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/ad-slots/page?current=1&amp;size=20&amp;status=1</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告计划" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/campaigns/page?current=1&amp;size=20&amp;status=ONLINE</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询素材" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/creatives/page?current=1&amp;size=20&amp;auditStatus=APPROVED</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-暂停广告计划" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/campaigns/${campaignId}/pause</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-下线广告计划" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/campaigns/${campaignId}/offline</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发" enabled="false">
+        <intProp name="ThreadGroup.num_threads">200</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
-          <stringProp name="LoopController.loops">${__P(loops,100)}</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(deliveryThreads,80)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(deliveryRamp,20)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-召回排序广告" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-召回排序广告">
           <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -352,19 +384,18 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入">
+        <intProp name="ThreadGroup.num_threads">200</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
-          <stringProp name="LoopController.loops">${__P(loops,100)}</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(eventThreads,100)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(eventRamp,20)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-曝光事件" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -372,14 +403,14 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;campaignId&quot;:1,&quot;creativeId&quot;:1,&quot;adSlotId&quot;:1,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;creativeId&quot;:3,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -387,14 +418,14 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;campaignId&quot;:2,&quot;creativeId&quot;:3,&quot;adSlotId&quot;:1,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;creativeId&quot;:3,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-曝光事件">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -402,7 +433,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;campaignId&quot;:2,&quot;creativeId&quot;:3,&quot;adSlotId&quot;:1,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;creativeId&quot;:1,&quot;userId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -410,16 +441,15 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="04-重复事件幂等冲突" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="04-重复事件幂等冲突" enabled="false">
+        <stringProp name="ThreadGroup.num_threads">${__P(duplicateThreads,30)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(duplicateRamp,5)}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
           <stringProp name="LoopController.loops">${__P(duplicateLoops,50)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(duplicateThreads,30)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(duplicateRamp,5)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
       </ThreadGroup>
       <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-重复点击事件" enabled="true">
@@ -430,7 +460,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;dup-click-${__P(runId,manual)}&quot;,&quot;requestId&quot;:&quot;req-duplicate&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;campaignId&quot;:2,&quot;creativeId&quot;:3,&quot;adSlotId&quot;:1,&quot;userId&quot;:88888}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;dup-click-${__P(runId,manual)}&quot;,&quot;requestId&quot;:&quot;req-duplicate&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;creativeId&quot;:3,&quot;userId&quot;:88888}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -438,31 +468,42 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="05-报表查询混合读" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="05-报表查询混合读" enabled="false">
+        <stringProp name="ThreadGroup.num_threads">${__P(reportThreads,20)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(reportRamp,10)}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
           <stringProp name="LoopController.loops">${__P(loops,100)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(reportThreads,20)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(reportRamp,10)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
       </ThreadGroup>
       <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-日统计" enabled="true">
           <stringProp name="HTTPSampler.path">/api/report/daily?statDate=${__time(yyyy-MM-dd,)}&amp;campaignId=2</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-漏斗统计" enabled="true">
           <stringProp name="HTTPSampler.path">/api/report/funnel?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;campaignId=2</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-素材排行" enabled="true">
           <stringProp name="HTTPSampler.path">/api/report/top-creatives?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;campaignId=2&amp;limit=10</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>

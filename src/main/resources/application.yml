@@ -9,8 +9,8 @@ server:
 
 logging:
   level:
-    root: info
-    com.example.adplatform: debug
+    root: warn
+    com.example.adplatform: warn
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

@@ -4,3 +4,8 @@ target/
 *.log
 .DS_Store
 logs/
+
+# Local diagnostics and load-test outputs
+arthas-boot.jar
+*.jtl
+scripts/jmeter/report/
