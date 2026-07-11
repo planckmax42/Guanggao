@@ -14,7 +14,7 @@ spring:
     hikari:
       pool-name: AdPlatformHikariPool
       minimum-idle: 20
-      maximum-pool-size: 50
+      maximum-pool-size: 20
       connection-timeout: 3000
   data:
     redis:
@@ -28,3 +28,6 @@ app:
   health:
     mysql-timeout-ms: 2000
     redis-timeout-ms: 2000
+  stats:
+    flush-delay-ms: 10000
+    flush-initial-delay-ms: 10000

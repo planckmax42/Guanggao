@@ -8,6 +8,7 @@ import com.example.adplatform.admin.mapper.CreativeMapper;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.report.mapper.AdStatsDailyMapper;
+import com.example.adplatform.report.service.AdStatsRedisService;
 import com.example.adplatform.tracking.converter.AdEventConverter;
 import com.example.adplatform.tracking.dto.AdEventRequest;
 import com.example.adplatform.tracking.entity.AdEventEntity;
@@ -29,12 +30,13 @@ public class AdEventServiceImpl implements AdEventService {
 
     private final AdEventMapper adEventMapper;
     private final AdStatsDailyMapper adStatsDailyMapper;
+    private final AdStatsRedisService adStatsRedisService;
     private final CampaignMapper campaignMapper;
     private final CreativeMapper creativeMapper;
     private final AdEventConverter adEventConverter;
 
     @Override
-    //@Transactional(rollbackFor = Exception.class)
+    @Transactional
     public AdEventResponse collect(AdEventRequest request) {
         AdEventType eventType = AdEventType.parse(request.eventType());
         CreativeEntity creative = creativeMapper.selectById(request.creativeId());
@@ -82,8 +84,8 @@ public class AdEventServiceImpl implements AdEventService {
             return new AdEventResponse(request.eventId(), eventType.name(), true, false, 0L, null);
         }
 
-        // 写入原始事件成功后，同步累加日统计表，报表接口可以直接查询聚合结果。
-        adStatsDailyMapper.upsertIncrement(
+        // 写入原始事件成功后，先累加 Redis 实时统计；定时任务再批量刷入 MySQL 日统计表。
+        adStatsRedisService.incrementDailyStats(
                 statDate,
                 campaign.getId(),
                 creative.getId(),
