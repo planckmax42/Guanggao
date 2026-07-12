@@ -21,6 +21,7 @@ import com.example.adplatform.infra.redis.BudgetRedisService;
 import com.example.adplatform.infra.redis.FrequencyRedisService;
 import com.example.adplatform.infra.redis.SlotCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
+import com.example.adplatform.report.vo.PlanDailyMetricVO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,8 +35,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -71,13 +75,35 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .eq(MaterialEntity::getAuditStatus, MaterialAuditStatus.APPROVED.name())
                 .orderByDesc(MaterialEntity::getId));
 
+        if (materials.isEmpty()) {
+            return new AdDeliveryResponse(requestId, 0, 0, List.of());
+        }
+
+        List<Long> planIds = materials.stream()
+                .map(MaterialEntity::getPlanId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (planIds.isEmpty()) {
+            return new AdDeliveryResponse(requestId, materials.size(), 0, List.of());
+        }
+
+        Map<Long, PlanEntity> planMap = planMapper.selectBatchIds(planIds).stream()
+                .collect(Collectors.toMap(PlanEntity::getId, Function.identity(), (left, right) -> left));
+        Map<Long, RuleEntity> ruleMap = ruleMapper.selectList(new LambdaQueryWrapper<RuleEntity>()
+                        .in(RuleEntity::getPlanId, planIds))
+                .stream()
+                .collect(Collectors.toMap(RuleEntity::getPlanId, Function.identity(), (left, right) -> left));
+
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
         List<ScoredMaterial> scoredMaterials = new ArrayList<>();
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, PlanDailyMetricVO> metricMap = dailyReportMapper.selectPlanDailyMetrics(today, planIds).stream()
+                .collect(Collectors.toMap(PlanDailyMetricVO::getPlanId, Function.identity(), (left, right) -> left));
 
         for (MaterialEntity material : materials) {
-            PlanEntity plan = planMapper.selectById(material.getPlanId()); // 循环查询计划：5 次，总耗时 69.725ms，占 15.80%。
+            PlanEntity plan = planMap.get(material.getPlanId()); // 批量查询计划后内存匹配，替代循环 selectById。
 
             // 计划必须上线且处于投放时间内。
             if (plan == null || !PlanStatus.ONLINE.name().equals(plan.getStatus())) {
@@ -102,8 +128,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             }
 
             // 定向规则为空表示不限；存在规则时，地域、设备、性别、年龄、标签都要通过。
-            RuleEntity rule = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>() // 查询计划定向规则：4 次，总耗时 138.430ms，占 31.37%。
-                    .eq(RuleEntity::getPlanId, plan.getId()));
+            RuleEntity rule = ruleMap.get(plan.getId()); // 批量查询规则后内存匹配，替代循环 selectOne。
             if (rule != null) {
                 boolean regionMatched = matchesList(rule.getRegion(), request.region());
                 boolean deviceMatched = matchesList(rule.getDeviceType(), request.deviceType());
@@ -132,8 +157,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 }
             }
 
-            long planImpressions = dailyReportMapper.sumImpressionsByPlan(today, plan.getId()); // 查询计划当日曝光数：2 次，总耗时 42.506ms，占 9.63%。
-            long planClicks = dailyReportMapper.sumClicksByPlan(today, plan.getId()); // 查询计划当日点击数：2 次，总耗时 0.590ms，占 0.13%。
+            PlanDailyMetricVO metric = metricMap.get(plan.getId()); // 批量聚合日报后内存匹配，替代循环统计曝光/点击。
+            long planImpressions = metric == null || metric.getImpressionCount() == null ? 0L : metric.getImpressionCount();
+            long planClicks = metric == null || metric.getClickCount() == null ? 0L : metric.getClickCount();
             double ctr = planImpressions <= 0
                     ? 0.02D
                     : Math.min((double) planClicks / planImpressions, 1D);

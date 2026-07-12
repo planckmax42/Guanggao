@@ -2,11 +2,13 @@ package com.example.adplatform.report.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.adplatform.report.entity.DailyReportEntity;
+import com.example.adplatform.report.vo.PlanDailyMetricVO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public interface DailyReportMapper extends BaseMapper<DailyReportEntity> {
 
@@ -59,6 +61,24 @@ public interface DailyReportMapper extends BaseMapper<DailyReportEntity> {
     long sumClicksByPlan(
             @Param("statDate") LocalDate statDate,
             @Param("planId") Long planId);
+
+    @Select("""
+            <script>
+            SELECT plan_id AS planId,
+                   COALESCE(SUM(impression_count), 0) AS impressionCount,
+                   COALESCE(SUM(click_count), 0) AS clickCount
+            FROM daily_report
+            WHERE stat_date = #{statDate}
+              AND plan_id IN
+              <foreach collection="planIds" item="planId" open="(" separator="," close=")">
+                  #{planId}
+              </foreach>
+            GROUP BY plan_id
+            </script>
+            """)
+    List<PlanDailyMetricVO> selectPlanDailyMetrics(
+            @Param("statDate") LocalDate statDate,
+            @Param("planIds") List<Long> planIds);
 
     @Select("""
             SELECT COALESCE(SUM(cost_amount), 0)
