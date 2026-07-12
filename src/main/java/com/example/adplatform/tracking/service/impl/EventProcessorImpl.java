@@ -7,12 +7,17 @@ import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.infra.redis.BudgetRedisService;
+import com.example.adplatform.infra.redis.FrequencyRedisService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.service.DailyReportRedisService;
 import com.example.adplatform.tracking.converter.EventConverter;
 import com.example.adplatform.tracking.dto.EventRequest;
+import com.example.adplatform.tracking.entity.ChargeRecordEntity;
+import com.example.adplatform.tracking.entity.ChargeStatus;
 import com.example.adplatform.tracking.entity.EventEntity;
 import com.example.adplatform.tracking.entity.EventType;
+import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventProcessor;
@@ -29,8 +34,11 @@ import java.time.LocalDateTime;
 public class EventProcessorImpl implements EventProcessor {
 
     private final EventMapper eventMapper;
+    private final ChargeRecordMapper chargeRecordMapper;
     private final DailyReportMapper dailyReportMapper;
     private final DailyReportRedisService dailyReportRedisService;
+    private final BudgetRedisService budgetRedisService;
+    private final FrequencyRedisService frequencyRedisService;
     private final PlanMapper planMapper;
     private final MaterialMapper materialMapper;
     private final EventConverter eventConverter;
@@ -54,26 +62,36 @@ public class EventProcessorImpl implements EventProcessor {
         String billingType = BillingType.normalizeOrDefault(plan.getBillingType());
         long costAmount = calculateCostAmount(eventType, plan, statDate);
 
-        long dailyCost = dailyReportMapper.sumCostByPlanOnDate(statDate, plan.getId());
-        long totalCost = dailyReportMapper.sumCostByPlan(plan.getId());
-        boolean charged = costAmount > 0
-                && dailyCost + costAmount <= plan.getBudgetDaily()
-                && totalCost + costAmount <= plan.getBudgetTotal();
-        long finalCostAmount = charged ? costAmount : 0L;
-
         EventEntity event = eventConverter.toEntity(
                 request,
                 eventType,
                 material,
                 billingType,
-                charged,
-                finalCostAmount,
+                false,
+                0L,
                 eventTime);
         try {
             eventMapper.insert(event);
         } catch (DuplicateKeyException ex) {
             // event_id 有唯一索引，重复消息直接跳过，避免重复累计统计和扣费。
             return;
+        }
+
+        boolean charged = costAmount > 0 && budgetRedisService.tryCharge(plan, statDate, costAmount);
+        long finalCostAmount = charged ? costAmount : 0L;
+        if (costAmount > 0) {
+            chargeRecordMapper.insert(toChargeRecord(
+                    request,
+                    material,
+                    billingType,
+                    finalCostAmount,
+                    charged ? ChargeStatus.SUCCESS : ChargeStatus.BUDGET_EXHAUSTED,
+                    eventTime));
+            eventMapper.updateChargeResult(request.eventId(), charged ? 1 : 0, finalCostAmount);
+        }
+
+        if (eventType == EventType.IMPRESSION) {
+            frequencyRedisService.incrementViewerPlanImpression(request.viewerId(), plan.getId(), statDate);
         }
 
         dailyReportRedisService.incrementDailyReport(
@@ -100,5 +118,24 @@ public class EventProcessorImpl implements EventProcessor {
             return (currentImpressions + 1) % 1000 == 0 ? plan.getBidPrice() : 0L;
         }
         return 0L;
+    }
+
+    private ChargeRecordEntity toChargeRecord(
+            EventRequest request,
+            MaterialEntity material,
+            String billingType,
+            long amount,
+            ChargeStatus chargeStatus,
+            LocalDateTime chargeTime) {
+        ChargeRecordEntity record = new ChargeRecordEntity();
+        record.setEventId(request.eventId());
+        record.setPlanId(material.getPlanId());
+        record.setMaterialId(material.getId());
+        record.setSlotId(material.getSlotId());
+        record.setBillingType(billingType);
+        record.setAmount(amount);
+        record.setChargeStatus(chargeStatus.name());
+        record.setChargeTime(chargeTime);
+        return record;
     }
 }

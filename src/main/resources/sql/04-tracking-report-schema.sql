@@ -36,6 +36,24 @@ CREATE TABLE IF NOT EXISTS `event` (
     KEY idx_event_viewer_type_time (viewer_id, event_type, event_time)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS charge_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    event_id VARCHAR(128) NOT NULL,
+    plan_id BIGINT NOT NULL,
+    material_id BIGINT NOT NULL,
+    slot_id BIGINT NOT NULL,
+    billing_type VARCHAR(16) NOT NULL,
+    amount BIGINT NOT NULL DEFAULT 0,
+    charge_status VARCHAR(32) NOT NULL,
+    charge_time DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_charge_record_event (event_id),
+    KEY idx_charge_record_plan_time (plan_id, charge_time),
+    KEY idx_charge_record_material_time (material_id, charge_time),
+    KEY idx_charge_record_status (charge_status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS daily_report (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     stat_date DATE NOT NULL,

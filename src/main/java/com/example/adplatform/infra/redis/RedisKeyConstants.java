@@ -18,6 +18,10 @@ public final class RedisKeyConstants {
         return "budget:daily:%s:%d".formatted(BASIC_DATE.format(date), planId);
     }
 
+    public static String planTotalBudget(Long planId) {
+        return "budget:total:%d".formatted(planId);
+    }
+
     public static String realtimePlanStats(LocalDate date, Long planId) {
         return "stats:rt:%s:%d".formatted(BASIC_DATE.format(date), planId);
     }

@@ -17,9 +17,10 @@ import com.example.adplatform.delivery.dto.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.vo.AdDeliveryResponse;
 import com.example.adplatform.delivery.vo.AdItemVO;
+import com.example.adplatform.infra.redis.BudgetRedisService;
+import com.example.adplatform.infra.redis.FrequencyRedisService;
 import com.example.adplatform.infra.redis.SlotCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
-import com.example.adplatform.tracking.mapper.EventMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,8 +51,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final PlanMapper planMapper;
     private final RuleMapper ruleMapper;
     private final DailyReportMapper dailyReportMapper;
-    private final EventMapper eventMapper;
     private final SlotCacheService slotCacheService;
+    private final BudgetRedisService budgetRedisService;
+    private final FrequencyRedisService frequencyRedisService;
     private final ObjectMapper objectMapper;
     private final AdDeliveryConverter adDeliveryConverter;
 
@@ -86,21 +88,16 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             }
 
             // 预算不足的广告不再返回，避免后续曝光/点击继续扩大消耗。
-            long dailyCost = dailyReportMapper.sumCostByPlanOnDate(today, plan.getId()); // 查询计划当日消耗：4 次，总耗时 42.825ms，占 9.71%。
-            long totalCost = dailyReportMapper.sumCostByPlan(plan.getId()); // 查询计划总消耗：4 次，总耗时 9.809ms，占 2.22%。
-            if (dailyCost >= plan.getBudgetDaily() || totalCost >= plan.getBudgetTotal()) {
+            if (!budgetRedisService.hasAvailableBudget(plan, today)) { // Redis 预算粗过滤：替代 daily_report 消耗查询，原 SQL 样本合计 52.634ms。
                 continue;
             }
 
             // 简化版用户频控：同一用户每天最多看到同一个计划 5 次。
-            LocalDateTime dayStart = today.atStartOfDay();
-            LocalDateTime dayEnd = dayStart.plusDays(1);
-            long impressions = eventMapper.countViewerPlanImpressions( // 查询用户当日计划曝光次数：4 次，总耗时 85.650ms，占 19.41%。
+            if (frequencyRedisService.isViewerPlanFrequencyExceeded( // Redis 频控：替代 event 表曝光次数查询，原 SQL 样本 85.650ms，占 19.41%。
                     request.viewerId(),
                     plan.getId(),
-                    dayStart,
-                    dayEnd);
-            if (impressions >= MAX_FREQUENCY_PER_USER_DAY) {
+                    today,
+                    MAX_FREQUENCY_PER_USER_DAY)) {
                 continue;
             }
 
