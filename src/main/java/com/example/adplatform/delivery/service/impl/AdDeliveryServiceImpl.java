@@ -1,13 +1,11 @@
 package com.example.adplatform.delivery.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.admin.entity.MaterialAuditStatus;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
-import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.mapper.RuleMapper;
@@ -19,6 +17,7 @@ import com.example.adplatform.delivery.dto.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.vo.AdDeliveryResponse;
 import com.example.adplatform.delivery.vo.AdItemVO;
+import com.example.adplatform.infra.redis.SlotCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,12 +46,12 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final int MAX_FREQUENCY_PER_USER_DAY = 5;
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
-    private final SlotMapper slotMapper;
     private final MaterialMapper materialMapper;
     private final PlanMapper planMapper;
     private final RuleMapper ruleMapper;
     private final DailyReportMapper dailyReportMapper;
     private final EventMapper eventMapper;
+    private final SlotCacheService slotCacheService;
     private final ObjectMapper objectMapper;
     private final AdDeliveryConverter adDeliveryConverter;
 
@@ -60,16 +59,12 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>() // 查询广告位：33.171ms，占 7.52%。
-                .eq(SlotEntity::getSlotCode, request.slotCode())
-                .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
-        if (slot == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
-        }
+        Long slotId = slotCacheService.getEnabledSlotIdByCode(request.slotCode()) // 查询广告位 ID：优先 Redis；未命中或 Redis 异常时回源 MySQL，原 MySQL 样本 33.171ms，占 7.52%。
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在"));
 
         // 先按广告位召回可用素材，后续再逐个检查计划、预算、频控和定向。
         List<MaterialEntity> materials = materialMapper.selectList(new LambdaQueryWrapper<MaterialEntity>() // 查询候选素材：17.342ms，占 3.93%。
-                .eq(MaterialEntity::getSlotId, slot.getId())
+                .eq(MaterialEntity::getSlotId, slotId)
                 .eq(MaterialEntity::getStatus, CommonStatus.ENABLED)
                 .eq(MaterialEntity::getAuditStatus, MaterialAuditStatus.APPROVED.name())
                 .orderByDesc(MaterialEntity::getId));

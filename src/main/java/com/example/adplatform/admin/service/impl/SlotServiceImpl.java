@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.dto.CreateSlotRequest;
+import com.example.adplatform.admin.dto.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.service.SlotService;
@@ -12,9 +13,11 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.infra.redis.SlotCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -25,6 +28,7 @@ public class SlotServiceImpl implements SlotService {
 
     private final SlotMapper slotMapper;
     private final SlotConverter slotConverter;
+    private final SlotCacheService slotCacheService;
 
     @Override
     public ResourceRefVO create(CreateSlotRequest request) {
@@ -34,7 +38,25 @@ public class SlotServiceImpl implements SlotService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
+        slotCacheService.cacheSlot(entity);
         return slotConverter.toRef(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SlotVO update(Long id, UpdateSlotRequest request) {
+        SlotEntity entity = getSlotOrThrow(id);
+        String oldSlotCode = entity.getSlotCode();
+        slotConverter.updateEntity(request, entity);
+        try {
+            slotMapper.updateById(entity);
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
+        }
+
+        SlotEntity updated = slotMapper.selectById(id);
+        slotCacheService.refreshSlot(updated, oldSlotCode);
+        return slotConverter.toVO(updated);
     }
 
     @Override
@@ -47,5 +69,13 @@ public class SlotServiceImpl implements SlotService {
         Page<SlotEntity> result = slotMapper.selectPage(page, query);
         List<SlotVO> records = result.getRecords().stream().map(slotConverter::toVO).toList();
         return PageResponse.of(result, records);
+    }
+
+    private SlotEntity getSlotOrThrow(Long id) {
+        SlotEntity entity = slotMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
+        return entity;
     }
 }

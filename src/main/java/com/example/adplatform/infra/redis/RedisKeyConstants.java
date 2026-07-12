@@ -29,4 +29,8 @@ public final class RedisKeyConstants {
     public static String dailyStatsDirtySet(LocalDate date) {
         return "stats:dirty:%s".formatted(BASIC_DATE.format(date));
     }
+
+    public static String slotCodeToId(String slotCode) {
+        return "slot:code:%s".formatted(slotCode);
+    }
 }
