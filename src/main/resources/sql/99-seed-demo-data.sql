@@ -45,7 +45,9 @@ VALUES
     (2, 2, '编程学院-Java课程转化计划', 800000, 120000, 260, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 20 DAY), 'ONLINE', NOW(), NOW()),
     (3, 3, '星火游戏-暑期预约计划', 1200000, 180000, 220, 'CPA', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 15 DAY), 'PAUSED', NOW(), NOW()),
     (4, 1, '鲜果优选-下月预热计划', 500000, 80000, 120, 'CPC', DATE_ADD(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 37 DAY), 'DRAFT', NOW(), NOW()),
-    (5, 4, '停用广告主-测试计划', 300000, 50000, 100, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 10 DAY), 'OFFLINE', NOW(), NOW());
+    (5, 4, '停用广告主-测试计划', 300000, 50000, 100, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 10 DAY), 'OFFLINE', NOW(), NOW()),
+    (6, 3, '星火游戏-安卓用户拉新计划', 900000, 160000, 240, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 25 DAY), 'ONLINE', NOW(), NOW()),
+    (7, 1, '鲜果优选-全场景复购计划', 700000, 150000, 180, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 25 DAY), 'ONLINE', NOW(), NOW());
 
 INSERT INTO material
     (id, plan_id, slot_id, title, description, image_url, landing_page_url, audit_status, status, created_at, updated_at)
@@ -57,7 +59,12 @@ VALUES
     (5, 3, 2, '星火游戏预约礼包', '暑期新游预约，登录领取稀有道具', 'https://cdn.example.com/ad/game-feed-card.jpg', 'https://www.example.com/game/preorder', 'APPROVED', 1, NOW(), NOW()),
     (6, 4, 1, '下月促销预热素材', '计划尚未上线，因此不会被投放接口返回', 'https://cdn.example.com/ad/fresh-draft.jpg', 'https://www.example.com/fresh/next-month', 'APPROVED', 1, NOW(), NOW()),
     (7, 2, 2, '未审核课程素材', '素材还在审核中，因此不会被召回', 'https://cdn.example.com/ad/java-pending.jpg', 'https://www.example.com/course/pending', 'PENDING', 1, NOW(), NOW()),
-    (8, 1, 1, '已停用生鲜素材', '素材状态已停用，因此不会被召回', 'https://cdn.example.com/ad/fresh-disabled.jpg', 'https://www.example.com/fresh/disabled', 'APPROVED', 0, NOW(), NOW());
+    (8, 1, 1, '已停用生鲜素材', '素材状态已停用，因此不会被召回', 'https://cdn.example.com/ad/fresh-disabled.jpg', 'https://www.example.com/fresh/disabled', 'APPROVED', 0, NOW(), NOW()),
+    (9, 6, 2, '星火游戏安卓预约礼包', '安卓用户预约送限定礼包', 'https://cdn.example.com/ad/game-android-feed.jpg', 'https://www.example.com/game/android', 'APPROVED', 1, NOW(), NOW()),
+    (10, 6, 1, '星火游戏首页预约', '首页大图展示新游预约活动', 'https://cdn.example.com/ad/game-home-banner.jpg', 'https://www.example.com/game/home', 'APPROVED', 1, NOW(), NOW()),
+    (11, 7, 1, '鲜果优选会员日', '会员日全场满减，适合首页横幅曝光', 'https://cdn.example.com/ad/fresh-member-banner.jpg', 'https://www.example.com/fresh/member', 'APPROVED', 1, NOW(), NOW()),
+    (12, 7, 2, '鲜果优选晚餐组合', '下班前推荐晚餐生鲜组合', 'https://cdn.example.com/ad/fresh-dinner-feed.jpg', 'https://www.example.com/fresh/dinner', 'APPROVED', 1, NOW(), NOW()),
+    (13, 7, 3, '搜索生鲜优惠广告', '搜索场景下展示高意向生鲜优惠', 'https://cdn.example.com/ad/fresh-search-text.jpg', 'https://www.example.com/fresh/search', 'APPROVED', 1, NOW(), NOW());
 
 INSERT INTO `rule`
     (id, plan_id, region, device_type, gender, age_min, age_max, user_tags, created_at, updated_at)
@@ -66,7 +73,8 @@ VALUES
     (2, 2, '["BEIJING","SHENZHEN","GUANGZHOU"]', '["IOS","ANDROID","WEB"]', NULL, 16, 35, '["education","student","programming","java"]', NOW(), NOW()),
     (3, 3, '["BEIJING","SHANGHAI","GUANGZHOU"]', '["ANDROID","IOS"]', 'MALE', 18, 30, '["game","acg"]', NOW(), NOW()),
     (4, 4, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
-    (5, 5, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW());
+    (5, 5, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
+    (6, 6, '["BEIJING","SHANGHAI","GUANGZHOU"]', '["ANDROID"]', 'MALE', 18, 30, '["game","acg"]', NOW(), NOW());
 
 INSERT INTO schema_version (version, description)
 VALUES ('demo-data', 'demo seed data for admin delivery tracking and report')

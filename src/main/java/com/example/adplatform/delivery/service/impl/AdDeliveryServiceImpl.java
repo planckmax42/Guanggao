@@ -56,10 +56,11 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final ObjectMapper objectMapper;
     private final AdDeliveryConverter adDeliveryConverter;
 
+    // SQL 耗时来自 2026-07-12 Arthas 单次压测样本，总耗时 441.226ms，仅用于定位当前瓶颈。
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>() // 查询广告位：33.171ms，占 7.52%。
                 .eq(SlotEntity::getSlotCode, request.slotCode())
                 .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
         if (slot == null) {
@@ -67,7 +68,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         }
 
         // 先按广告位召回可用素材，后续再逐个检查计划、预算、频控和定向。
-        List<MaterialEntity> materials = materialMapper.selectList(new LambdaQueryWrapper<MaterialEntity>()
+        List<MaterialEntity> materials = materialMapper.selectList(new LambdaQueryWrapper<MaterialEntity>() // 查询候选素材：17.342ms，占 3.93%。
                 .eq(MaterialEntity::getSlotId, slot.getId())
                 .eq(MaterialEntity::getStatus, CommonStatus.ENABLED)
                 .eq(MaterialEntity::getAuditStatus, MaterialAuditStatus.APPROVED.name())
@@ -79,7 +80,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         LocalDateTime now = LocalDateTime.now();
 
         for (MaterialEntity material : materials) {
-            PlanEntity plan = planMapper.selectById(material.getPlanId());
+            PlanEntity plan = planMapper.selectById(material.getPlanId()); // 循环查询计划：5 次，总耗时 69.725ms，占 15.80%。
 
             // 计划必须上线且处于投放时间内。
             if (plan == null || !PlanStatus.ONLINE.name().equals(plan.getStatus())) {
@@ -90,8 +91,8 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             }
 
             // 预算不足的广告不再返回，避免后续曝光/点击继续扩大消耗。
-            long dailyCost = dailyReportMapper.sumCostByPlanOnDate(today, plan.getId());
-            long totalCost = dailyReportMapper.sumCostByPlan(plan.getId());
+            long dailyCost = dailyReportMapper.sumCostByPlanOnDate(today, plan.getId()); // 查询计划当日消耗：4 次，总耗时 42.825ms，占 9.71%。
+            long totalCost = dailyReportMapper.sumCostByPlan(plan.getId()); // 查询计划总消耗：4 次，总耗时 9.809ms，占 2.22%。
             if (dailyCost >= plan.getBudgetDaily() || totalCost >= plan.getBudgetTotal()) {
                 continue;
             }
@@ -99,7 +100,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             // 简化版用户频控：同一用户每天最多看到同一个计划 5 次。
             LocalDateTime dayStart = today.atStartOfDay();
             LocalDateTime dayEnd = dayStart.plusDays(1);
-            long impressions = eventMapper.countViewerPlanImpressions(
+            long impressions = eventMapper.countViewerPlanImpressions( // 查询用户当日计划曝光次数：4 次，总耗时 85.650ms，占 19.41%。
                     request.viewerId(),
                     plan.getId(),
                     dayStart,
@@ -109,7 +110,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             }
 
             // 定向规则为空表示不限；存在规则时，地域、设备、性别、年龄、标签都要通过。
-            RuleEntity rule = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
+            RuleEntity rule = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>() // 查询计划定向规则：4 次，总耗时 138.430ms，占 31.37%。
                     .eq(RuleEntity::getPlanId, plan.getId()));
             if (rule != null) {
                 boolean regionMatched = matchesList(rule.getRegion(), request.region());
@@ -139,8 +140,8 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 }
             }
 
-            long planImpressions = dailyReportMapper.sumImpressionsByPlan(today, plan.getId());
-            long planClicks = dailyReportMapper.sumClicksByPlan(today, plan.getId());
+            long planImpressions = dailyReportMapper.sumImpressionsByPlan(today, plan.getId()); // 查询计划当日曝光数：2 次，总耗时 42.506ms，占 9.63%。
+            long planClicks = dailyReportMapper.sumClicksByPlan(today, plan.getId()); // 查询计划当日点击数：2 次，总耗时 0.590ms，占 0.13%。
             double ctr = planImpressions <= 0
                     ? 0.02D
                     : Math.min((double) planClicks / planImpressions, 1D);

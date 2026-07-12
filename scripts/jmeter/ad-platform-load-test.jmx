@@ -20,6 +20,51 @@
             <stringProp name="Argument.value">SEARCH_TEXT</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
+          <elementProp name="material_1" elementType="Argument">
+            <stringProp name="Argument.name">material_1</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_2" elementType="Argument">
+            <stringProp name="Argument.name">material_2</stringProp>
+            <stringProp name="Argument.value">2</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_3" elementType="Argument">
+            <stringProp name="Argument.name">material_3</stringProp>
+            <stringProp name="Argument.value">3</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_4" elementType="Argument">
+            <stringProp name="Argument.name">material_4</stringProp>
+            <stringProp name="Argument.value">4</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_5" elementType="Argument">
+            <stringProp name="Argument.name">material_5</stringProp>
+            <stringProp name="Argument.value">9</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_6" elementType="Argument">
+            <stringProp name="Argument.name">material_6</stringProp>
+            <stringProp name="Argument.value">10</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_7" elementType="Argument">
+            <stringProp name="Argument.name">material_7</stringProp>
+            <stringProp name="Argument.value">11</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_8" elementType="Argument">
+            <stringProp name="Argument.name">material_8</stringProp>
+            <stringProp name="Argument.value">12</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="material_9" elementType="Argument">
+            <stringProp name="Argument.name">material_9</stringProp>
+            <stringProp name="Argument.value">13</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
         </collectionProp>
       </elementProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
@@ -52,7 +97,7 @@
         </collectionProp>
       </HeaderManager>
       <hashTree/>
-      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0" enabled="true">
+      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0">
         <collectionProp name="Asserion.test_strings">
           <stringProp name="67791721">&quot;code&quot;:0</stringProp>
         </collectionProp>
@@ -62,7 +107,7 @@
         <intProp name="Assertion.test_type">2</intProp>
       </ResponseAssertion>
       <hashTree/>
-      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -99,7 +144,7 @@
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -137,17 +182,17 @@
       </ResultCollector>
       <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="01-后台管理完整业务流" enabled="false">
-        <intProp name="ThreadGroup.num_threads">1</intProp>
-        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <stringProp name="ThreadGroup.num_threads">${__P(adminThreads,1)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(adminRamp,1)}</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <stringProp name="LoopController.loops">${__P(adminLoops,1)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告主">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告主" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/users</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -170,7 +215,7 @@
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告位">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告位" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/slots</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -216,7 +261,7 @@
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-更新广告计划">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-更新广告计划" enabled="true">
           <stringProp name="HTTPSampler.path">/api/admin/plans/${planId}</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -357,8 +402,8 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发" enabled="false">
-        <intProp name="ThreadGroup.num_threads">200</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发">
+        <intProp name="ThreadGroup.num_threads">1000</intProp>
         <intProp name="ThreadGroup.ramp_time">1</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
@@ -368,7 +413,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-召回排序广告" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-首页生鲜场景">
           <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -376,26 +421,123 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;${__V(slot_${__Random(1,3)})}&quot;,&quot;region&quot;:&quot;BEIJING&quot;,&quot;deviceType&quot;:&quot;IOS&quot;,&quot;age&quot;:${__Random(18,35)},&quot;gender&quot;:&quot;MALE&quot;,&quot;tags&quot;:[&quot;fresh&quot;,&quot;shopping&quot;,&quot;education&quot;,&quot;java&quot;],&quot;size&quot;:3}</stringProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;HOME_BANNER&quot;,&quot;region&quot;:&quot;BEIJING&quot;,&quot;deviceType&quot;:&quot;IOS&quot;,&quot;age&quot;:${__Random(22,40)},&quot;gender&quot;:&quot;FEMALE&quot;,&quot;tags&quot;:[&quot;fresh&quot;,&quot;shopping&quot;,&quot;family&quot;],&quot;size&quot;:10}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-首页课程场景">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;HOME_BANNER&quot;,&quot;region&quot;:&quot;SHENZHEN&quot;,&quot;deviceType&quot;:&quot;WEB&quot;,&quot;age&quot;:${__Random(18,30)},&quot;gender&quot;:&quot;MALE&quot;,&quot;tags&quot;:[&quot;education&quot;,&quot;student&quot;,&quot;programming&quot;,&quot;java&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-信息流生鲜场景">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;FEED_CARD&quot;,&quot;region&quot;:&quot;SHANGHAI&quot;,&quot;deviceType&quot;:&quot;ANDROID&quot;,&quot;age&quot;:${__Random(24,45)},&quot;gender&quot;:&quot;FEMALE&quot;,&quot;tags&quot;:[&quot;fresh&quot;,&quot;shopping&quot;,&quot;family&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-信息流游戏场景">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;FEED_CARD&quot;,&quot;region&quot;:&quot;GUANGZHOU&quot;,&quot;deviceType&quot;:&quot;ANDROID&quot;,&quot;age&quot;:${__Random(18,30)},&quot;gender&quot;:&quot;MALE&quot;,&quot;tags&quot;:[&quot;game&quot;,&quot;acg&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="DELIVERY-搜索混合场景">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(10000,99999)},&quot;slotCode&quot;:&quot;SEARCH_TEXT&quot;,&quot;region&quot;:&quot;BEIJING&quot;,&quot;deviceType&quot;:&quot;IOS&quot;,&quot;age&quot;:${__Random(18,35)},&quot;gender&quot;:&quot;MALE&quot;,&quot;tags&quot;:[&quot;fresh&quot;,&quot;shopping&quot;,&quot;education&quot;,&quot;student&quot;,&quot;programming&quot;,&quot;java&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="查看结果树" enabled="false">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入">
-        <intProp name="ThreadGroup.num_threads">200</intProp>
-        <intProp name="ThreadGroup.ramp_time">1</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入" enabled="false">
+        <stringProp name="ThreadGroup.num_threads">${__P(eventThreads,200)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(eventRamp,1)}</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">10</stringProp>
+          <stringProp name="LoopController.loops">${__P(eventLoops,10)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-转化事件" enabled="true">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -403,14 +545,14 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;materialId&quot;:3,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="TRACKING-点击事件" enabled="true">
           <stringProp name="HTTPSampler.path">/api/tracking/events</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -418,7 +560,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialId&quot;:3,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -433,7 +575,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;materialId&quot;:1,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
