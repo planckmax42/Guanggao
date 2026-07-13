@@ -8,7 +8,7 @@ import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
-import com.example.adplatform.admin.mapper.RuleMapper;
+import com.example.adplatform.admin.dto.PlanRuleJoinRow;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
@@ -36,9 +36,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -53,7 +53,6 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
     private final MaterialMapper materialMapper;
     private final PlanMapper planMapper;
-    private final RuleMapper ruleMapper;
     private final DailyReportMapper dailyReportMapper;
     private final SlotCacheService slotCacheService;
     private final BudgetRedisService budgetRedisService;
@@ -81,26 +80,28 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
         List<Long> planIds = materials.stream()
                 .map(MaterialEntity::getPlanId)
-                .filter(id -> id != null)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
         if (planIds.isEmpty()) {
             return new AdDeliveryResponse(requestId, materials.size(), 0, List.of());
         }
 
-        Map<Long, PlanEntity> planMap = planMapper.selectBatchIds(planIds).stream()
-                .collect(Collectors.toMap(PlanEntity::getId, Function.identity(), (left, right) -> left));
-        Map<Long, RuleEntity> ruleMap = ruleMapper.selectList(new LambdaQueryWrapper<RuleEntity>()
-                        .in(RuleEntity::getPlanId, planIds))
-                .stream()
-                .collect(Collectors.toMap(RuleEntity::getPlanId, Function.identity(), (left, right) -> left));
+        List<PlanRuleJoinRow> planRuleRows = planMapper.selectPlanRuleRows(planIds);
+        Map<Long, PlanEntity> planMap = planRuleRows.stream()
+                .map(this::toPlanEntity)
+                .collect(Collectors.toMap(PlanEntity::getId, plan -> plan));
+        Map<Long, RuleEntity> ruleMap = planRuleRows.stream()
+                .filter(row -> row.getRuleId() != null)
+                .map(this::toRuleEntity)
+                .collect(Collectors.toMap(RuleEntity::getPlanId, rule -> rule));
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
         List<ScoredMaterial> scoredMaterials = new ArrayList<>();
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
         Map<Long, PlanDailyMetricVO> metricMap = dailyReportMapper.selectPlanDailyMetrics(today, planIds).stream()
-                .collect(Collectors.toMap(PlanDailyMetricVO::getPlanId, Function.identity(), (left, right) -> left));
+                .collect(Collectors.toMap(PlanDailyMetricVO::getPlanId, metric -> metric));
 
         for (MaterialEntity material : materials) {
             PlanEntity plan = planMap.get(material.getPlanId()); // 批量查询计划后内存匹配，替代循环 selectById。
@@ -201,6 +202,38 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         } catch (JsonProcessingException ex) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "定向规则解析失败");
         }
+    }
+
+    private PlanEntity toPlanEntity(PlanRuleJoinRow row) {
+        PlanEntity plan = new PlanEntity();
+        plan.setId(row.getPlanId());
+        plan.setUserId(row.getUserId());
+        plan.setName(row.getPlanName());
+        plan.setBudgetTotal(row.getBudgetTotal());
+        plan.setBudgetDaily(row.getBudgetDaily());
+        plan.setBidPrice(row.getBidPrice());
+        plan.setBillingType(row.getBillingType());
+        plan.setStartTime(row.getStartTime());
+        plan.setEndTime(row.getEndTime());
+        plan.setStatus(row.getPlanStatus());
+        plan.setCreatedAt(row.getPlanCreatedAt());
+        plan.setUpdatedAt(row.getPlanUpdatedAt());
+        return plan;
+    }
+
+    private RuleEntity toRuleEntity(PlanRuleJoinRow row) {
+        RuleEntity rule = new RuleEntity();
+        rule.setId(row.getRuleId());
+        rule.setPlanId(row.getPlanId());
+        rule.setRegion(row.getRegion());
+        rule.setDeviceType(row.getDeviceType());
+        rule.setGender(row.getGender());
+        rule.setAgeMin(row.getAgeMin());
+        rule.setAgeMax(row.getAgeMax());
+        rule.setUserTags(row.getUserTags());
+        rule.setCreatedAt(row.getRuleCreatedAt());
+        rule.setUpdatedAt(row.getRuleUpdatedAt());
+        return rule;
     }
 
     private record ScoredMaterial(

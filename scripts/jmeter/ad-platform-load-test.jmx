@@ -84,7 +84,7 @@
         <stringProp name="HTTPSampler.implementation"></stringProp>
       </ConfigTestElement>
       <hashTree/>
-      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header">
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header" enabled="true">
         <collectionProp name="HeaderManager.headers">
           <elementProp name="" elementType="Header">
             <stringProp name="Header.name">Content-Type</stringProp>
@@ -97,7 +97,7 @@
         </collectionProp>
       </HeaderManager>
       <hashTree/>
-      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0">
+      <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="统一成功响应 code=0" enabled="true">
         <collectionProp name="Asserion.test_strings">
           <stringProp name="67791721">&quot;code&quot;:0</stringProp>
         </collectionProp>
