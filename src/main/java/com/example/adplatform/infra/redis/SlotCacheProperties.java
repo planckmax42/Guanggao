@@ -1,0 +1,50 @@
+package com.example.adplatform.infra.redis;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+
+/**
+ * 广告位缓存、布隆过滤器和 MySQL 回源熔断参数。
+ */
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "app.slot-cache")
+public class SlotCacheProperties {
+
+    private Duration redisTtl = Duration.ofDays(1);
+    private Bloom bloom = new Bloom();
+    private MysqlCircuitBreaker mysqlCircuitBreaker = new MysqlCircuitBreaker();
+
+    @Getter
+    @Setter
+    public static class Bloom {
+
+        /**
+         * 预计启用广告位数量，容量不足时应调大后触发重建。
+         */
+        private int expectedInsertions = 10_000;
+
+        /**
+         * 允许的误判率。误判只会多一次缓存或数据库查询，不会返回错误广告位。
+         */
+        private double falsePositiveProbability = 0.01D;
+    }
+
+    @Getter
+    @Setter
+    public static class MysqlCircuitBreaker {
+
+        private int slidingWindowSize = 20;
+        private int minimumNumberOfCalls = 10;
+        private float failureRateThreshold = 50F;
+        private float slowCallRateThreshold = 50F;
+        private Duration slowCallDurationThreshold = Duration.ofMillis(200);
+        private Duration openStateWaitDuration = Duration.ofSeconds(10);
+        private int permittedCallsInHalfOpenState = 3;
+    }
+}

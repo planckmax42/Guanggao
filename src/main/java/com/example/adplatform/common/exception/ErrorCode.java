@@ -17,6 +17,7 @@ public enum ErrorCode {
     INVALID_BUDGET(50007, "预算配置不合法", HttpStatus.BAD_REQUEST),
     MYSQL_CONNECTION_FAILED(50010, "MySQL 连接失败", HttpStatus.INTERNAL_SERVER_ERROR),
     REDIS_CONNECTION_FAILED(50011, "Redis 连接失败", HttpStatus.INTERNAL_SERVER_ERROR),
+    DEPENDENCY_SERVICE_UNAVAILABLE(50012, "依赖服务暂时不可用", HttpStatus.SERVICE_UNAVAILABLE),
     SYSTEM_ERROR(99999, "系统异常", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

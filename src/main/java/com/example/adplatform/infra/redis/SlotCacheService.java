@@ -7,7 +7,7 @@ import java.util.Optional;
 public interface SlotCacheService {
 
     /**
-     * 根据广告位编码获取启用广告位 ID。优先读 Redis，未命中或 Redis 异常时回源 MySQL。
+     * 根据广告位编码获取启用广告位 ID。先用布隆过滤器拦截明显不存在的编码，再读 Redis，未命中或 Redis 异常时回源 MySQL。
      */
     Optional<Long> getEnabledSlotIdByCode(String slotCode);
 
@@ -22,7 +22,12 @@ public interface SlotCacheService {
     void refreshSlot(SlotEntity slot, String oldSlotCode);
 
     /**
-     * 启动时预热启用广告位缓存。
+     * 启动时预热启用广告位缓存和广告位编码布隆过滤器。
      */
     void warmUp();
+
+    /**
+     * 从 MySQL 全量加载启用广告位并重建布隆过滤器，清理已失效编码。
+     */
+    void rebuildBloomFilter();
 }

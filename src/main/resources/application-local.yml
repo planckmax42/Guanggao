@@ -47,6 +47,21 @@ app:
   health:
     mysql-timeout-ms: 2000
     redis-timeout-ms: 2000
+  slot-cache:
+    redis-ttl: 1d
+    bloom:
+      expected-insertions: 10000
+      false-positive-probability: 0.01
+      rebuild-delay-ms: 300000
+      rebuild-initial-delay-ms: 300000
+    mysql-circuit-breaker:
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+      failure-rate-threshold: 50
+      slow-call-rate-threshold: 50
+      slow-call-duration-threshold: 200ms
+      open-state-wait-duration: 10s
+      permitted-calls-in-half-open-state: 3
   stats:
     flush-delay-ms: 10000
     flush-initial-delay-ms: 10000
