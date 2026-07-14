@@ -54,6 +54,12 @@ app:
       false-positive-probability: 0.01
       rebuild-delay-ms: 300000
       rebuild-initial-delay-ms: 300000
+      minimum-absent-samples: 1000
+      expansion-factor: 2.0
+      max-expected-insertions: 1000000
+      expansion-cooldown: 10m
+      expansion-check-delay-ms: 30000
+      expansion-check-initial-delay-ms: 30000
     mysql-circuit-breaker:
       sliding-window-size: 20
       minimum-number-of-calls: 10

@@ -29,5 +29,10 @@ public interface SlotCacheService {
     /**
      * 从 MySQL 全量加载启用广告位并重建布隆过滤器，清理已失效编码。
      */
-    void rebuildBloomFilter();
+    boolean rebuildBloomFilter();
+
+    /**
+     * 扩大布隆过滤器容量并从 MySQL 重建；达到容量上限或已有重建任务时返回 false。
+     */
+    boolean expandAndRebuildBloomFilter();
 }

@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +59,23 @@ class SlotCodeBloomFilterManagerTests {
 
         assertFalse(manager.definitelyNotContains("HOME_BANNER"));
         assertTrue(manager.definitelyNotContains("UNKNOWN_SLOT"));
+    }
+
+    @Test
+    void shouldDoubleCapacityAndRebuildWhenExpanding() {
+        SlotCacheProperties properties = new SlotCacheProperties();
+        properties.getBloom().setExpectedInsertions(100);
+        properties.getBloom().setExpansionFactor(2D);
+        properties.getBloom().setMaxExpectedInsertions(1_000L);
+        SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
+        manager.rebuild(() -> List.of("HOME_BANNER", "OLD_SLOT"), slots -> slots);
+
+        manager.expandAndRebuild(() -> List.of("HOME_BANNER", "NEW_SLOT"), slots -> slots);
+
+        assertEquals(200L, manager.status().expectedInsertions());
+        assertFalse(manager.definitelyNotContains("HOME_BANNER"));
+        assertFalse(manager.definitelyNotContains("NEW_SLOT"));
+        assertTrue(manager.definitelyNotContains("OLD_SLOT"));
     }
 
     private SlotCodeBloomFilterManager createManager() {

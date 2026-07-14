@@ -8,6 +8,7 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -25,6 +26,7 @@ public class SlotCodeBloomFilterManager {
     private final SlotCacheProperties properties;
     private final AtomicReference<BloomFilter<CharSequence>> activeFilter;
     private final AtomicReference<BloomFilter<CharSequence>> rebuildingFilter = new AtomicReference<>();
+    private final AtomicLong currentExpectedInsertions;
     private final ReentrantLock rebuildLock = new ReentrantLock();
     private final ReentrantLock filterSwitchLock = new ReentrantLock();
 
@@ -32,7 +34,8 @@ public class SlotCodeBloomFilterManager {
 
     public SlotCodeBloomFilterManager(SlotCacheProperties properties) {
         this.properties = properties;
-        this.activeFilter = new AtomicReference<>(createBloomFilter());
+        this.currentExpectedInsertions = new AtomicLong(initialExpectedInsertions());
+        this.activeFilter = new AtomicReference<>(createBloomFilter(currentExpectedInsertions.get()));
     }
 
     /**
@@ -69,11 +72,48 @@ public class SlotCodeBloomFilterManager {
     public <T> Optional<T> rebuild(
             Supplier<T> dataLoader,
             Function<T, ? extends Collection<String>> slotCodeExtractor) {
+        return rebuildWithCapacity(currentExpectedInsertions.get(), dataLoader, slotCodeExtractor);
+    }
+
+    /**
+     * 按配置的扩容倍数创建更大的过滤器，并从权威数据源重新加载数据。
+     */
+    public <T> Optional<T> expandAndRebuild(
+            Supplier<T> dataLoader,
+            Function<T, ? extends Collection<String>> slotCodeExtractor) {
+        long currentCapacity = currentExpectedInsertions.get();
+        SlotCacheProperties.Bloom bloom = properties.getBloom();
+        if (bloom.getExpansionFactor() <= 1D) {
+            throw new IllegalArgumentException("布隆过滤器扩容倍数必须大于 1");
+        }
+        long maxCapacity = Math.max(currentCapacity, bloom.getMaxExpectedInsertions());
+        long expandedCapacity = Math.min(
+                maxCapacity,
+                Math.max(currentCapacity + 1L, (long) Math.ceil(currentCapacity * bloom.getExpansionFactor())));
+        if (expandedCapacity <= currentCapacity) {
+            return Optional.empty();
+        }
+        return rebuildWithCapacity(expandedCapacity, dataLoader, slotCodeExtractor);
+    }
+
+    public Status status() {
+        BloomFilter<CharSequence> filter = activeFilter.get();
+        return new Status(
+                currentExpectedInsertions.get(),
+                approximateElementCount(filter),
+                filter.expectedFpp(),
+                ready);
+    }
+
+    private <T> Optional<T> rebuildWithCapacity(
+            long expectedInsertions,
+            Supplier<T> dataLoader,
+            Function<T, ? extends Collection<String>> slotCodeExtractor) {
         if (!rebuildLock.tryLock()) {
             return Optional.empty();
         }
 
-        BloomFilter<CharSequence> standbyFilter = createBloomFilter();
+        BloomFilter<CharSequence> standbyFilter = createBloomFilter(expectedInsertions);
         filterSwitchLock.lock();
         try {
             rebuildingFilter.set(standbyFilter);
@@ -91,6 +131,7 @@ public class SlotCodeBloomFilterManager {
             filterSwitchLock.lock();
             try {
                 activeFilter.set(standbyFilter);
+                currentExpectedInsertions.set(expectedInsertions);
                 rebuildingFilter.compareAndSet(standbyFilter, null);
                 ready = true;
             } finally {
@@ -112,9 +153,12 @@ public class SlotCodeBloomFilterManager {
         return ready;
     }
 
-    private BloomFilter<CharSequence> createBloomFilter() {
+    private long initialExpectedInsertions() {
+        return Math.max(1L, properties.getBloom().getExpectedInsertions());
+    }
+
+    private BloomFilter<CharSequence> createBloomFilter(long expectedInsertions) {
         SlotCacheProperties.Bloom bloom = properties.getBloom();
-        int expectedInsertions = Math.max(1, bloom.getExpectedInsertions());
         double falsePositiveProbability = bloom.getFalsePositiveProbability();
         if (falsePositiveProbability <= 0D || falsePositiveProbability >= 1D) {
             throw new IllegalArgumentException("布隆过滤器误判率必须大于 0 且小于 1");
@@ -123,5 +167,21 @@ public class SlotCodeBloomFilterManager {
                 Funnels.stringFunnel(StandardCharsets.UTF_8),
                 expectedInsertions,
                 falsePositiveProbability);
+    }
+
+    private long approximateElementCount(BloomFilter<CharSequence> filter) {
+        try {
+            return filter.approximateElementCount();
+        } catch (ArithmeticException ex) {
+            // 位图完全饱和时数学估算结果为无穷大，用最大值表示容量已严重不足。
+            return Long.MAX_VALUE;
+        }
+    }
+
+    public record Status(
+            long expectedInsertions,
+            long approximateElementCount,
+            double expectedFalsePositiveProbability,
+            boolean ready) {
     }
 }

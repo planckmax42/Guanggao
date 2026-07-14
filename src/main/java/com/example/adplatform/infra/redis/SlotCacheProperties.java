@@ -33,6 +33,26 @@ public class SlotCacheProperties {
          * 允许的误判率。误判只会多一次缓存或数据库查询，不会返回错误广告位。
          */
         private double falsePositiveProbability = 0.01D;
+
+        /**
+         * 至少收集这么多次“确认不存在”的请求后，才计算实际误判率。
+         */
+        private long minimumAbsentSamples = 1_000L;
+
+        /**
+         * 每次扩容后的容量倍数。
+         */
+        private double expansionFactor = 2D;
+
+        /**
+         * 自动扩容上限，防止异常流量造成布隆过滤器无限增长。
+         */
+        private long maxExpectedInsertions = 1_000_000L;
+
+        /**
+         * 两次自动扩容之间的最短间隔。
+         */
+        private Duration expansionCooldown = Duration.ofMinutes(10);
     }
 
     @Getter

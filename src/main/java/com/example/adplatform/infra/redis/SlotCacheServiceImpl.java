@@ -30,6 +30,7 @@ public class SlotCacheServiceImpl implements SlotCacheService {
     private final SlotMapper slotMapper;
     private final SlotCacheProperties properties;
     private final SlotCodeBloomFilterManager bloomFilterManager;
+    private final SlotBloomFilterMetrics bloomFilterMetrics;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
 
     @Override
@@ -37,7 +38,9 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         if (!StringUtils.hasText(slotCode)) {
             return Optional.empty();
         }
-        if (bloomFilterManager.definitelyNotContains(slotCode)) {
+        boolean bloomReady = bloomFilterManager.isReady();
+        if (bloomReady && bloomFilterManager.definitelyNotContains(slotCode)) {
+            bloomFilterMetrics.recordRejectedAbsent();
             return Optional.empty();
         }
 
@@ -61,6 +64,9 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         }
 
         if (slot == null) {
+            if (bloomReady) {
+                bloomFilterMetrics.recordFalsePositive();
+            }
             return Optional.empty();
         }
         cacheSlot(slot);
@@ -130,13 +136,32 @@ public class SlotCacheServiceImpl implements SlotCacheService {
                 break;
             }
         }
+        bloomFilterMetrics.reset();
         log.info("广告位 Redis 缓存预热完成，数量={}", successCount);
     }
 
     @Override
-    public void rebuildBloomFilter() {
+    public boolean rebuildBloomFilter() {
         Optional<List<SlotEntity>> enabledSlots = rebuildBloomFilterAndReturnSlots();
-        enabledSlots.ifPresent(slots -> log.info("广告位布隆过滤器重建完成，启用广告位数量={}", slots.size()));
+        enabledSlots.ifPresent(slots -> {
+            bloomFilterMetrics.reset();
+            log.info("广告位布隆过滤器重建完成，启用广告位数量={}", slots.size());
+        });
+        return enabledSlots.isPresent();
+    }
+
+    @Override
+    public boolean expandAndRebuildBloomFilter() {
+        try {
+            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.expandAndRebuild(
+                    this::selectAllEnabledSlots,
+                    slots -> slots.stream().map(SlotEntity::getSlotCode).toList());
+            enabledSlots.ifPresent(slots -> bloomFilterMetrics.reset());
+            return enabledSlots.isPresent();
+        } catch (RuntimeException ex) {
+            log.warn("广告位布隆过滤器扩容重建失败，继续使用当前过滤器", ex);
+            return false;
+        }
     }
 
     private Optional<List<SlotEntity>> rebuildBloomFilterAndReturnSlots() {
