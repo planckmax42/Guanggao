@@ -10,6 +10,11 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 
+/**
+ * 基于 Redis 计数器实现的每日用户曝光频控服务。
+ *
+ * <p>Redis 不可用或缓存数据格式异常时采用放行策略，避免频控故障中断广告投放。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class FrequencyRedisServiceImpl implements FrequencyRedisService {
@@ -19,6 +24,7 @@ public class FrequencyRedisServiceImpl implements FrequencyRedisService {
 
     private final StringRedisTemplate stringRedisTemplate;
 
+    /** {@inheritDoc} */
     @Override
     public boolean isViewerPlanFrequencyExceeded(Long viewerId, Long planId, LocalDate statDate, int maxFrequency) {
         if (viewerId == null || planId == null || maxFrequency <= 0) {
@@ -35,6 +41,7 @@ public class FrequencyRedisServiceImpl implements FrequencyRedisService {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public void incrementViewerPlanImpression(Long viewerId, Long planId, LocalDate statDate) {
         if (viewerId == null || planId == null) {

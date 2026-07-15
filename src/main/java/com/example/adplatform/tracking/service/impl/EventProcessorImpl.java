@@ -12,7 +12,6 @@ import com.example.adplatform.infra.redis.frequency.FrequencyRedisService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.service.DailyReportRedisService;
 import com.example.adplatform.tracking.converter.EventConverter;
-import com.example.adplatform.tracking.dto.EventRequest;
 import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
 import com.example.adplatform.tracking.entity.EventEntity;
@@ -46,9 +45,8 @@ public class EventProcessorImpl implements EventProcessor {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void process(EventMessage message) {
-        EventRequest request = message.toRequest();
-        EventType eventType = EventType.parse(request.eventType());
-        MaterialEntity material = materialMapper.selectById(request.materialId());
+        EventType eventType = EventType.parse(message.eventType());
+        MaterialEntity material = materialMapper.selectById(message.materialId());
         if (material == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
         }
@@ -57,13 +55,13 @@ public class EventProcessorImpl implements EventProcessor {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
         }
 
-        LocalDateTime eventTime = request.eventTime() == null ? LocalDateTime.now() : request.eventTime();
+        LocalDateTime eventTime = message.eventTime() == null ? LocalDateTime.now() : message.eventTime();
         LocalDate statDate = eventTime.toLocalDate();
         String billingType = BillingType.normalizeOrDefault(plan.getBillingType());
         long costAmount = calculateCostAmount(eventType, plan, statDate);
 
         EventEntity event = eventConverter.toEntity(
-                request,
+                message,
                 eventType,
                 material,
                 billingType,
@@ -81,17 +79,17 @@ public class EventProcessorImpl implements EventProcessor {
         long finalCostAmount = charged ? costAmount : 0L;
         if (costAmount > 0) {
             chargeRecordMapper.insert(toChargeRecord(
-                    request,
+                    message,
                     material,
                     billingType,
                     finalCostAmount,
                     charged ? ChargeStatus.SUCCESS : ChargeStatus.BUDGET_EXHAUSTED,
                     eventTime));
-            eventMapper.updateChargeResult(request.eventId(), charged ? 1 : 0, finalCostAmount);
+            eventMapper.updateChargeResult(message.eventId(), charged ? 1 : 0, finalCostAmount);
         }
 
         if (eventType == EventType.IMPRESSION) {
-            frequencyRedisService.incrementViewerPlanImpression(request.viewerId(), plan.getId(), statDate);
+            frequencyRedisService.incrementViewerPlanImpression(message.viewerId(), plan.getId(), statDate);
         }
 
         dailyReportRedisService.incrementDailyReport(
@@ -121,14 +119,14 @@ public class EventProcessorImpl implements EventProcessor {
     }
 
     private ChargeRecordEntity toChargeRecord(
-            EventRequest request,
+            EventMessage message,
             MaterialEntity material,
             String billingType,
             long amount,
             ChargeStatus chargeStatus,
             LocalDateTime chargeTime) {
         ChargeRecordEntity record = new ChargeRecordEntity();
-        record.setEventId(request.eventId());
+        record.setEventId(message.eventId());
         record.setPlanId(material.getPlanId());
         record.setMaterialId(material.getId());
         record.setSlotId(material.getSlotId());

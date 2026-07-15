@@ -19,7 +19,7 @@ public class EventController {
     private final EventService eventService;
 
     /**
-     * 接收曝光、点击、转化事件，写入 Kafka 后立即返回；明细入库和统计累加由消费者异步完成。
+     * 接收曝光、点击、转化事件，发布异步事件后立即返回；明细入库和统计累加由后台处理器完成。
      */
     @PostMapping
     public Result<EventResponse> collect(@Valid @RequestBody EventRequest request) {

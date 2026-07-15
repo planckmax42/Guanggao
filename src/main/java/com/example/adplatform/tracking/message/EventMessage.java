@@ -1,11 +1,9 @@
 package com.example.adplatform.tracking.message;
 
-import com.example.adplatform.tracking.dto.EventRequest;
-
 import java.time.LocalDateTime;
 
 /**
- * Kafka 中传递的广告事件消息，HTTP 上报成功后由消费者异步写入明细和统计。
+ * 异步传递的广告事件消息，HTTP 上报成功后由消息适配器转交给业务层处理。
  */
 public record EventMessage(
         String eventId,
@@ -14,18 +12,4 @@ public record EventMessage(
         Long materialId,
         Long viewerId,
         LocalDateTime eventTime) {
-
-    public static EventMessage from(EventRequest request) {
-        return new EventMessage(
-                request.eventId(),
-                request.requestId(),
-                request.eventType(),
-                request.materialId(),
-                request.viewerId(),
-                request.eventTime());
-    }
-
-    public EventRequest toRequest() {
-        return new EventRequest(eventId, requestId, eventType, materialId, viewerId, eventTime);
-    }
 }

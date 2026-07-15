@@ -25,9 +25,14 @@ public class SlotBloomFilterExpansionScheduler {
 
     private volatile Instant lastExpansionTime = Instant.EPOCH;
 
+    /**
+     * 按配置周期检查实际误判率和位图理论误判率，达到阈值后触发扩容重建。
+     *
+     * <p>样本数不足、仍在冷却期、过滤器未就绪或已达容量上限时不执行扩容。</p>
+     */
     @Scheduled(
-            fixedDelayString = "${app.slot-cache.bloom.expansion-check-delay-ms:30000}",
-            initialDelayString = "${app.slot-cache.bloom.expansion-check-initial-delay-ms:30000}")
+            fixedDelayString = "${app.slot-cache.bloom.expansion-check-delay-ms}",
+            initialDelayString = "${app.slot-cache.bloom.expansion-check-initial-delay-ms}")
     public void checkAndExpand() {
         SlotCacheProperties.Bloom config = properties.getBloom();
         SlotBloomFilterMetrics.Snapshot snapshot = metrics.snapshot();

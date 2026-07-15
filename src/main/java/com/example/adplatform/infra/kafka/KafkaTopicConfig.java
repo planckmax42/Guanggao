@@ -1,4 +1,4 @@
-package com.example.adplatform.common.config;
+package com.example.adplatform.infra.kafka;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
@@ -6,9 +6,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
+/** 广告事件 Kafka Topic 的声明式创建配置。 */
 @Configuration
 public class KafkaTopicConfig {
 
+    /**
+     * 创建广告事件 Topic 定义，并在 Kafka Admin 可用时自动创建或校验 Topic。
+     *
+     * @param topicName {@code app.kafka.topics.event} 配置的 Topic 名称
+     * @return 包含分区数和副本数的 Topic 定义
+     */
     @Bean
     public NewTopic eventTopic(@Value("${app.kafka.topics.event}") String topicName) {
         return TopicBuilder.name(topicName)

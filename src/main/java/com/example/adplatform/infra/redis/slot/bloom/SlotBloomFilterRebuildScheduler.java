@@ -16,9 +16,12 @@ public class SlotBloomFilterRebuildScheduler {
 
     private final SlotCacheService slotCacheService;
 
+    /**
+     * 按固定间隔全量重建布隆过滤器，清除布隆过滤器无法单独删除的旧编码。
+     */
     @Scheduled(
-            fixedDelayString = "${app.slot-cache.bloom.rebuild-delay-ms:300000}",
-            initialDelayString = "${app.slot-cache.bloom.rebuild-initial-delay-ms:300000}")
+            fixedDelayString = "${app.slot-cache.bloom.rebuild-delay-ms}",
+            initialDelayString = "${app.slot-cache.bloom.rebuild-initial-delay-ms}")
     public void rebuild() {
         try {
             slotCacheService.rebuildBloomFilter();

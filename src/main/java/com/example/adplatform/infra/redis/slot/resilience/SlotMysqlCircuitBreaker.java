@@ -22,6 +22,12 @@ public class SlotMysqlCircuitBreaker {
     /** Resilience4j 提供的熔断器实例，内部维护 CLOSED、OPEN 和 HALF_OPEN 状态。 */
     private final CircuitBreaker circuitBreaker;
 
+    /**
+     * 根据广告位缓存配置创建 MySQL 回源熔断器，并注册状态变更日志监听器。
+     *
+     * @param properties 包含滑动窗口、失败率、慢调用率和半开探测参数的配置
+     * @throws IllegalArgumentException 熔断参数不符合 Resilience4j 约束时抛出
+     */
     public SlotMysqlCircuitBreaker(SlotCacheProperties properties) {
         // 读取 app.slot-cache.mysql-circuit-breaker 下的项目配置。
         SlotCacheProperties.MysqlCircuitBreaker config = properties.getMysqlCircuitBreaker();
@@ -66,6 +72,12 @@ public class SlotMysqlCircuitBreaker {
      *
      * <p>CLOSED 状态会执行 {@code supplier.get()}并记录结果；
      * OPEN 状态不会执行 supplier，而是抛出 {@code CallNotPermittedException}。</p>
+     *
+     * @param supplier 由熔断器决定是否执行的无参数操作
+     * @param <T> 操作结果类型
+     * @return supplier 执行结果
+     * @throws io.github.resilience4j.circuitbreaker.CallNotPermittedException 熔断器当前拒绝调用时抛出
+     * @throws RuntimeException supplier 执行失败时原样向上抛出
      */
     public <T> T execute(Supplier<T> supplier) {
         return circuitBreaker.executeSupplier(supplier);
@@ -73,6 +85,8 @@ public class SlotMysqlCircuitBreaker {
 
     /**
      * 返回熔断器当前状态，可用于健康检查或监控。
+     *
+     * @return Resilience4j 熔断器当前状态
      */
     public CircuitBreaker.State currentState() {
         return circuitBreaker.getState();

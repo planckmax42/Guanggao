@@ -24,6 +24,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * 广告位编码缓存的默认实现。
+ *
+ * <p>查询按“布隆过滤器→Redis→MySQL”顺序执行；缓存更新在数据库事务提交后进行，
+ * 避免未提交数据进入缓存。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class SlotCacheServiceImpl implements SlotCacheService {
@@ -37,6 +43,7 @@ public class SlotCacheServiceImpl implements SlotCacheService {
     private final SlotBloomFilterMetrics bloomFilterMetrics;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
 
+    /** {@inheritDoc} */
     @Override
     public Optional<Long> getEnabledSlotIdByCode(String slotCode) {
         if (!StringUtils.hasText(slotCode)) {//防御性校验，防止绕过controller层传入非法参数
@@ -76,6 +83,7 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         return Optional.of(slot.getId());
     }
 
+    /** {@inheritDoc} */
     @Override
     public void cacheSlot(SlotEntity slot) {
         if (slot == null || !StringUtils.hasText(slot.getSlotCode())) {
@@ -97,11 +105,13 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public void refreshSlot(SlotEntity slot, String oldSlotCode) {
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                /** 数据库事务成功提交后再刷新缓存，避免脏数据进入 Redis。 */
                 @Override
                 public void afterCommit() {
                     refreshSlotCache(slot, oldSlotCode);
@@ -112,6 +122,12 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         refreshSlotCache(slot, oldSlotCode);
     }
 
+    /**
+     * 在数据库事务提交后删除旧编码并写入当前广告位缓存。
+     *
+     * @param slot 更新后的广告位
+     * @param oldSlotCode 更新前的广告位编码
+     */
     private void refreshSlotCache(SlotEntity slot, String oldSlotCode) {
         if (StringUtils.hasText(oldSlotCode) && (slot == null || !oldSlotCode.equals(slot.getSlotCode()))) {
             evictSlotCode(oldSlotCode);
@@ -119,9 +135,16 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         cacheSlot(slot);
     }
 
+    /** {@inheritDoc} */
     @Override
     public void warmUp() {
-        Optional<List<SlotEntity>> enabledSlots = rebuildBloomFilterAndReturnSlots();
+        Optional<List<SlotEntity>> enabledSlots;
+        try {
+            enabledSlots = bloomFilterManager.rebuild(this::selectAllEnabledSlots);
+        } catch (RuntimeException ex) {
+            log.warn("启动预热查询启用广告位失败，布隆过滤器和 Redis 保持原状", ex);
+            return;
+        }
         if (enabledSlots.isEmpty()) {
             return;
         }
@@ -143,52 +166,69 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         log.info("广告位 Redis 缓存预热完成，数量={}", successCount);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean rebuildBloomFilter() {
-        Optional<List<SlotEntity>> enabledSlots = rebuildBloomFilterAndReturnSlots();
-        enabledSlots.ifPresent(slots -> {
+        try {
+            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.rebuild(this::selectAllEnabledSlots);
+            if (enabledSlots.isEmpty()) {
+                return false;
+            }
+
             bloomFilterMetrics.reset();
-            log.info("广告位布隆过滤器重建完成，启用广告位数量={}", slots.size());
-        });
-        return enabledSlots.isPresent();
+            log.info("广告位布隆过滤器重建完成，启用广告位数量={}", enabledSlots.get().size());
+            return true;
+        } catch (RuntimeException ex) {
+            log.warn("查询启用广告位失败，保留当前布隆过滤器", ex);
+            return false;
+        }
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean expandAndRebuildBloomFilter() {
         try {
-            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.expandAndRebuild(
-                    this::selectAllEnabledSlots,
-                    slots -> slots.stream().map(SlotEntity::getSlotCode).toList());
-            enabledSlots.ifPresent(slots -> bloomFilterMetrics.reset());
-            return enabledSlots.isPresent();
+            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.expandAndRebuild(this::selectAllEnabledSlots);
+            if (enabledSlots.isEmpty()) {
+                return false;
+            }
+
+            bloomFilterMetrics.reset();
+            return true;
         } catch (RuntimeException ex) {
             log.warn("广告位布隆过滤器扩容重建失败，继续使用当前过滤器", ex);
             return false;
         }
     }
 
-    private Optional<List<SlotEntity>> rebuildBloomFilterAndReturnSlots() {
-        try {
-            return bloomFilterManager.rebuild(
-                    this::selectAllEnabledSlots,
-                    slots -> slots.stream().map(SlotEntity::getSlotCode).toList());
-        } catch (RuntimeException ex) {
-            log.warn("查询启用广告位失败，保留当前布隆过滤器", ex);
-            return Optional.empty();
-        }
-    }
-
+    /**
+     * 从 MySQL 查询指定编码且状态为启用的广告位。
+     *
+     * @param slotCode 对外广告位编码
+     * @return 启用广告位；不存在时返回 {@code null}
+     */
     private SlotEntity selectEnabledSlotByCode(String slotCode) {
         return slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getSlotCode, slotCode)
                 .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
     }
 
+    /**
+     * 从 MySQL 全量查询当前启用的广告位。
+     *
+     * @return 启用广告位列表
+     */
     private List<SlotEntity> selectAllEnabledSlots() {
         return slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
     }
 
+    /**
+     * 从 Redis 读取广告位 ID，读取失败或值格式错误时按缓存未命中处理。
+     *
+     * @param slotCode 对外广告位编码
+     * @return Redis 中的广告位 ID；未命中或异常时返回 empty
+     */
     private Optional<Long> getSlotIdFromRedis(String slotCode) {
         String value;
         try {
@@ -208,6 +248,11 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         }
     }
 
+    /**
+     * 删除指定广告位编码的 Redis 映射缓存。
+     *
+     * @param slotCode 待清理的广告位编码
+     */
     private void evictSlotCode(String slotCode) {
         if (!StringUtils.hasText(slotCode)) {
             return;

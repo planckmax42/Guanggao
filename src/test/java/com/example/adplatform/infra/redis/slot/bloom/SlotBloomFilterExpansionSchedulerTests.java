@@ -19,15 +19,15 @@ class SlotBloomFilterExpansionSchedulerTests {
     void shouldExpandWhenActualAndExpectedRatesReachThreshold() {
         SlotCacheProperties properties = createProperties();
         SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
-        List<String> saturatedSlotCodes = IntStream.range(0, 100)
-                .mapToObj(index -> "SLOT_" + index)
+        List<SlotEntity> saturatedSlots = IntStream.range(0, 100)
+                .mapToObj(index -> slot("SLOT_" + index))
                 .toList();
-        manager.rebuild(() -> saturatedSlotCodes, slots -> slots);
+        manager.rebuild(() -> saturatedSlots);
         SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
         metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
         RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() ->
-                manager.expandAndRebuild(() -> saturatedSlotCodes, slots -> slots));
+                manager.expandAndRebuild(() -> saturatedSlots));
         SlotBloomFilterExpansionScheduler scheduler = new SlotBloomFilterExpansionScheduler(
                 metrics, manager, properties, slotCacheService);
 
@@ -42,7 +42,7 @@ class SlotBloomFilterExpansionSchedulerTests {
         SlotCacheProperties properties = createProperties();
         properties.getBloom().setMinimumAbsentSamples(100L);
         SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
-        manager.rebuild(() -> List.of("SLOT_1", "SLOT_2", "SLOT_3"), slots -> slots);
+        manager.rebuild(() -> List.of(slot("SLOT_1"), slot("SLOT_2"), slot("SLOT_3")));
         SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
         metrics.recordFalsePositive();
         RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() -> Optional.empty());
@@ -60,18 +60,25 @@ class SlotBloomFilterExpansionSchedulerTests {
         bloom.setExpectedInsertions(1);
         bloom.setFalsePositiveProbability(0.01D);
         bloom.setMinimumAbsentSamples(2L);
+        bloom.setExpansionFactor(2D);
         bloom.setExpansionCooldown(Duration.ZERO);
         bloom.setMaxExpectedInsertions(100L);
         return properties;
     }
 
+    private static SlotEntity slot(String slotCode) {
+        SlotEntity slot = new SlotEntity();
+        slot.setSlotCode(slotCode);
+        return slot;
+    }
+
     private static class RecordingSlotCacheService implements SlotCacheService {
 
-        private final Supplier<Optional<List<String>>> expansionAction;
+        private final Supplier<Optional<List<SlotEntity>>> expansionAction;
         private int expansionCount;
 
         private RecordingSlotCacheService(
-                Supplier<Optional<List<String>>> expansionAction) {
+                Supplier<Optional<List<SlotEntity>>> expansionAction) {
             this.expansionAction = expansionAction;
         }
 

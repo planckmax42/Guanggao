@@ -1,8 +1,10 @@
 package com.example.adplatform.infra.redis.slot.bloom;
 
+import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.infra.redis.slot.SlotCacheProperties;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -18,11 +20,11 @@ class SlotCodeBloomFilterManagerTests {
     @Test
     void shouldRemoveDisabledCodeAfterRebuild() {
         SlotCodeBloomFilterManager manager = createManager();
-        manager.rebuild(() -> List.of("HOME_BANNER", "OLD_SLOT"), slots -> slots);
+        manager.rebuild(() -> slots("HOME_BANNER", "OLD_SLOT"));
 
         assertFalse(manager.definitelyNotContains("OLD_SLOT"));
 
-        manager.rebuild(() -> List.of("HOME_BANNER"), slots -> slots);
+        manager.rebuild(() -> slots("HOME_BANNER"));
 
         assertTrue(manager.definitelyNotContains("OLD_SLOT"));
         assertFalse(manager.definitelyNotContains("HOME_BANNER"));
@@ -31,15 +33,15 @@ class SlotCodeBloomFilterManagerTests {
     @Test
     void shouldWriteNewCodeToStandbyFilterDuringRebuild() throws Exception {
         SlotCodeBloomFilterManager manager = createManager();
-        manager.rebuild(() -> List.of("HOME_BANNER"), slots -> slots);
+        manager.rebuild(() -> slots("HOME_BANNER"));
         CountDownLatch rebuildStarted = new CountDownLatch(1);
         CountDownLatch continueRebuild = new CountDownLatch(1);
 
         CompletableFuture<Void> rebuildFuture = CompletableFuture.runAsync(() -> manager.rebuild(() -> {
             rebuildStarted.countDown();
             await(continueRebuild);
-            return List.of("HOME_BANNER");
-        }, slots -> slots));
+            return slots("HOME_BANNER");
+        }));
 
         assertTrue(rebuildStarted.await(1, TimeUnit.SECONDS));
         manager.put("NEW_SLOT");
@@ -52,11 +54,11 @@ class SlotCodeBloomFilterManagerTests {
     @Test
     void shouldKeepActiveFilterWhenRebuildFails() {
         SlotCodeBloomFilterManager manager = createManager();
-        manager.rebuild(() -> List.of("HOME_BANNER"), slots -> slots);
+        manager.rebuild(() -> slots("HOME_BANNER"));
 
         assertThrows(IllegalStateException.class, () -> manager.rebuild(() -> {
             throw new IllegalStateException("模拟 MySQL 查询失败");
-        }, slots -> List.of()));
+        }));
 
         assertFalse(manager.definitelyNotContains("HOME_BANNER"));
         assertTrue(manager.definitelyNotContains("UNKNOWN_SLOT"));
@@ -66,12 +68,13 @@ class SlotCodeBloomFilterManagerTests {
     void shouldDoubleCapacityAndRebuildWhenExpanding() {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.getBloom().setExpectedInsertions(100);
+        properties.getBloom().setFalsePositiveProbability(0.01D);
         properties.getBloom().setExpansionFactor(2D);
         properties.getBloom().setMaxExpectedInsertions(1_000L);
         SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
-        manager.rebuild(() -> List.of("HOME_BANNER", "OLD_SLOT"), slots -> slots);
+        manager.rebuild(() -> slots("HOME_BANNER", "OLD_SLOT"));
 
-        manager.expandAndRebuild(() -> List.of("HOME_BANNER", "NEW_SLOT"), slots -> slots);
+        manager.expandAndRebuild(() -> slots("HOME_BANNER", "NEW_SLOT"));
 
         assertEquals(200L, manager.status().expectedInsertions());
         assertFalse(manager.definitelyNotContains("HOME_BANNER"));
@@ -84,6 +87,18 @@ class SlotCodeBloomFilterManagerTests {
         properties.getBloom().setExpectedInsertions(100);
         properties.getBloom().setFalsePositiveProbability(0.000001D);
         return new SlotCodeBloomFilterManager(properties);
+    }
+
+    private List<SlotEntity> slots(String... slotCodes) {
+        return Arrays.stream(slotCodes)
+                .map(this::slot)
+                .toList();
+    }
+
+    private SlotEntity slot(String slotCode) {
+        SlotEntity slot = new SlotEntity();
+        slot.setSlotCode(slotCode);
+        return slot;
     }
 
     private void await(CountDownLatch latch) {
