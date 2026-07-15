@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.budget;
 
 import com.example.adplatform.admin.entity.PlanEntity;
 

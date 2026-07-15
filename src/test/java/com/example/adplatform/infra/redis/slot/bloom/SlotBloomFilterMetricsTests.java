@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot.bloom;
 
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +10,7 @@ class SlotBloomFilterMetricsTests {
     void shouldCalculateActualFalsePositiveRateFromAbsentRequests() {
         SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
         for (int i = 0; i < 990; i++) {
-            metrics.recordRejectedAbsent();
+            metrics.recordDefiniteMiss();
         }
         for (int i = 0; i < 10; i++) {
             metrics.recordFalsePositive();
@@ -25,7 +25,7 @@ class SlotBloomFilterMetricsTests {
     @Test
     void shouldStartNewMeasurementWindowAfterReset() {
         SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
-        metrics.recordRejectedAbsent();
+        metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
 
         metrics.reset();

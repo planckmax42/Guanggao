@@ -1,5 +1,6 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot.resilience;
 
+import com.example.adplatform.infra.redis.slot.SlotCacheProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.Test;

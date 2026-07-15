@@ -1,5 +1,6 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.frequency;
 
+import com.example.adplatform.infra.redis.RedisKeyConstants;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

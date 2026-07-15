@@ -1,7 +1,9 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot.bloom;
 
+import com.example.adplatform.infra.redis.slot.SlotCacheProperties;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -30,6 +32,7 @@ public class SlotCodeBloomFilterManager {
     private final ReentrantLock rebuildLock = new ReentrantLock();
     private final ReentrantLock filterSwitchLock = new ReentrantLock();
 
+    @Getter
     private volatile boolean ready;
 
     public SlotCodeBloomFilterManager(SlotCacheProperties properties) {
@@ -42,7 +45,7 @@ public class SlotCodeBloomFilterManager {
      * 返回 true 表示编码一定不存在；返回 false 表示编码可能存在，需要继续查询缓存。
      */
     public boolean definitelyNotContains(String slotCode) {
-        return ready && StringUtils.hasText(slotCode) && !activeFilter.get().mightContain(slotCode);
+        return ready && StringUtils.hasText(slotCode) && !activeFilter.get().mightContain(slotCode);//同样防御性校验
     }
 
     /**
@@ -147,10 +150,6 @@ public class SlotCodeBloomFilterManager {
             }
             rebuildLock.unlock();
         }
-    }
-
-    public boolean isReady() {
-        return ready;
     }
 
     private long initialExpectedInsertions() {

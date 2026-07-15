@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.SlotEntity;
@@ -6,6 +6,10 @@ import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.infra.redis.RedisKeyConstants;
+import com.example.adplatform.infra.redis.slot.bloom.SlotBloomFilterMetrics;
+import com.example.adplatform.infra.redis.slot.bloom.SlotCodeBloomFilterManager;
+import com.example.adplatform.infra.redis.slot.resilience.SlotMysqlCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -35,12 +39,11 @@ public class SlotCacheServiceImpl implements SlotCacheService {
 
     @Override
     public Optional<Long> getEnabledSlotIdByCode(String slotCode) {
-        if (!StringUtils.hasText(slotCode)) {
+        if (!StringUtils.hasText(slotCode)) {//防御性校验，防止绕过controller层传入非法参数
             return Optional.empty();
         }
-        boolean bloomReady = bloomFilterManager.isReady();
-        if (bloomReady && bloomFilterManager.definitelyNotContains(slotCode)) {
-            bloomFilterMetrics.recordRejectedAbsent();
+        if (bloomFilterManager.definitelyNotContains(slotCode)) {
+            bloomFilterMetrics.recordDefiniteMiss();
             return Optional.empty();
         }
 
@@ -64,7 +67,7 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         }
 
         if (slot == null) {
-            if (bloomReady) {
+            if (bloomFilterManager.isReady()) {
                 bloomFilterMetrics.recordFalsePositive();
             }
             return Optional.empty();

@@ -1,5 +1,6 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot.bloom;
 
+import com.example.adplatform.infra.redis.slot.SlotCacheProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis;
+package com.example.adplatform.infra.redis.slot.bloom;
 
 import org.springframework.stereotype.Component;
 
@@ -10,14 +10,14 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class SlotBloomFilterMetrics {
 
-    private final AtomicLong rejectedAbsentCount = new AtomicLong();
+    private final AtomicLong definiteMissCount = new AtomicLong();
     private final AtomicLong falsePositiveCount = new AtomicLong();
 
     /**
      * 布隆过滤器明确判断编码不存在，没有继续访问 Redis 和 MySQL。
      */
-    public void recordRejectedAbsent() {
-        rejectedAbsentCount.incrementAndGet();
+    public void recordDefiniteMiss() {
+        definiteMissCount.incrementAndGet();
     }
 
     /**
@@ -28,21 +28,21 @@ public class SlotBloomFilterMetrics {
     }
 
     public Snapshot snapshot() {
-        return new Snapshot(rejectedAbsentCount.get(), falsePositiveCount.get());
+        return new Snapshot(definiteMissCount.get(), falsePositiveCount.get());
     }
 
     /**
      * 过滤器成功重建后开启新的统计窗口。
      */
     public void reset() {
-        rejectedAbsentCount.set(0L);
+        definiteMissCount.set(0L);
         falsePositiveCount.set(0L);
     }
 
-    public record Snapshot(long rejectedAbsentCount, long falsePositiveCount) {
+    public record Snapshot(long definiteMissCount, long falsePositiveCount) {
 
         public long absentSampleCount() {
-            return rejectedAbsentCount + falsePositiveCount;
+            return definiteMissCount + falsePositiveCount;
         }
 
         public double actualFalsePositiveRate() {

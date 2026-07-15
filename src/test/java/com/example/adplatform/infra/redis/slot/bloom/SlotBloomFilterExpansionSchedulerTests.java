@@ -1,8 +1,9 @@
-package com.example.adplatform.infra.redis;
-
-import org.junit.jupiter.api.Test;
+package com.example.adplatform.infra.redis.slot.bloom;
 
 import com.example.adplatform.admin.entity.SlotEntity;
+import com.example.adplatform.infra.redis.slot.SlotCacheProperties;
+import com.example.adplatform.infra.redis.slot.SlotCacheService;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
@@ -23,7 +24,7 @@ class SlotBloomFilterExpansionSchedulerTests {
                 .toList();
         manager.rebuild(() -> saturatedSlotCodes, slots -> slots);
         SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
-        metrics.recordRejectedAbsent();
+        metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
         RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() ->
                 manager.expandAndRebuild(() -> saturatedSlotCodes, slots -> slots));

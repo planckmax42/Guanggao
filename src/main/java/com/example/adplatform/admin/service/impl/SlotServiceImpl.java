@@ -13,7 +13,7 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefVO;
-import com.example.adplatform.infra.redis.SlotCacheService;
+import com.example.adplatform.infra.redis.slot.SlotCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
