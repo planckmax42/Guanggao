@@ -20,6 +20,7 @@ import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventProcessor;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class EventProcessorImpl implements EventProcessor {
     private final PlanMapper planMapper;
     private final MaterialMapper materialMapper;
     private final EventConverter eventConverter;
+    private final SearchOutboxService searchOutboxService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -101,6 +103,7 @@ public class EventProcessorImpl implements EventProcessor {
                 eventType == EventType.CLICK ? 1 : 0,
                 eventType == EventType.CONVERSION ? 1 : 0,
                 finalCostAmount);
+        searchOutboxService.appendEventIndex(message.eventId());
     }
 
     private long calculateCostAmount(EventType eventType, PlanEntity plan, LocalDate statDate) {

@@ -2,18 +2,53 @@
 
 ## 运行前准备
 
-1. 先启动本地 MySQL、Redis、Kafka 和 Spring Boot 服务。当前事件采集接口会先写 Kafka，再由消费者异步写入明细和实时统计。
-2. 表结构已统一为新命名，建议先重建本地库，再按顺序执行 `00-create-database.sql`、`01-admin-schema.sql`、`02-delivery-schema.sql`、`04-tracking-report-schema.sql`、`99-seed-demo-data.sql`，保证存在固定测试数据：
-   - 广告位：`HOME_BANNER`、`FEED_CARD`、`SEARCH_TEXT`
-   - 在线计划：`planId=1`、`planId=2`、`planId=6`、`planId=7`
-   - 已审核且可投放素材：`materialId=1`、`2`、`3`、`4`、`9`、`10`、`11`、`12`、`13`
-3. 确认接口可访问：
+1. 启动 MySQL、Redis、Kafka、Elasticsearch 和 Spring Boot 应用。
+2. 执行基础 SQL，其中必须包含 `06-elasticsearch-outbox-schema.sql`。
+3. 确认应用和 ES 可用：
 
 ```bash
-curl http://127.0.0.1:8080/actuator/health
+curl http://127.0.0.1:8080/api/health
+curl http://127.0.0.1:9200/_cluster/health
 ```
 
+## 准备 1k / 5k / 10k 候选数据
+
+`sql/prepare-es-recall-data.sql` 只使用 `900000` 号段，可重复执行，不会清理演示数据。下面的 `@candidate_count` 可换成 `1000`、`5000` 或 `10000`：
+
+```bash
+mysql -h127.0.0.1 -P3306 -uroot -p ad_platform \
+  -e "SET @candidate_count=5000; SOURCE scripts/jmeter/sql/prepare-es-recall-data.sql;"
+
+curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
+```
+
+脚本直接写 MySQL，不会触发应用内的广告位布隆过滤器增量更新。建议在应用启动前生成数据；如果应用已在运行，生成后重启应用，再执行候选索引重建。
+
+重建响应中的 `indexedCount` 应等于演示可投候选数加本次生成数。ES 通过新建版本索引后原子切换别名，重建期间不影响旧索引读取。
+
+压测完成后可清理专用 ID 段，然后再重建候选索引：
+
+```bash
+mysql -h127.0.0.1 -P3306 -uroot -p ad_platform \
+  -e "SOURCE scripts/jmeter/sql/cleanup-es-recall-data.sql;"
+redis-cli DEL slot:code:ES_LOAD_HOME slot:code:ES_LOAD_FEED slot:code:ES_LOAD_SEARCH
+curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
+```
+
+## 线程组
+
+- `02-广告投放高并发`：演示数据上的 5 类业务场景，实际走 ES 粗召回、Redis 批量动态过滤和 Java 精排。
+- `03-事件采集高并发写入`：事件 API -> Kafka -> MySQL/Outbox -> Kafka -> ES 日索引。
+- `04-重复事件幂等冲突`：验证 `event_id` 唯一索引和消费幂等。
+- `05-报表查询混合读`：日报、漏斗和素材排行。
+- `06-ES多维粗召回投放链路`：专用于 1k / 5k / 10k 数据，覆盖 3 个压测广告位和多维定向。
+- `07-ES事件检索与search_after游标`：先查首页，提取 `nextCursor`，再查下一页。
+
+`06` 和 `07` 默认关闭，用 GUI 打开时建议同时关闭其他线程组，避免混杂指标。
+
 ## 命令行运行
+
+JMX 默认启用基础管理和投放线程组：
 
 ```bash
 jmeter -n \
@@ -24,40 +59,26 @@ jmeter -n \
   -Jport=8080 \
   -JadminThreads=5 \
   -JdeliveryThreads=80 \
-  -JdeliveryLoops=1 \
-  -JeventThreads=100 \
-  -JduplicateThreads=30 \
-  -JreportThreads=20 \
-  -Jloops=100 \
-  -JeventLoops=10
+  -JdeliveryRamp=10 \
+  -JdeliveryLoops=20
 ```
 
-也可以用 GUI 打开 `ad-platform-load-test.jmx`，逐步调小线程数观察接口表现。
+各专项线程数参数：
 
-## 覆盖的业务
+```text
+eventThreads / eventRamp / eventLoops
+duplicateThreads / duplicateRamp / duplicateLoops
+reportThreads / reportRamp / loops
+esRecallThreads / esRecallRamp / esRecallLoops
+eventSearchThreads / eventSearchRamp / eventSearchLoops
+```
 
-- 后台管理完整链路：广告主、广告位、广告计划、素材、定向规则、分页查询、计划状态流转。
-- 广告投放链路：`POST /api/delivery/ads`，拆成首页生鲜、首页课程、信息流生鲜、信息流游戏、搜索混合 5 类请求，覆盖不同广告位、地区、设备、人群标签和素材集合。
-- 事件采集链路：`POST /api/tracking/events`，覆盖曝光、点击、转化事件，并在 9 个可投放素材之间随机上报。
-- 重复事件链路：大量线程使用同一个 `eventId`，压测数据库唯一索引和幂等处理。
-- 报表链路：日统计、漏斗、素材排行。
+## 建议压测方法
 
-## 重点观察的问题
+1. 单线程、单循环校验返回值，然后关闭 `查看结果树`。
+2. 分别在 1k、5k、10k 候选量下运行 `06`，记录吞吐、P95、P99 和错误率。
+3. 查看 `/actuator/metrics/ad.candidate.recall.duration`，确认 `source=ELASTICSEARCH`，避免把 MySQL 降级结果误当成 ES 结果。
+4. 停止 ES 再运行相同请求，验证接口仍成功，且指标出现 `source=MYSQL_FALLBACK`。恢复 ES 后继续压测，验证熔断器自动恢复。
+5. 运行 `03` 后再运行 `07`，同时观察 Outbox `PENDING` 数、Kafka consumer lag、ES 索引速率和查询 P95/P99。
 
-- 投放接口是否因为循环查询计划、定向、预算、频控出现 RT 升高，即 N+1 查询问题。
-- 事件采集接口写 Kafka 是否稳定，消费者是否能持续处理消息。
-- Redis 实时统计刷入 `daily_report` 时，热点计划/素材是否出现锁竞争。
-- 重复事件压测下，`event_id` 唯一索引是否能正确兜底，接口是否返回成功但 `duplicate=true`。
-- Hikari 连接池默认 `maximum-pool-size=10`，高并发时是否出现等待连接导致响应时间上升。
-- 报表接口在事件写入同时查询时，是否出现响应时间抖动。
-
-## 建议压测步骤
-
-1. 先用默认线程数跑 1 分钟，确认脚本可用。
-2. 单独启用 `02-广告投放高并发` 时，实际请求数 = `deliveryThreads * deliveryLoops * 5`，因为每个线程会依次请求 5 个投放场景。
-3. 将 `deliveryThreads` 提高到 100 以上，观察投放接口 P95/P99。
-4. 将 `eventThreads` 提高到 100 以上，观察事件接口、Kafka 堆积、消费者处理速度和 MySQL 连接数。
-5. 单独启用重复事件线程组，观察幂等处理是否稳定。
-6. 后续引入 Elasticsearch/ClickHouse 后，再用同一套压测维度对比分析型存储改造前后的吞吐量和 P95/P99。
-
-`查看结果树` 默认关闭。只在单线程调试返回值时打开，高并发压测时不要打开，否则 GUI 会保存大量响应内容，影响压测结果。
+第一次请求可能需要从 MySQL 回建预算 Redis Key，建议先预热 30 秒再采集稳态数据。

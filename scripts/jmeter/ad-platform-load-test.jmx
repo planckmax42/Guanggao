@@ -2,7 +2,7 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="广告投放与实时数据分析平台-全链路压测">
-      <stringProp name="TestPlan.comments">覆盖后台管理、广告投放、事件采集、重复事件幂等和报表查询。</stringProp>
+      <stringProp name="TestPlan.comments">覆盖后台管理、ES粗召回 + Redis动态过滤 + Java精排、事件采集、ES事件游标检索、幂等和报表查询。</stringProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户变量">
         <collectionProp name="Arguments.arguments">
           <elementProp name="slot_1" elementType="Argument">
@@ -403,12 +403,12 @@
         <hashTree/>
       </hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发">
-        <intProp name="ThreadGroup.num_threads">2000</intProp>
-        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <stringProp name="ThreadGroup.num_threads">${__P(deliveryThreads,80)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(deliveryRamp,10)}</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <stringProp name="LoopController.loops">${__P(deliveryLoops,1)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -527,12 +527,12 @@
         <hashTree/>
       </hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入" enabled="false">
-        <intProp name="ThreadGroup.num_threads">200</intProp>
-        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <stringProp name="ThreadGroup.num_threads">${__P(eventThreads,100)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(eventRamp,10)}</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <stringProp name="LoopController.loops">${__P(eventLoops,10)}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -648,6 +648,108 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="06-ES多维粗召回投放链路" enabled="false">
+        <stringProp name="ThreadGroup.num_threads">${__P(esRecallThreads,80)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(esRecallRamp,10)}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">${__P(esRecallLoops,20)}</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ES-RECALL-首页教育人群定向" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(100000,999999)},&quot;slotCode&quot;:&quot;ES_LOAD_HOME&quot;,&quot;region&quot;:&quot;SHENZHEN&quot;,&quot;deviceType&quot;:&quot;ANDROID&quot;,&quot;age&quot;:${__Random(25,39)},&quot;gender&quot;:&quot;MALE&quot;,&quot;tags&quot;:[&quot;education&quot;,&quot;java&quot;,&quot;student&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ES-RECALL-信息流游戏人群定向" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(100000,999999)},&quot;slotCode&quot;:&quot;ES_LOAD_FEED&quot;,&quot;region&quot;:&quot;HANGZHOU&quot;,&quot;deviceType&quot;:&quot;IOS&quot;,&quot;age&quot;:${__Random(25,39)},&quot;gender&quot;:&quot;FEMALE&quot;,&quot;tags&quot;:[&quot;game&quot;,&quot;acg&quot;,&quot;mobile&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ES-RECALL-搜索生鲜人群与无定向混合" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/delivery/ads</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;viewerId&quot;:${__Random(100000,999999)},&quot;slotCode&quot;:&quot;ES_LOAD_SEARCH&quot;,&quot;region&quot;:&quot;BEIJING&quot;,&quot;deviceType&quot;:&quot;ANDROID&quot;,&quot;age&quot;:${__Random(25,39)},&quot;gender&quot;:&quot;FEMALE&quot;,&quot;tags&quot;:[&quot;fresh&quot;,&quot;family&quot;,&quot;shopping&quot;],&quot;size&quot;:10}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="07-ES事件检索与search_after游标" enabled="false">
+        <stringProp name="ThreadGroup.num_threads">${__P(eventSearchThreads,20)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(eventSearchRamp,5)}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">${__P(eventSearchLoops,20)}</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="EVENT-SEARCH-首页" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/search/events?size=1</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取nextCursor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">eventCursor</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.nextCursor</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues"></stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="存在游标时请求下一页" enabled="true">
+          <stringProp name="IfController.condition">${__groovy(vars.get('eventCursor') != null &amp;&amp; !vars.get('eventCursor').isBlank() &amp;&amp; vars.get('eventCursor') != 'null')}</stringProp>
+          <boolProp name="IfController.evaluateAll">false</boolProp>
+          <boolProp name="IfController.useExpression">true</boolProp>
+        </IfController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="EVENT-SEARCH-search_after下一页" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/search/events?size=1&amp;cursor=${__urlencode(${eventCursor})}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree/>
+        </hashTree>
       </hashTree>
     </hashTree>
   </hashTree>

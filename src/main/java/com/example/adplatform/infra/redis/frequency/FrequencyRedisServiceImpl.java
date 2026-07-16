@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 基于 Redis 计数器实现的每日用户曝光频控服务。
@@ -38,6 +42,35 @@ public class FrequencyRedisServiceImpl implements FrequencyRedisService {
         } catch (RuntimeException ex) {
             log.warn("读取用户频控缓存失败，viewerId={}，planId={}，本次投放放行：{}", viewerId, planId, ex.getMessage());
             return false;
+        }
+    }
+
+    @Override
+    public Set<Long> findExceededPlans(
+            Long viewerId,
+            Collection<Long> planIds,
+            LocalDate statDate,
+            int maxFrequency) {
+        if (viewerId == null || planIds == null || planIds.isEmpty() || maxFrequency <= 0) {
+            return Set.of();
+        }
+        List<Long> uniquePlanIds = planIds.stream().distinct().toList();
+        List<String> keys = uniquePlanIds.stream()
+                .map(planId -> RedisKeyConstants.viewerPlanFrequency(viewerId, planId, statDate))
+                .toList();
+        try {
+            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
+            Set<Long> exceeded = new HashSet<>();
+            for (int i = 0; i < uniquePlanIds.size(); i++) {
+                String value = values == null ? null : values.get(i);
+                if (value != null && Long.parseLong(value) >= maxFrequency) {
+                    exceeded.add(uniquePlanIds.get(i));
+                }
+            }
+            return exceeded;
+        } catch (RuntimeException ex) {
+            log.warn("批量读取用户频控失败，viewerId={}，本次投放放行", viewerId, ex);
+            return Set.of();
         }
     }
 

@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -31,17 +30,18 @@ public class SlotCodeBloomFilterManager {
     /** 当前为线上查询服务的布隆过滤器。 */
     private final AtomicReference<BloomFilter<CharSequence>> activeFilter;
 
-    /** 正在后台构建的备用过滤器；无重建任务时为 {@code null}。 */
-    private final AtomicReference<BloomFilter<CharSequence>> rebuildingFilter = new AtomicReference<>();
+    /**
+     * 正在后台构建的备用过滤器；无重建任务时为 {@code null}。
+     *
+     * <p>该字段只能在 {@link #filterLock} 保护下访问，同时兼作“当前正在重建”的状态标记。</p>
+     */
+    private BloomFilter<CharSequence> rebuildingFilter;
 
     /** 当前过滤器的预期插入量，扩容成功后更新。 */
     private final AtomicLong currentExpectedInsertions;
 
-    /** 保证同一时间只有一个普通重建或扩容重建任务。 */
-    private final ReentrantLock rebuildLock = new ReentrantLock();
-
-    /** 保证在线双写与新旧过滤器切换之间不会丢失新增编码。 */
-    private final ReentrantLock filterSwitchLock = new ReentrantLock();
+    /** 保证备用过滤器发布、在线双写和新旧过滤器切换不会互相穿插。 */
+    private final Object filterLock = new Object();
 
     /** 当前在线过滤器是否已成功加载过权威数据。 */
     @Getter
@@ -77,7 +77,7 @@ public class SlotCodeBloomFilterManager {
     /**
      * 新增或重新启用广告位时，同时写入当前过滤器和正在构建的过滤器。
      *
-     * <p>使用 {@code filterSwitchLock} 将双写与过滤器切换串行化，确保重建期间新增的编码不会丢失。</p>
+     * <p>使用 {@code filterLock} 将双写与过滤器切换串行化，确保重建期间新增的编码不会丢失。</p>
      *
      * @param slotCode 待写入的广告位编码；空白编码会被忽略
      */
@@ -85,15 +85,11 @@ public class SlotCodeBloomFilterManager {
         if (!StringUtils.hasText(slotCode)) {
             return;
         }
-        filterSwitchLock.lock();
-        try {
+        synchronized (filterLock) {
             activeFilter.get().put(slotCode);
-            BloomFilter<CharSequence> standbyFilter = rebuildingFilter.get();
-            if (standbyFilter != null) {
-                standbyFilter.put(slotCode);
+            if (rebuildingFilter != null) {
+                rebuildingFilter.put(slotCode);
             }
-        } finally {
-            filterSwitchLock.unlock();
         }
     }
 
@@ -148,28 +144,26 @@ public class SlotCodeBloomFilterManager {
     /**
      * 使用指定预期插入量执行一次双缓冲重建。
      *
-     * <p>方法先通过 {@code rebuildLock} 拒绝并行重建，再公布备用过滤器并加载 MySQL 数据。
-     * 加载期间的新增编码由 {@link #put(String)} 双写；构建成功后在切换锁内替换在线过滤器。
-     * 如果加载抛出异常，外层 {@code finally} 会清理备用引用并释放重建锁，旧过滤器保持不变。</p>
+     * <p>方法先在短锁内检查并公布备用过滤器；非空的 {@code rebuildingFilter} 同时表示已有重建任务。
+     * 加载期间的新增编码由 {@link #put(String)} 双写；构建成功后在同一把短锁内替换在线过滤器。
+     * 如果加载抛出异常，外层 {@code finally} 会清理备用引用，旧过滤器保持不变。</p>
      *
      * @param expectedInsertions 新过滤器的预期插入量
      * @param slotLoader 启用广告位加载操作
-     * @return 加载到的广告位；无法获取重建锁时返回 empty
+     * @return 加载到的广告位；已有重建任务时返回 empty
      */
     private Optional<List<SlotEntity>> rebuildWithCapacity(
             long expectedInsertions,
             Supplier<List<SlotEntity>> slotLoader) {
-        if (!rebuildLock.tryLock()) {
-            return Optional.empty();
+        BloomFilter<CharSequence> standbyFilter;
+        synchronized (filterLock) {
+            if (rebuildingFilter != null) {
+                return Optional.empty();
+            }
+            standbyFilter = createBloomFilter(expectedInsertions);
+            rebuildingFilter = standbyFilter;
         }
 
-        BloomFilter<CharSequence> standbyFilter = createBloomFilter(expectedInsertions);
-        filterSwitchLock.lock();
-        try {
-            rebuildingFilter.set(standbyFilter);
-        } finally {
-            filterSwitchLock.unlock();
-        }
         try {
             // 先公布 standbyFilter 再查数据库，保证查询期间新增的广告位也会被 put() 写入新过滤器。
             List<SlotEntity> slots = slotLoader.get();
@@ -179,24 +173,21 @@ public class SlotCodeBloomFilterManager {
                         .filter(StringUtils::hasText)
                         .forEach(standbyFilter::put);
             }
-            filterSwitchLock.lock();
-            try {
+
+            synchronized (filterLock) {
                 activeFilter.set(standbyFilter);
                 currentExpectedInsertions.set(expectedInsertions);
-                rebuildingFilter.compareAndSet(standbyFilter, null);
+                rebuildingFilter = null;
                 ready = true;
-            } finally {
-                filterSwitchLock.unlock();
             }
             return Optional.ofNullable(slots);
         } finally {
-            filterSwitchLock.lock();
-            try {
-                rebuildingFilter.compareAndSet(standbyFilter, null);
-            } finally {
-                filterSwitchLock.unlock();
+            synchronized (filterLock) {
+                // 仅撤销本次重建发布的过滤器，不能清除随后开始的新重建任务。
+                if (rebuildingFilter == standbyFilter) {
+                    rebuildingFilter = null;
+                }
             }
-            rebuildLock.unlock();
         }
     }
 

@@ -17,8 +17,13 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
+import com.example.adplatform.search.outbox.message.ConfigAggregateType;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -31,8 +36,11 @@ public class MaterialServiceImpl implements MaterialService {
     private final PlanMapper planMapper;
     private final SlotMapper slotMapper;
     private final MaterialConverter materialConverter;
+    private final SearchOutboxService searchOutboxService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ResourceRefVO create(CreateMaterialRequest request) {
         PlanEntity plan = planMapper.selectById(request.planId());
         if (plan == null) {
@@ -45,10 +53,12 @@ public class MaterialServiceImpl implements MaterialService {
 
         MaterialEntity entity = materialConverter.toEntity(request);
         materialMapper.insert(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.MATERIAL, entity.getId());
         return materialConverter.toRef(entity);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public MaterialVO audit(Long id, AuditMaterialRequest request) {
         MaterialEntity entity = materialMapper.selectById(id);
         if (entity == null) {
@@ -56,6 +66,11 @@ public class MaterialServiceImpl implements MaterialService {
         }
         entity.setAuditStatus(request.auditStatus());
         materialMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.MATERIAL, id);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
+                ConfigAggregateType.MATERIAL,
+                id,
+                !"APPROVED".equals(request.auditStatus())));
         return materialConverter.toVO(materialMapper.selectById(id));
     }
 

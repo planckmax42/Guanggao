@@ -23,4 +23,28 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic configChangeTopic(@Value("${app.kafka.topics.config-change}") String topicName) {
+        return topic(topicName);
+    }
+
+    @Bean
+    public NewTopic eventIndexTopic(@Value("${app.kafka.topics.event-index}") String topicName) {
+        return topic(topicName);
+    }
+
+    @Bean
+    public NewTopic configChangeDltTopic(@Value("${app.kafka.topics.config-change-dlt}") String topicName) {
+        return topic(topicName);
+    }
+
+    @Bean
+    public NewTopic eventIndexDltTopic(@Value("${app.kafka.topics.event-index-dlt}") String topicName) {
+        return topic(topicName);
+    }
+
+    private NewTopic topic(String topicName) {
+        return TopicBuilder.name(topicName).partitions(3).replicas(1).build();
+    }
 }

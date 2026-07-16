@@ -17,8 +17,12 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
+import com.example.adplatform.search.outbox.message.ConfigAggregateType;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -32,13 +36,17 @@ public class PlanServiceImpl implements PlanService {
     private final PlanMapper planMapper;
     private final UserMapper userMapper;
     private final PlanConverter planConverter;
+    private final SearchOutboxService searchOutboxService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ResourceRefVO create(CreatePlanRequest request) {
         ensureUserEnabled(request.userId());
 
         PlanEntity entity = planConverter.toEntity(request);
         planMapper.insert(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, entity.getId());
         return planConverter.toRef(entity);
     }
 
@@ -51,10 +59,12 @@ public class PlanServiceImpl implements PlanService {
         }
         planConverter.updateEntity(request, entity);
         planMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, id);
         return planConverter.toVO(planMapper.selectById(id));
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PlanVO online(Long id) {
         PlanEntity entity = getPlanOrThrow(id);
         ensureUserEnabled(entity.getUserId());
@@ -63,10 +73,13 @@ public class PlanServiceImpl implements PlanService {
         }
         entity.setStatus(PlanStatus.ONLINE.name());
         planMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, id);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, false));
         return planConverter.toVO(planMapper.selectById(id));
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PlanVO pause(Long id) {
         PlanEntity entity = getPlanOrThrow(id);
         if (!PlanStatus.ONLINE.name().equals(entity.getStatus())) {
@@ -74,14 +87,19 @@ public class PlanServiceImpl implements PlanService {
         }
         entity.setStatus(PlanStatus.PAUSED.name());
         planMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, id);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, true));
         return planConverter.toVO(planMapper.selectById(id));
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PlanVO offline(Long id) {
         PlanEntity entity = getPlanOrThrow(id);
         entity.setStatus(PlanStatus.OFFLINE.name());
         planMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, id);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, true));
         return planConverter.toVO(planMapper.selectById(id));
     }
 

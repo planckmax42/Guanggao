@@ -13,6 +13,10 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 基于 Redis 和扣费流水表实现的广告计划预算服务。
@@ -65,6 +69,49 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         }
         BudgetCost cost = getBudgetCost(plan, statDate);
         return cost.dailyCost() < plan.getBudgetDaily() && cost.totalCost() < plan.getBudgetTotal();
+    }
+
+    @Override
+    public Set<Long> findUnavailablePlans(Collection<PlanEntity> plans, LocalDate statDate) {
+        if (plans == null || plans.isEmpty()) {
+            return Set.of();
+        }
+        List<PlanEntity> uniquePlans = plans.stream()
+                .filter(this::hasValidBudget)
+                .collect(java.util.stream.Collectors.toMap(
+                        PlanEntity::getId,
+                        plan -> plan,
+                        (first, ignored) -> first,
+                        java.util.LinkedHashMap::new))
+                .values().stream().toList();
+        Set<Long> unavailable = new HashSet<>();
+        plans.stream().filter(plan -> !hasValidBudget(plan)).forEach(plan -> {
+            if (plan != null && plan.getId() != null) unavailable.add(plan.getId());
+        });
+        List<String> keys = new ArrayList<>(uniquePlans.size() * 2);
+        uniquePlans.forEach(plan -> {
+            keys.add(dailyBudgetKey(statDate, plan.getId()));
+            keys.add(totalBudgetKey(plan.getId()));
+        });
+        try {
+            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
+            for (int i = 0; i < uniquePlans.size(); i++) {
+                PlanEntity plan = uniquePlans.get(i);
+                String daily = values == null ? null : values.get(i * 2);
+                String total = values == null ? null : values.get(i * 2 + 1);
+                if (daily == null || total == null) {
+                    if (!hasAvailableBudget(plan, statDate)) unavailable.add(plan.getId());
+                } else if (Long.parseLong(daily) >= plan.getBudgetDaily()
+                        || Long.parseLong(total) >= plan.getBudgetTotal()) {
+                    unavailable.add(plan.getId());
+                }
+            }
+        } catch (RuntimeException ex) {
+            uniquePlans.forEach(plan -> {
+                if (!hasAvailableBudget(plan, statDate)) unavailable.add(plan.getId());
+            });
+        }
+        return unavailable;
     }
 
     /** {@inheritDoc} */

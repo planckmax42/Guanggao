@@ -52,6 +52,30 @@ class SlotCodeBloomFilterManagerTests {
     }
 
     @Test
+    void shouldRejectConcurrentRebuild() throws Exception {
+        SlotCodeBloomFilterManager manager = createManager();
+        CountDownLatch rebuildStarted = new CountDownLatch(1);
+        CountDownLatch continueRebuild = new CountDownLatch(1);
+
+        CompletableFuture<Void> rebuildFuture = CompletableFuture.runAsync(() -> manager.rebuild(() -> {
+            rebuildStarted.countDown();
+            await(continueRebuild);
+            return slots("HOME_BANNER");
+        }));
+
+        assertTrue(rebuildStarted.await(1, TimeUnit.SECONDS));
+        try {
+            assertTrue(manager.rebuild(() -> slots("SHOULD_NOT_LOAD")).isEmpty());
+        } finally {
+            continueRebuild.countDown();
+        }
+        rebuildFuture.get(1, TimeUnit.SECONDS);
+
+        assertFalse(manager.definitelyNotContains("HOME_BANNER"));
+        assertTrue(manager.definitelyNotContains("SHOULD_NOT_LOAD"));
+    }
+
+    @Test
     void shouldKeepActiveFilterWhenRebuildFails() {
         SlotCodeBloomFilterManager manager = createManager();
         manager.rebuild(() -> slots("HOME_BANNER"));

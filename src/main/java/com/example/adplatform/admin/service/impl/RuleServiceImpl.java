@@ -12,6 +12,8 @@ import com.example.adplatform.admin.vo.RuleVO;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.search.outbox.message.ConfigAggregateType;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class RuleServiceImpl implements RuleService {
     private final RuleMapper ruleMapper;
     private final PlanMapper planMapper;
     private final RuleConverter ruleConverter;
+    private final SearchOutboxService searchOutboxService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -48,11 +51,13 @@ public class RuleServiceImpl implements RuleService {
                 ruleConverter.updateEntity(request, entity);
                 ruleMapper.updateById(entity);
             }
+            searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, request.planId());
             return ruleConverter.toRef(entity);
         }
 
         ruleConverter.updateEntity(request, entity);
         ruleMapper.updateById(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, request.planId());
         return ruleConverter.toRef(entity);
     }
 

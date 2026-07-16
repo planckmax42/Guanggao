@@ -5,6 +5,14 @@ server:
       min-spare: 50
     accept-count: 1000
     max-connections: 10000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -42,6 +50,12 @@ spring:
         spring.json.value.default.type: com.example.adplatform.tracking.message.EventMessage
     listener:
       concurrency: 3
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 1s
+    socket-timeout: 3s
 
 app:
   health:
@@ -74,3 +88,28 @@ app:
   kafka:
     topics:
       event: event-topic
+      config-change: ad-config-change
+      event-index: ad-event-index
+      config-change-dlt: ad-config-change-dlt
+      event-index-dlt: ad-event-index-dlt
+  elasticsearch:
+    enabled: ${ELASTICSEARCH_ENABLED:true}
+    candidate:
+      read-alias: ad-candidate-read
+      write-alias: ad-candidate-write
+      recall-size: 200
+      max-recall-size: 1000
+      query-timeout: 100ms
+      rebuild-lock-ttl: 10m
+    event:
+      index-prefix: ad-event-
+      template-name: ad-event-template
+      lifecycle-policy: ad-event-retention-30d
+      retention-days: 30
+      default-lookback: 24h
+      max-query-days: 31
+    outbox:
+      publish-delay-ms: 500
+      publish-initial-delay-ms: 3000
+      batch-size: 100
+      sent-retention-days: 7

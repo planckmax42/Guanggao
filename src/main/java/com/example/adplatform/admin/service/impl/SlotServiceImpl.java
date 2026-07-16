@@ -14,9 +14,13 @@ import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefVO;
 import com.example.adplatform.infra.redis.slot.SlotCacheService;
+import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
+import com.example.adplatform.search.outbox.message.ConfigAggregateType;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -29,8 +33,11 @@ public class SlotServiceImpl implements SlotService {
     private final SlotMapper slotMapper;
     private final SlotConverter slotConverter;
     private final SlotCacheService slotCacheService;
+    private final SearchOutboxService searchOutboxService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ResourceRefVO create(CreateSlotRequest request) {
         SlotEntity entity = slotConverter.toEntity(request);
         try {
@@ -39,6 +46,7 @@ public class SlotServiceImpl implements SlotService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
         slotCacheService.cacheSlot(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, entity.getId());
         return slotConverter.toRef(entity);
     }
 
@@ -56,6 +64,11 @@ public class SlotServiceImpl implements SlotService {
 
         SlotEntity updated = slotMapper.selectById(id);
         slotCacheService.refreshSlot(updated, oldSlotCode);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, id);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
+                ConfigAggregateType.SLOT,
+                id,
+                updated.getStatus() == null || updated.getStatus() != 1));
         return slotConverter.toVO(updated);
     }
 

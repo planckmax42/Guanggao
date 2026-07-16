@@ -12,7 +12,7 @@
 - Kafka 异步解耦
 - Redis 实时计数、点击去重、频控、限流
 - MySQL 持久化业务数据和统计数据
-- Elasticsearch 支持广告素材搜索和事件检索
+- Elasticsearch 支持广告多维粗召回和事件检索
 - 后台数据看板
 - 后期 Docker Compose 一键部署
 
@@ -92,6 +92,7 @@ elasticsearch:
 01-admin-schema.sql
 02-delivery-schema.sql
 04-tracking-report-schema.sql
+06-elasticsearch-outbox-schema.sql
 99-seed-demo-data.sql
 ```
 
@@ -436,39 +437,40 @@ ad-event
 - CTR、CVR 计算正确
 - Redis 和 MySQL 统计口径说明清楚
 
-### 阶段 7：Elasticsearch 检索模块
+### 阶段 7：Elasticsearch 粗召回与事件检索（已实现）
 
 目标：
 
-- 实现广告素材搜索和事件检索
-- 体现搜索引擎和数据分析能力
+- 将投放链路升级为 ES 静态粗召回、Redis 动态过滤、Java 精排
+- 支持事件多条件检索和 `search_after` 游标分页
 
 任务：
 
-- 建立广告素材索引
-- 建立广告事件索引
-- 素材新增或修改时同步 ES
-- 事件消费时异步写入 ES
-- 实现多条件搜索接口
-- 实现事件检索接口
+- 版本化候选索引 + 读写别名，全量重建后原子切换
+- 广告位、时间、地域、设备、性别、年龄、标签等维度过滤
+- 素材、计划、定向、广告位变更通过 MySQL Outbox + Kafka 增量同步 ES
+- 停投变更先写 Redis stopped set，屏蔽 ES 最终一致窗口
+- ES 异常时通过熔断器降级 MySQL，ES 正常空结果不降级
+- 事件按天建索引，应用严格映射模板和 30 天 ILM
+- 事件同步同样经过 Outbox + Kafka，失败退避重试并支持 DLT
 
 索引：
 
 ```text
-material_index
-event_index_yyyyMMdd
-ad_stats_index
+ad-candidate-yyyyMMddHHmmssSSS
+ad-candidate-read / ad-candidate-write
+ad-event-yyyyMMdd
 ```
 
 接口：
 
-- `GET /api/search/materials`
+- `POST /api/admin/search/candidates/rebuild`
 - `GET /api/search/events`
 
 验收标准：
 
-- 可以按素材标题模糊搜索
-- 可以按广告主、行业、状态过滤
+- 投放请求可以按多维定向粗召回候选
+- 预算、频控和紧急停投不依赖 ES 快照实时性
 - 可以按事件类型、时间范围检索事件
 - ES 不可用时不影响核心投放链路
 

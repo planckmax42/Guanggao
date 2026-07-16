@@ -3,6 +3,8 @@ package com.example.adplatform.infra.redis.budget;
 import com.example.adplatform.admin.entity.PlanEntity;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Set;
 
 /**
  * 广告计划预算的 Redis 访问服务，封装预算粗过滤、原子扣费和缓存重建。
@@ -17,6 +19,8 @@ public interface BudgetRedisService {
      * @return 单日预算和总预算都未用尽时返回 {@code true}
      */
     boolean hasAvailableBudget(PlanEntity plan, LocalDate statDate);
+
+    Set<Long> findUnavailablePlans(Collection<PlanEntity> plans, LocalDate statDate);
 
     /**
      * 扣费阶段实时预算扣减：预算足够时原子累加已消耗金额。

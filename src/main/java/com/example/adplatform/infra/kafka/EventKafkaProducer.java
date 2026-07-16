@@ -4,7 +4,7 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.port.EventPublisher;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -16,11 +16,15 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>业务层仅依赖 {@link EventPublisher}，由该类负责选择 Topic、设置消息 Key 并等待 Broker 确认。</p>
  */
-@RequiredArgsConstructor
 @Component
 public class EventKafkaProducer implements EventPublisher {
 
     private final KafkaTemplate<String, EventMessage> kafkaTemplate;
+
+    public EventKafkaProducer(
+            @Qualifier("eventKafkaTemplate") KafkaTemplate<String, EventMessage> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
 
     @Value("${app.kafka.topics.event}")
     private String eventTopic;

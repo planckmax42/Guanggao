@@ -1,6 +1,8 @@
 package com.example.adplatform.infra.redis.frequency;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Set;
 
 /** 用户对广告计划的每日曝光频率控制服务。 */
 public interface FrequencyRedisService {
@@ -15,6 +17,12 @@ public interface FrequencyRedisService {
      * @return 当前次数已达上限时返回 {@code true}
      */
     boolean isViewerPlanFrequencyExceeded(Long viewerId, Long planId, LocalDate statDate, int maxFrequency);
+
+    Set<Long> findExceededPlans(
+            Long viewerId,
+            Collection<Long> planIds,
+            LocalDate statDate,
+            int maxFrequency);
 
     /**
      * 曝光事件消费成功后，累加同一用户当天看到同一计划的次数。
