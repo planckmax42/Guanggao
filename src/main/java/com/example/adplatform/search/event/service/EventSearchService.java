@@ -31,6 +31,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * 广告事件 ES 检索服务，支持多条件过滤和 {@code search_after} 游标分页。
+ *
+ * <p>查询只访问时间窗口覆盖的日索引，并限制最大跨度，避免通配符扫描全部历史数据。
+ * 排序由 {@code eventTime + eventId} 组成：时间倒序，eventId 负责在时间相同时提供稳定、
+ * 唯一的第二排序键。</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class EventSearchService {
@@ -40,6 +47,9 @@ public class EventSearchService {
     private final EventIndexManager indexManager;
     private final EventCursorCodec cursorCodec;
 
+    /**
+     * 执行事件检索。未传时间时默认最近一段窗口，未传 cursor 时从第一页开始。
+     */
     public EventSearchPageVO search(EventSearchRequest request) {
         if (!properties.isEnabled()) {
             throw new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "Elasticsearch未启用");
@@ -71,6 +81,7 @@ public class EventSearchService {
         addTerm(filters, "slotId", request.slotId());
         addTerm(filters, "viewerId", request.viewerId());
         if (request.charged() != null) filters.add(term("charged", request.charged()));
+        // API 使用无时区 LocalDateTime；转 epoch millis 后查询，避免 ES 默认 UTC 造成 8 小时偏移。
         filters.add(Query.of(q -> q.range(r -> r.field("eventTime").gte(JsonData.of(toEpochMillis(start))))));
         filters.add(Query.of(q -> q.range(r -> r.field("eventTime").lte(JsonData.of(toEpochMillis(end))))));
 
@@ -78,8 +89,10 @@ public class EventSearchService {
                 .withQuery(q -> q.bool(b -> b.filter(filters)))
                 .withSort(s -> s.field(f -> f.field("eventTime").order(SortOrder.Desc)))
                 .withSort(s -> s.field(f -> f.field("eventId").order(SortOrder.Desc)))
+                // 多取一条只用于判断 hasMore，不启用高成本 track_total_hits。
                 .withPageable(PageRequest.of(0, size + 1))
                 .withSearchAfter(cursorCodec.decode(request.cursor()))
+                // 某些日期尚无事件索引时跳过该索引，而不是让整个查询返回 404。
                 .withIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN)
                 .withTrackTotalHits(false)
                 .build();
@@ -92,6 +105,7 @@ public class EventSearchService {
         boolean hasMore = hitList.size() > size;
         List<SearchHit<AdEventDocument>> pageHits = hasMore ? hitList.subList(0, size) : hitList;
         List<EventSearchItemVO> records = pageHits.stream().map(hit -> toVO(hit.getContent())).toList();
+        // 游标取本页最后一条记录的两个排序值，下一页由 ES 从其后继续扫描。
         String nextCursor = hasMore && !pageHits.isEmpty()
                 ? cursorCodec.encode(pageHits.get(pageHits.size() - 1).getSortValues())
                 : null;
@@ -99,6 +113,7 @@ public class EventSearchService {
     }
 
     private String[] indices(LocalDate start, LocalDate end) {
+        // 显式列出日索引，避免 ad-event-* 扫描超过请求窗口的分片。
         List<String> indices = new ArrayList<>();
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             indices.add(indexManager.indexName(date));

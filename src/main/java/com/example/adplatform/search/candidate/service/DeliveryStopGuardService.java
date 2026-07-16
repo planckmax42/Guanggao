@@ -12,6 +12,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 配置变更最终一致窗口内的 Redis 紧急停投保护。
+ *
+ * <p>计划、素材或广告位被暂停后，事务提交监听器立即把 ID 写入 stopped set；待 Kafka
+ * 消费者已更新并 refresh ES 后再移除。读取使用 pipeline 批量执行，避免候选数量增加时
+ * 产生 N 次网络往返。Redis 故障时当前策略为 fail-open，以保证投放接口可用。</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -23,6 +30,7 @@ public class DeliveryStopGuardService {
 
     private final StringRedisTemplate stringRedisTemplate;
 
+    /** 添加或移除某个聚合的临时停投标记。定向规则本身不需要独立 stopped set。 */
     public void mark(ConfigAggregateType type, Long id, boolean stopped) {
         String key = keyFor(type);
         if (key == null || id == null) {
@@ -57,6 +65,7 @@ public class DeliveryStopGuardService {
         }
         List<Object> results;
         try {
+            // 一条 Redis pipeline 承载全部 SISMEMBER，返回顺序与 ids 遍历顺序一致。
             results = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
                 ids.forEach(id -> connection.setCommands().sIsMember(
                         key.getBytes(), id.toString().getBytes()));

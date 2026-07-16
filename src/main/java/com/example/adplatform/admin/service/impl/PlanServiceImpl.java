@@ -29,6 +29,12 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 广告计划管理及状态流转服务。
+ *
+ * <p>所有影响投放的写操作都会在当前事务内追加 Outbox。暂停/下线还会在提交后立即
+ * 写 Redis 停投标记，待异步消费者完成 ES 同步后再清理该临时标记。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class PlanServiceImpl implements PlanService {

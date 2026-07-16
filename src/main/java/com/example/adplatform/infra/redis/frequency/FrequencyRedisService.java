@@ -18,6 +18,11 @@ public interface FrequencyRedisService {
      */
     boolean isViewerPlanFrequencyExceeded(Long viewerId, Long planId, LocalDate statDate, int maxFrequency);
 
+    /**
+     * 通过一次 multiGet 批量找出已达到曝光上限的计划。
+     *
+     * @return 已超过当日频控阈值的计划 ID
+     */
     Set<Long> findExceededPlans(
             Long viewerId,
             Collection<Long> planIds,

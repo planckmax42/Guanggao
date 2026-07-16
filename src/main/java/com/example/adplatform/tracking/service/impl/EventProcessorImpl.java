@@ -29,6 +29,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * 广告事件消费后的核心处理器。
+ *
+ * <p>在一个 MySQL 事务内完成事件幂等落库、计费流水、计费结果和 ES 索引 Outbox；
+ * event_id 唯一键保证 Kafka 重复投递不会重复计费。Redis 负责预算、频控和实时统计，
+ * ES 消费者只在事务提交后通过 Outbox 收到 eventId。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class EventProcessorImpl implements EventProcessor {
@@ -103,6 +110,7 @@ public class EventProcessorImpl implements EventProcessor {
                 eventType == EventType.CLICK ? 1 : 0,
                 eventType == EventType.CONVERSION ? 1 : 0,
                 finalCostAmount);
+        // 与 event/charge_record 同事务提交，避免 ES 收到尚未落库或最终回滚的事件。
         searchOutboxService.appendEventIndex(message.eventId());
     }
 

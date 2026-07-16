@@ -16,6 +16,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
 
+/**
+ * 将 MySQL 联表投影转换为扁平化 ES 候选文档。
+ *
+ * <p>在写索引前统一大小写和时间类型，避免每次查询重复做规范化。定向 JSON 为空时会
+ * 写入对应的 {@code *All=true}，明确表达“该维度不限制”，而不是依赖字段缺失语义。</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class CandidateDocumentFactory {
@@ -23,6 +29,7 @@ public class CandidateDocumentFactory {
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() { };
     private final ObjectMapper objectMapper;
 
+    /** 根据数据库真实配置生成可直接索引的候选快照。 */
     public AdCandidateDocument from(CandidateSourceRow row) {
         AdCandidateDocument document = new AdCandidateDocument();
         document.setId(String.valueOf(row.getMaterialId()));
@@ -78,6 +85,7 @@ public class CandidateDocumentFactory {
                     .distinct()
                     .toList();
         } catch (Exception ex) {
+            // 定向配置格式错误不能静默放宽为“全部”，否则可能造成越权投放。
             throw new IllegalArgumentException("Invalid targeting rule JSON", ex);
         }
     }

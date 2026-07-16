@@ -12,6 +12,12 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 候选召回入口，封装 ES 主链路、熔断保护、MySQL 降级和监控指标。
+ *
+ * <p>降级只由调用异常触发。ES 正常返回空列表代表确实没有匹配广告，必须原样返回，
+ * 否则回源 MySQL 会放大数据库流量并可能返回与 ES 过滤语义不一致的结果。</p>
+ */
 @Slf4j
 @Service
 public class CandidateRecallService {
@@ -31,6 +37,7 @@ public class CandidateRecallService {
         this.elasticsearchRecall = elasticsearchRecall;
         this.mysqlRecall = mysqlRecall;
         this.meterRegistry = meterRegistry;
+        // 熔断器只保护 ES 依赖；打开期间请求直接走 MySQL，10 秒后以少量请求探测恢复。
         this.circuitBreaker = CircuitBreaker.of("candidate-es-recall", CircuitBreakerConfig.custom()
                 .slidingWindowSize(20)
                 .minimumNumberOfCalls(10)
@@ -40,6 +47,12 @@ public class CandidateRecallService {
                 .build());
     }
 
+    /**
+     * 执行一次粗召回，并返回实际数据源以便埋点和压测分析。
+     *
+     * @param request 投放请求
+     * @return 候选列表及 ELASTICSEARCH/MYSQL_* 来源标识
+     */
     public CandidateRecallResult recall(AdDeliveryRequest request) {
         long startNanos = System.nanoTime();
         CandidateRecallResult result;
@@ -49,6 +62,7 @@ public class CandidateRecallService {
             return result;
         }
         try {
+            // 空列表也是一次成功调用，不会进入 catch 和 MySQL 降级分支。
             result = new CandidateRecallResult(
                     circuitBreaker.executeSupplier(() -> elasticsearchRecall.recall(request)),
                     "ELASTICSEARCH");

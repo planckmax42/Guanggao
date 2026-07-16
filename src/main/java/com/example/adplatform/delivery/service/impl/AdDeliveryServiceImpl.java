@@ -34,6 +34,13 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 第三阶段广告投放编排：ES 静态粗召回、Redis 动态过滤、Java 内存精排。
+ *
+ * <p>该类只负责在线投放路径的编排，不负责维护 ES 索引或消费曝光事件。候选快照中的
+ * 定向、预算上限和出价来自 MySQL 配置同步；实时停投、预算消耗和用户频控由 Redis
+ * 在请求时校验。ES 发生异常时由 {@link CandidateRecallService} 统一降级到 MySQL。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class AdDeliveryServiceImpl implements AdDeliveryService {
@@ -52,9 +59,12 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
+
+        // 先通过广告位缓存校验入口有效性，避免无效广告位请求继续访问 ES。
         Long slotId = slotCacheService.getEnabledSlotIdByCode(request.slotCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在"));
 
+        // 第一阶段：ES 多维粗召回。只有异常/超时/熔断才回源，合法空结果不会查询 MySQL。
         CandidateRecallResult recallResult = candidateRecallService.recall(request);
         List<AdCandidateDocument> recalled = recallResult.candidates();
         if (recalled.isEmpty()) {
@@ -63,6 +73,8 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
         LocalDate today = LocalDate.now();
         Instant now = Instant.now();
+
+        // 第二阶段（静态防御校验）：防止索引最终一致窗口或脏数据导致不合规候选进入排序。
         List<AdCandidateDocument> staticallyValid = recalled.stream()
                 .filter(candidate -> Objects.equals(slotId, candidate.getSlotId()))
                 .filter(candidate -> "ENABLED".equals(candidate.getMaterialStatus()))
@@ -73,6 +85,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .filter(candidate -> CandidateTargetingMatcher.matches(candidate, request))
                 .toList();
 
+        // 紧急停投集合覆盖 ES 的短暂同步窗口；一次 pipeline 批量查询，避免逐候选访问 Redis。
         Set<Long> stoppedPlans = stopGuardService.findStoppedPlans(
                 staticallyValid.stream().map(AdCandidateDocument::getPlanId).distinct().toList());
         Set<Long> stoppedMaterials = stopGuardService.findStoppedMaterials(
@@ -87,6 +100,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             return new AdDeliveryResponse(requestId, recalled.size(), 0, List.of());
         }
 
+        // 预算和频控属于高频动态状态，不进入 ES，分别使用 Redis multiGet 批量过滤。
         Map<Long, PlanEntity> planMap = guarded.stream()
                 .collect(Collectors.toMap(
                         AdCandidateDocument::getPlanId,
@@ -103,6 +117,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             return new AdDeliveryResponse(requestId, recalled.size(), 0, List.of());
         }
 
+        // 第三阶段：批量读取计划当日指标，在 JVM 内完成 CTR、出价和质量分精排。
         List<Long> planIds = dynamicallyValid.stream()
                 .map(AdCandidateDocument::getPlanId)
                 .distinct()
@@ -124,7 +139,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricVO metric) {
         long impressions = metric == null || metric.getImpressionCount() == null ? 0L : metric.getImpressionCount();
         long clicks = metric == null || metric.getClickCount() == null ? 0L : metric.getClickCount();
+        // 冷启动候选使用 2% 先验 CTR，避免零曝光素材永远排不到前面。
         double ctr = impressions <= 0 ? 0.02D : Math.min((double) clicks / impressions, 1D);
+        // 示例精排公式：70% 出价 + 20% CTR 价值 + 10% 固定质量分。
         double value = candidate.getBidPrice() * 0.7 + ctr * 1000 * 0.2 + DEFAULT_QUALITY_SCORE * 0.1;
         return new ScoredCandidate(candidate, value);
     }

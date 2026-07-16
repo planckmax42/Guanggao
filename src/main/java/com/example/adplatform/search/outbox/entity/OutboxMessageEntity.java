@@ -5,6 +5,12 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+/**
+ * outbox_message 表映射。
+ *
+ * <p>{@code eventId} 是 Outbox 业务幂等标识，{@code messageKey} 决定 Kafka 分区；
+ * {@code nextRetryAt} 让失败消息在数据库中持久化退避时间。</p>
+ */
 @Getter
 @Setter
 public class OutboxMessageEntity {

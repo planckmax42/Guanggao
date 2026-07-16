@@ -25,6 +25,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * 候选索引的全量重建与别名切换管理器。
+ *
+ * <p>每次重建创建新的版本化物理索引，完成全量写入和 refresh 后，使用一次
+ * {@code _aliases} 请求原子切换读写别名。旧物理索引不会自动删除，便于人工回滚。
+ * Redis 锁阻止多个实例并发重建，rebuilding 标记则让增量消费者暂缓写入。</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,6 +48,7 @@ public class CandidateIndexManager {
     private final CandidateSourceMapper candidateSourceMapper;
     private final CandidateDocumentFactory documentFactory;
 
+    /** 判断候选读别名是否已经初始化。ES 不可达时按“不存在”处理并交由启动器降级。 */
     public boolean aliasExists() {
         if (!properties.isEnabled()) {
             return false;
@@ -52,6 +60,11 @@ public class CandidateIndexManager {
         }
     }
 
+    /**
+     * 从 MySQL 全量构建新候选索引并原子切换别名。
+     *
+     * @return 新物理索引名称、写入数量及切换时间
+     */
     public CandidateRebuildVO rebuild() {
         if (!properties.isEnabled()) {
             throw new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "Elasticsearch未启用");
@@ -67,8 +80,10 @@ public class CandidateIndexManager {
         String indexName = "ad-candidate-" + LocalDateTime.now().format(INDEX_SUFFIX);
         int indexed = 0;
         try {
+            // 1. 新建独立物理索引；在别名切换前，在线查询完全不受本次重建影响。
             createIndex(indexName);
             List<CandidateSourceRow> rows = candidateSourceMapper.selectAllEligible();
+            // 2. 分批写入，控制单次 bulk 请求大小和应用内存占用。
             for (int from = 0; from < rows.size(); from += 500) {
                 int to = Math.min(from + 500, rows.size());
                 List<AdCandidateDocument> documents = rows.subList(from, to).stream()
@@ -77,6 +92,7 @@ public class CandidateIndexManager {
                 operations.save(documents, IndexCoordinates.of(indexName));
                 indexed += documents.size();
             }
+            // 3. refresh 后再切别名，确保切换瞬间所有文档已经可搜索。
             operations.indexOps(IndexCoordinates.of(indexName)).refresh();
             switchAliases(indexName);
             return new CandidateRebuildVO(indexName, indexed, 0, LocalDateTime.now());
@@ -123,6 +139,7 @@ public class CandidateIndexManager {
         }
         actions.add(Map.of("add", Map.of("index", newIndex, "alias", properties.getCandidate().getReadAlias())));
         actions.add(Map.of("add", Map.of("index", newIndex, "alias", properties.getCandidate().getWriteAlias(), "is_write_index", true)));
+        // 删除旧别名和添加新别名必须放在同一个请求中，避免出现无别名或双写窗口。
         restSupport.post("/_aliases", Map.of("actions", actions));
     }
 
@@ -136,6 +153,7 @@ public class CandidateIndexManager {
 
     private void releaseLock(String token) {
         try {
+            // 只释放自己持有的锁，避免过期后误删另一个实例刚获取的新锁。
             if (token.equals(stringRedisTemplate.opsForValue().get(REBUILD_LOCK_KEY))) {
                 stringRedisTemplate.delete(List.of(REBUILD_LOCK_KEY, REBUILDING_KEY));
             }

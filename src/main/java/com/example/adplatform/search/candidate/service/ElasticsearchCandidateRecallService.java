@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * ES 候选查询适配器。查询构造与降级策略分别由
+ * {@link CandidateQueryFactory} 和 {@link CandidateRecallService} 负责。
+ */
 @Service
 @RequiredArgsConstructor
 public class ElasticsearchCandidateRecallService {
@@ -19,6 +23,7 @@ public class ElasticsearchCandidateRecallService {
     private final CandidateQueryFactory queryFactory;
     private final AdElasticsearchProperties properties;
 
+    /** 通过读别名执行静态候选粗召回。 */
     public List<AdCandidateDocument> recall(AdDeliveryRequest request) {
         return operations.search(
                         queryFactory.build(request),

@@ -71,6 +71,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         return cost.dailyCost() < plan.getBudgetDaily() && cost.totalCost() < plan.getBudgetTotal();
     }
 
+    /** {@inheritDoc} */
     @Override
     public Set<Long> findUnavailablePlans(Collection<PlanEntity> plans, LocalDate statDate) {
         if (plans == null || plans.isEmpty()) {

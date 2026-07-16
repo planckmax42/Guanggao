@@ -28,6 +28,12 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 
+/**
+ * 素材管理服务。
+ *
+ * <p>素材数据与配置 Outbox 在同一 MySQL 事务提交；审核拒绝时再发布事务后本地事件，
+ * 立即写入 Redis 停投集合，覆盖 Kafka 尚未同步 ES 的短暂窗口。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class MaterialServiceImpl implements MaterialService {

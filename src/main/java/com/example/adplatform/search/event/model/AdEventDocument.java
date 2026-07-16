@@ -12,6 +12,12 @@ import org.springframework.data.elasticsearch.annotations.WriteTypeHint;
 
 import java.time.Instant;
 
+/**
+ * ES 广告事件读取模型，一条文档对应 event 表中的一个事件。
+ *
+ * <p>eventId 同时作为文档 ID，保证 Kafka 至少一次投递时重复索引仍然幂等。日期字段
+ * 使用 epoch millis，业务接口边界再按应用时区转换为 LocalDateTime。</p>
+ */
 @Getter
 @Setter
 @NoArgsConstructor

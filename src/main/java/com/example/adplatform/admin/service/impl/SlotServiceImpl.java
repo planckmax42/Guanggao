@@ -26,6 +26,12 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 
+/**
+ * 广告位管理服务，同时维护 Redis 广告位缓存和 ES 配置同步 Outbox。
+ *
+ * <p>广告位停用会影响该位置下的全部候选，因此更新后发布 SLOT 聚合消息，并在事务
+ * 提交后写入 Redis 停投保护。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class SlotServiceImpl implements SlotService {

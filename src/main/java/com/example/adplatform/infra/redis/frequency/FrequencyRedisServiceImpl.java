@@ -45,6 +45,7 @@ public class FrequencyRedisServiceImpl implements FrequencyRedisService {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public Set<Long> findExceededPlans(
             Long viewerId,

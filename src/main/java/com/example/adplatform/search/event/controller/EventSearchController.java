@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
+/** 提供面向运营排查的广告事件多条件检索接口。 */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/search/events")
@@ -20,6 +21,7 @@ public class EventSearchController {
 
     private final EventSearchService eventSearchService;
 
+    /** 查询事件日索引；下一页应原样回传响应中的 cursor。 */
     @GetMapping
     public Result<EventSearchPageVO> search(
             @RequestParam(required = false) String eventId,

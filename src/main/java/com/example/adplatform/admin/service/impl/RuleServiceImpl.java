@@ -19,6 +19,12 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 计划定向规则的创建或更新服务。
+ *
+ * <p>候选文档按计划展开，所以 Outbox 的 aggregateId 使用 planId 而不是 ruleId；消费者
+ * 收到消息后会重建该计划下的全部素材文档。</p>
+ */
 @RequiredArgsConstructor
 @Service
 public class RuleServiceImpl implements RuleService {

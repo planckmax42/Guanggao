@@ -2,6 +2,7 @@ package com.example.adplatform.search.event.vo;
 
 import java.time.LocalDateTime;
 
+/** 运营事件检索返回项。 */
 public record EventSearchItemVO(
         String eventId,
         String requestId,
