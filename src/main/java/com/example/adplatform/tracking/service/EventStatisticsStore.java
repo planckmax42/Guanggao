@@ -7,10 +7,10 @@ public interface EventStatisticsStore {
 
     boolean recordEventOnce(
             EventMessage message,
-            EventProcessingContext context);
+            EventMaterialMetadata metadata);
 
     boolean recordCostOnce(
-            String eventId,
-            EventProcessingContext context,
+            EventMessage message,
+            EventMaterialMetadata metadata,
             long costAmount);
 }

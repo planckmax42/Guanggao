@@ -1,16 +1,14 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.infra.redis.budget.BudgetRedisService;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.tracking.service.EventContextResolver;
-import com.example.adplatform.tracking.service.EventProcessingContext;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,22 +25,22 @@ import static org.mockito.Mockito.when;
 
 class EventBillingProcessorTests {
 
-    private EventContextResolver contextResolver;
+    private EventMetadataCacheService metadataCacheService;
     private ChargeRecordMapper chargeRecordMapper;
     private BudgetRedisService budgetRedisService;
     private EventStatisticsStore statisticsStore;
     private EventBillingProcessorImpl processor;
     private EventMessage message;
-    private EventProcessingContext context;
+    private EventMaterialMetadata metadata;
 
     @BeforeEach
     void setUp() {
-        contextResolver = mock(EventContextResolver.class);
+        metadataCacheService = mock(EventMetadataCacheService.class);
         chargeRecordMapper = mock(ChargeRecordMapper.class);
         budgetRedisService = mock(BudgetRedisService.class);
         statisticsStore = mock(EventStatisticsStore.class);
         processor = new EventBillingProcessorImpl(
-                contextResolver,
+                metadataCacheService,
                 chargeRecordMapper,
                 mock(DailyReportMapper.class),
                 budgetRedisService,
@@ -50,35 +48,22 @@ class EventBillingProcessorTests {
 
         LocalDateTime eventTime = LocalDateTime.of(2026, 7, 17, 12, 0);
         message = new EventMessage("event-1", "request-1", EventType.CLICK, 10L, 20L, eventTime);
-        MaterialEntity material = new MaterialEntity();
-        material.setId(10L);
-        material.setPlanId(30L);
-        material.setSlotId(40L);
-        PlanEntity plan = new PlanEntity();
-        plan.setId(30L);
-        plan.setBillingType("CPC");
-        plan.setBidPrice(25L);
-        plan.setBudgetDaily(10_000L);
-        plan.setBudgetTotal(100_000L);
-        context = new EventProcessingContext(
-                material,
-                plan,
-                "CPC",
-                eventTime,
-                LocalDate.of(2026, 7, 17));
-        when(contextResolver.resolve(message)).thenReturn(context);
+        metadata = new EventMaterialMetadata(
+                30L, 40L, 100_000L, 10_000L, 25L, "CPC");
+        when(metadataCacheService.get(message.materialId())).thenReturn(metadata);
     }
 
     @Test
     void shouldCreateChargeAndRecordCostStatistics() {
         when(chargeRecordMapper.selectByEventId("event-1")).thenReturn(null);
-        when(budgetRedisService.tryChargeOnce("event-1", context.plan(), context.statDate(), 25L))
+        when(budgetRedisService.tryChargeOnce(
+                "event-1", 30L, 10_000L, 100_000L, LocalDate.of(2026, 7, 17), 25L))
                 .thenReturn(true);
 
         processor.bill(message);
 
         verify(chargeRecordMapper).insert(any(ChargeRecordEntity.class));
-        verify(statisticsStore).recordCostOnce("event-1", context, 25L);
+        verify(statisticsStore).recordCostOnce(message, metadata, 25L);
     }
 
     @Test
@@ -91,8 +76,9 @@ class EventBillingProcessorTests {
 
         processor.bill(message);
 
-        verify(budgetRedisService, never()).tryChargeOnce(any(), any(), any(), eq(25L));
+        verify(budgetRedisService, never()).tryChargeOnce(
+                any(), any(), any(), any(), any(), eq(25L));
         verify(chargeRecordMapper, never()).insert(any(ChargeRecordEntity.class));
-        verify(statisticsStore).recordCostOnce("event-1", context, 25L);
+        verify(statisticsStore).recordCostOnce(message, metadata, 25L);
     }
 }

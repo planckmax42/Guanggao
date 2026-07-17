@@ -1,8 +1,8 @@
 package com.example.adplatform.tracking.service.impl;
 
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.tracking.service.EventContextResolver;
-import com.example.adplatform.tracking.service.EventProcessingContext;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsProcessor;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +13,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class EventStatisticsProcessorImpl implements EventStatisticsProcessor {
 
-    private final EventContextResolver contextResolver;
+    private final EventMetadataCacheService metadataCacheService;
     private final EventStatisticsStore eventStatisticsStore;
 
     @Override
     public void record(EventMessage message) {
-        EventProcessingContext context = contextResolver.resolve(message);
-        eventStatisticsStore.recordEventOnce(message, context);
+        message = message.withDefaultEventTime();
+        EventMaterialMetadata metadata = metadataCacheService.get(message.materialId());
+        eventStatisticsStore.recordEventOnce(message, metadata);
     }
 }

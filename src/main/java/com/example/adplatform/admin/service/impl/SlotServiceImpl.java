@@ -51,7 +51,7 @@ public class SlotServiceImpl implements SlotService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
-        slotCacheService.cacheSlot(entity);
+        slotCacheService.refreshSlot(entity, null);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, entity.getId());
         return slotConverter.toRef(entity);
     }

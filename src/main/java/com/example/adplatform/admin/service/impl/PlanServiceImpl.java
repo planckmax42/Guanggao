@@ -17,6 +17,7 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
@@ -44,6 +45,7 @@ public class PlanServiceImpl implements PlanService {
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final EventMetadataCacheService eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -65,6 +67,7 @@ public class PlanServiceImpl implements PlanService {
         }
         planConverter.updateEntity(request, entity);
         planMapper.updateById(entity);
+        eventMetadataCacheService.evictPlanAfterCommit(id);
         searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, id);
         return planConverter.toResponse(planMapper.selectById(id));
     }

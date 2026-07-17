@@ -40,6 +40,15 @@ public interface BudgetRedisService {
      */
     boolean tryChargeOnce(String eventId, PlanEntity plan, LocalDate statDate, long amount);
 
+    /** 事件消费链路使用计划快照直接扣费，避免为了传参构造 PlanEntity。 */
+    boolean tryChargeOnce(
+            String eventId,
+            Long planId,
+            Long budgetDaily,
+            Long budgetTotal,
+            LocalDate statDate,
+            long amount);
+
     /**
      * 根据 charge_record 成功扣费流水重建指定计划的预算消耗缓存。
      *

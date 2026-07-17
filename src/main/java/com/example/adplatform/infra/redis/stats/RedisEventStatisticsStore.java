@@ -3,7 +3,7 @@ package com.example.adplatform.infra.redis.stats;
 import com.example.adplatform.infra.redis.RedisKeyConstants;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.tracking.service.EventProcessingContext;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 
 /** 使用 Lua 把事件去重标记、频控和日报增量作为一个 Redis 原子操作写入。 */
@@ -61,19 +62,20 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
     private final StringRedisTemplate stringRedisTemplate;
 
     @Override
-    public boolean recordEventOnce(EventMessage message, EventProcessingContext context) {
+    public boolean recordEventOnce(EventMessage message, EventMaterialMetadata metadata) {
         long impressions = message.eventType() == EventType.IMPRESSION ? 1L : 0L;
         long clicks = message.eventType() == EventType.CLICK ? 1L : 0L;
         long conversions = message.eventType() == EventType.CONVERSION ? 1L : 0L;
-        String statsKey = statsKey(context);
+        LocalDate statDate = message.eventTime().toLocalDate();
+        String statsKey = statsKey(message, metadata, statDate);
         Long result = stringRedisTemplate.execute(
                 RECORD_EVENT_SCRIPT,
                 List.of(
                         RedisKeyConstants.eventStatisticsProcessed(message.eventId()),
                         statsKey,
-                        RedisKeyConstants.dailyStatsDirtySet(context.statDate()),
+                        RedisKeyConstants.dailyStatsDirtySet(statDate),
                         RedisKeyConstants.viewerPlanFrequency(
-                                message.viewerId(), context.plan().getId(), context.statDate())),
+                                message.viewerId(), metadata.planId(), statDate)),
                 String.valueOf(DEDUP_TTL.toSeconds()),
                 String.valueOf(impressions),
                 String.valueOf(clicks),
@@ -84,24 +86,31 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
     }
 
     @Override
-    public boolean recordCostOnce(String eventId, EventProcessingContext context, long costAmount) {
+    public boolean recordCostOnce(
+            EventMessage message,
+            EventMaterialMetadata metadata,
+            long costAmount) {
+        LocalDate statDate = message.eventTime().toLocalDate();
         Long result = stringRedisTemplate.execute(
                 RECORD_COST_SCRIPT,
                 List.of(
-                        RedisKeyConstants.eventCostStatisticsProcessed(eventId),
-                        statsKey(context),
-                        RedisKeyConstants.dailyStatsDirtySet(context.statDate())),
+                        RedisKeyConstants.eventCostStatisticsProcessed(message.eventId()),
+                        statsKey(message, metadata, statDate),
+                        RedisKeyConstants.dailyStatsDirtySet(statDate)),
                 String.valueOf(DEDUP_TTL.toSeconds()),
                 String.valueOf(costAmount),
                 String.valueOf(STATS_TTL.toSeconds()));
         return result != null && result == 1L;
     }
 
-    private String statsKey(EventProcessingContext context) {
+    private String statsKey(
+            EventMessage message,
+            EventMaterialMetadata metadata,
+            LocalDate statDate) {
         return RedisKeyConstants.dailyStats(
-                context.statDate(),
-                context.plan().getId(),
-                context.material().getId(),
-                context.material().getSlotId());
+                statDate,
+                metadata.planId(),
+                message.materialId(),
+                metadata.slotId());
     }
 }

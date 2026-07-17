@@ -4,9 +4,9 @@ import com.example.adplatform.tracking.converter.EventConverter;
 import com.example.adplatform.tracking.entity.EventEntity;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.tracking.service.EventArchiveProcessor;
-import com.example.adplatform.tracking.service.EventContextResolver;
-import com.example.adplatform.tracking.service.EventProcessingContext;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -17,15 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EventArchiveProcessorImpl implements EventArchiveProcessor {
 
-    private final EventContextResolver contextResolver;
+    private final EventMetadataCacheService metadataCacheService;
     private final EventConverter eventConverter;
     private final EventMapper eventMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void archive(EventMessage message) {
-        EventProcessingContext context = contextResolver.resolve(message);
-        EventEntity event = eventConverter.toEntity(message, context);
+        message = message.withDefaultEventTime();
+        EventMaterialMetadata metadata = metadataCacheService.get(message.materialId());
+        EventEntity event = eventConverter.toEntity(message, metadata);
         try {
             eventMapper.insert(event);
         } catch (DuplicateKeyException ignored) {

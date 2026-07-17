@@ -6,6 +6,8 @@ import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 public interface MaterialMapper extends BaseMapper<MaterialEntity> {
 
     /**
@@ -29,4 +31,10 @@ public interface MaterialMapper extends BaseMapper<MaterialEntity> {
             WHERE m.id = #{materialId}
             """)
     MaterialPlanJoinRow selectMaterialPlanById(@Param("materialId") Long materialId);
+
+    @Select("SELECT id FROM material ORDER BY id")
+    List<Long> selectAllMaterialIds();
+
+    @Select("SELECT id FROM material WHERE plan_id = #{planId}")
+    List<Long> selectMaterialIdsByPlanId(@Param("planId") Long planId);
 }

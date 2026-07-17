@@ -88,6 +88,19 @@ app:
       slow-call-duration-threshold: 200ms
       open-state-wait-duration: 10s
       permitted-calls-in-half-open-state: 3
+  event-metadata-cache:
+    redis-ttl: 1h
+    redis-ttl-jitter: 10m
+    bloom:
+      expected-insertions: 100000
+      false-positive-probability: 0.01
+      rebuild-delay-ms: 300000
+      rebuild-initial-delay-ms: 300000
+      expansion-factor: 2.0
+      max-expected-insertions: 5000000
+      expansion-cooldown: 10m
+      expansion-check-delay-ms: 30000
+      expansion-check-initial-delay-ms: 30000
   stats:
     flush-delay-ms: 10000
     flush-initial-delay-ms: 10000

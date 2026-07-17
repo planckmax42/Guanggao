@@ -111,4 +111,9 @@ public final class RedisKeyConstants {
     public static String slotCodeToId(String slotCode) {
         return "slot:code:%s".formatted(slotCode);
     }
+
+    /** 生成事件消费者共享的素材元数据缓存 Key。 */
+    public static String eventMaterialMetadata(Long materialId) {
+        return "event:metadata:material:%d".formatted(materialId);
+    }
 }

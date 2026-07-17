@@ -1,11 +1,9 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.admin.entity.PlanEntity;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.tracking.service.EventContextResolver;
-import com.example.adplatform.tracking.service.EventProcessingContext;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import org.junit.jupiter.api.Test;
 
@@ -19,26 +17,16 @@ class EventStatisticsProcessorTests {
 
     @Test
     void shouldDelegateToIdempotentStatisticsStore() {
-        EventContextResolver resolver = mock(EventContextResolver.class);
+        EventMetadataCacheService metadataCacheService = mock(EventMetadataCacheService.class);
         EventStatisticsStore store = mock(EventStatisticsStore.class);
         EventMessage message = new EventMessage(
                 "event-1", "request-1", EventType.IMPRESSION, 10L, 20L, LocalDateTime.now());
-        MaterialEntity material = new MaterialEntity();
-        material.setId(10L);
-        material.setPlanId(30L);
-        material.setSlotId(40L);
-        PlanEntity plan = new PlanEntity();
-        plan.setId(30L);
-        EventProcessingContext context = new EventProcessingContext(
-                material,
-                plan,
-                "CPM",
-                message.eventTime(),
-                message.eventTime().toLocalDate());
-        when(resolver.resolve(message)).thenReturn(context);
+        EventMaterialMetadata metadata = new EventMaterialMetadata(
+                30L, 40L, 100_000L, 10_000L, 25L, "CPM");
+        when(metadataCacheService.get(message.materialId())).thenReturn(metadata);
 
-        new EventStatisticsProcessorImpl(resolver, store).record(message);
+        new EventStatisticsProcessorImpl(metadataCacheService, store).record(message);
 
-        verify(store).recordEventOnce(message, context);
+        verify(store).recordEventOnce(message, metadata);
     }
 }

@@ -129,36 +129,57 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
     /** {@inheritDoc} */
     @Override
     public boolean tryChargeOnce(String eventId, PlanEntity plan, LocalDate statDate, long amount) {
+        if (!hasValidBudget(plan)) {
+            return false;
+        }
+        return tryChargeOnce(
+                eventId,
+                plan.getId(),
+                plan.getBudgetDaily(),
+                plan.getBudgetTotal(),
+                statDate,
+                amount);
+    }
+
+    @Override
+    public boolean tryChargeOnce(
+            String eventId,
+            Long planId,
+            Long budgetDaily,
+            Long budgetTotal,
+            LocalDate statDate,
+            long amount) {
         if (amount <= 0) {
             return false;
         }
         if (eventId == null || eventId.isBlank()) {
             throw new IllegalArgumentException("eventId must not be blank");
         }
-        if (!hasValidBudget(plan)) {
+        if (planId == null || budgetDaily == null || budgetTotal == null
+                || budgetDaily <= 0 || budgetTotal <= 0) {
             return false;
         }
-        ensureBudgetKeys(plan, statDate);
+        ensureBudgetKeys(planId, statDate);
 
         try {
             Long result = stringRedisTemplate.execute(
                     TRY_CHARGE_SCRIPT,
                     List.of(
-                            dailyBudgetKey(statDate, plan.getId()),
-                            totalBudgetKey(plan.getId()),
+                            dailyBudgetKey(statDate, planId),
+                            totalBudgetKey(planId),
                             RedisKeyConstants.eventChargeDecision(eventId)),
                     String.valueOf(amount),
-                    String.valueOf(plan.getBudgetDaily()),
-                    String.valueOf(plan.getBudgetTotal()),
+                    String.valueOf(budgetDaily),
+                    String.valueOf(budgetTotal),
                     String.valueOf(DAILY_BUDGET_TTL.toSeconds()),
                     String.valueOf(TOTAL_BUDGET_TTL.toSeconds()),
                     String.valueOf(EVENT_CHARGE_DECISION_TTL.toSeconds()));
             return result != null && result == 1L;
         } catch (RuntimeException ex) {
-            log.warn("Redis 预算扣减失败，planId={}，本次降级查询 charge_record：{}", plan.getId(), ex.getMessage());
-            BudgetCost cost = loadBudgetCostFromDatabase(plan.getId(), statDate);
-            return cost.dailyCost() + amount <= plan.getBudgetDaily()
-                    && cost.totalCost() + amount <= plan.getBudgetTotal();
+            log.warn("Redis 预算扣减失败，planId={}，本次降级查询 charge_record：{}", planId, ex.getMessage());
+            BudgetCost cost = loadBudgetCostFromDatabase(planId, statDate);
+            return cost.dailyCost() + amount <= budgetDaily
+                    && cost.totalCost() + amount <= budgetTotal;
         }
     }
 
@@ -213,17 +234,29 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
      * @param plan 广告计划
      * @param statDate 统计日期
      */
-    private void ensureBudgetKeys(PlanEntity plan, LocalDate statDate) {
+    private void ensureBudgetKeys(Long planId, LocalDate statDate) {
         try {
-            Boolean hasDailyKey = stringRedisTemplate.hasKey(dailyBudgetKey(statDate, plan.getId()));
-            Boolean hasTotalKey = stringRedisTemplate.hasKey(totalBudgetKey(plan.getId()));
+            Boolean hasDailyKey = stringRedisTemplate.hasKey(dailyBudgetKey(statDate, planId));
+            Boolean hasTotalKey = stringRedisTemplate.hasKey(totalBudgetKey(planId));
             if (Boolean.TRUE.equals(hasDailyKey) && Boolean.TRUE.equals(hasTotalKey)) {
                 return;
             }
         } catch (RuntimeException ex) {
             return;
         }
-        rebuildBudget(plan, statDate);
+        rebuildBudget(planId, statDate);
+    }
+
+    private void rebuildBudget(Long planId, LocalDate statDate) {
+        BudgetCost cost = loadBudgetCostFromDatabase(planId, statDate);
+        try {
+            stringRedisTemplate.opsForValue().set(
+                    dailyBudgetKey(statDate, planId), String.valueOf(cost.dailyCost()), DAILY_BUDGET_TTL);
+            stringRedisTemplate.opsForValue().set(
+                    totalBudgetKey(planId), String.valueOf(cost.totalCost()), TOTAL_BUDGET_TTL);
+        } catch (RuntimeException ex) {
+            log.warn("重建 Redis 预算缓存失败，planId={}：{}", planId, ex.getMessage());
+        }
     }
 
     /**

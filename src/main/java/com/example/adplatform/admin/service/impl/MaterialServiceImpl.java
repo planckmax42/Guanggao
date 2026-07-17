@@ -17,9 +17,11 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
+import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
+import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,6 +46,7 @@ public class MaterialServiceImpl implements MaterialService {
     private final MaterialConverter materialConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final EventMetadataCacheService eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -59,6 +62,13 @@ public class MaterialServiceImpl implements MaterialService {
 
         MaterialEntity entity = materialConverter.toEntity(request);
         materialMapper.insert(entity);
+        eventMetadataCacheService.refreshAfterCommit(entity.getId(), new EventMaterialMetadata(
+                plan.getId(),
+                entity.getSlotId(),
+                plan.getBudgetTotal(),
+                plan.getBudgetDaily(),
+                plan.getBidPrice(),
+                plan.getBillingType()));
         searchOutboxService.appendConfigChange(ConfigAggregateType.MATERIAL, entity.getId());
         return materialConverter.toRef(entity);
     }
