@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +20,8 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 public class EventKafkaProducer implements EventPublisher {
+
+    private static final Logger log = LoggerFactory.getLogger(EventKafkaProducer.class);
 
     private final KafkaTemplate<String, EventMessage> kafkaTemplate;
 
@@ -40,7 +44,12 @@ public class EventKafkaProducer implements EventPublisher {
         try {
             kafkaTemplate.send(eventTopic, message.eventId(), message)
                     .get(3, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.error("Kafka 发送等待被中断，eventId={}，topic={}", message.eventId(), eventTopic, ex);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "广告事件写入 Kafka 失败");
         } catch (Exception ex) {
+            log.error("Kafka 发送失败，eventId={}，topic={}", message.eventId(), eventTopic, ex);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "广告事件写入 Kafka 失败");
         }
     }

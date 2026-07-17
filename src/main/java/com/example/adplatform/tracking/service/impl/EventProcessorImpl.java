@@ -20,7 +20,6 @@ import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventProcessor;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -32,9 +31,8 @@ import java.time.LocalDateTime;
 /**
  * 广告事件消费后的核心处理器。
  *
- * <p>在一个 MySQL 事务内完成事件幂等落库、计费流水、计费结果和 ES 索引 Outbox；
- * event_id 唯一键保证 Kafka 重复投递不会重复计费。Redis 负责预算、频控和实时统计，
- * ES 消费者只在事务提交后通过 Outbox 收到 eventId。</p>
+ * <p>在一个 MySQL 事务内完成事件幂等落库、计费流水和计费结果；event_id 唯一键保证
+ * Kafka 重复投递不会重复计费。Redis 负责预算、频控和实时统计。</p>
  */
 @RequiredArgsConstructor
 @Service
@@ -49,7 +47,6 @@ public class EventProcessorImpl implements EventProcessor {
     private final PlanMapper planMapper;
     private final MaterialMapper materialMapper;
     private final EventConverter eventConverter;
-    private final SearchOutboxService searchOutboxService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -110,8 +107,6 @@ public class EventProcessorImpl implements EventProcessor {
                 eventType == EventType.CLICK ? 1 : 0,
                 eventType == EventType.CONVERSION ? 1 : 0,
                 finalCostAmount);
-        // 与 event/charge_record 同事务提交，避免 ES 收到尚未落库或最终回滚的事件。
-        searchOutboxService.appendEventIndex(message.eventId());
     }
 
     private long calculateCostAmount(EventType eventType, PlanEntity plan, LocalDate statDate) {

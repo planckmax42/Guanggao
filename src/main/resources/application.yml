@@ -8,6 +8,9 @@ server:
   port: 8080
 
 logging:
+  file:
+    # ERROR 日志落到独立滚动文件，再由 Alloy 异步采集到 Loki。
+    path: ${LOG_PATH:logs}
   level:
     root: warn
     com.example.adplatform: warn

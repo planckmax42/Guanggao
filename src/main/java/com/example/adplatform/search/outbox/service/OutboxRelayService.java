@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 将 MySQL Outbox 可靠转发到 Kafka。
+ * 轮询回退模式下将 MySQL Outbox 可靠转发到 Kafka。
  *
  * <p>每批记录在数据库事务内通过 {@code FOR UPDATE SKIP LOCKED} 领取，允许多个应用实例
  * 并行工作而不处理同一行。收到 broker 确认后才标记 SENT；进程若在确认与标记之间
@@ -66,9 +66,4 @@ public class OutboxRelayService {
         return sent;
     }
 
-    /** 清理超过保留期的 SENT 历史消息，不删除待重试记录。 */
-    @Transactional
-    public int cleanupSent() {
-        return outboxMessageMapper.deleteSentBefore(properties.getOutbox().getSentRetentionDays());
-    }
 }

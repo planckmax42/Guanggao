@@ -30,21 +30,9 @@ public class KafkaTopicConfig {
         return topic(topicName);
     }
 
-    /** 已落 MySQL 的事件进入 ES 前使用的二级索引 Topic。 */
-    @Bean
-    public NewTopic eventIndexTopic(@Value("${app.kafka.topics.event-index}") String topicName) {
-        return topic(topicName);
-    }
-
     /** 配置同步超过重试次数后的死信 Topic。 */
     @Bean
     public NewTopic configChangeDltTopic(@Value("${app.kafka.topics.config-change-dlt}") String topicName) {
-        return topic(topicName);
-    }
-
-    /** 事件索引超过重试次数后的死信 Topic。 */
-    @Bean
-    public NewTopic eventIndexDltTopic(@Value("${app.kafka.topics.event-index-dlt}") String topicName) {
         return topic(topicName);
     }
 

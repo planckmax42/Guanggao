@@ -1,0 +1,59 @@
+name: ad-platform-logging
+
+services:
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: ad-platform-loki
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./docker/observability/loki.yml:/etc/loki/loki.yml:ro
+      - ad-platform-loki-data:/loki
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  alloy:
+    image: grafana/alloy:v1.16.1
+    container_name: ad-platform-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"
+    volumes:
+      - ./docker/observability/alloy.config:/etc/alloy/config.alloy:ro
+      - ./logs:/var/log/ad-platform:ro
+      - ad-platform-alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: ad-platform-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ad-platform-grafana-data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ad-platform-loki-data:
+  ad-platform-alloy-data:
+  ad-platform-grafana-data:

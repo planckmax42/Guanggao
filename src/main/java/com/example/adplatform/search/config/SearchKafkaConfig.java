@@ -26,7 +26,7 @@ import java.util.Map;
  *
  * <p>原始广告事件使用 JSON 对象模板；Outbox 中已经持久化的是 JSON 字符串，因此使用
  * 独立的 String 模板和监听容器，避免全局 JsonDeserializer 把消息反序列化成错误类型。
- * 搜索消费者失败后固定间隔重试 4 次，最终转发到与原 Topic 同分区号的 DLT。</p>
+ * 候选同步消费者失败后固定间隔重试 4 次，最终转发到与原 Topic 同分区号的 DLT。</p>
  */
 @Configuration
 public class SearchKafkaConfig {
@@ -49,7 +49,7 @@ public class SearchKafkaConfig {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(config));
     }
 
-    /** 创建配置同步和事件索引消费者共用的字符串监听容器。 */
+    /** 创建配置同步消费者使用的字符串监听容器。 */
     @Bean("searchKafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, String> searchKafkaListenerContainerFactory(
             KafkaProperties properties,

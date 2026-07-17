@@ -3,18 +3,23 @@ package com.example.adplatform.search.outbox.scheduler;
 import com.example.adplatform.search.outbox.service.OutboxRelayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Outbox 周期调度入口。
+ * 应用轮询式 Outbox Relay，仅作为 Debezium 不可用时的显式回退方案。
  *
- * <p>高频任务只负责小批量发布；历史清理固定在低峰期执行。异常在任务边界记录，避免
- * Spring 调度线程因一次依赖故障永久停止后续轮询。</p>
+ * <p>默认 transport=debezium 时不会创建此 Bean，避免应用和 Debezium 重复发布同一行。
+ * 异常在任务边界记录，避免 Spring 调度线程因一次依赖故障永久停止后续轮询。</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+        prefix = "app.elasticsearch.outbox",
+        name = "transport",
+        havingValue = "polling")
 public class OutboxRelayScheduler {
 
     private final OutboxRelayService outboxRelayService;
@@ -31,13 +36,4 @@ public class OutboxRelayScheduler {
         }
     }
 
-    /** 每天 03:20 清理已超过保留期的 SENT 记录。 */
-    @Scheduled(cron = "0 20 3 * * *")
-    public void cleanup() {
-        try {
-            outboxRelayService.cleanupSent();
-        } catch (RuntimeException ex) {
-            log.warn("Search outbox cleanup failed", ex);
-        }
-    }
 }

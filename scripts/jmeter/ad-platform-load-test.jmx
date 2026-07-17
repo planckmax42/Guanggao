@@ -2,7 +2,7 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="广告投放与实时数据分析平台-全链路压测">
-      <stringProp name="TestPlan.comments">覆盖后台管理、ES粗召回 + Redis动态过滤 + Java精排、事件采集、ES事件游标检索、幂等和报表查询。</stringProp>
+      <stringProp name="TestPlan.comments">覆盖后台管理、ES粗召回 + Redis动态过滤 + Java精排、事件采集、幂等和报表查询。</stringProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户变量">
         <collectionProp name="Arguments.arguments">
           <elementProp name="slot_1" elementType="Argument">
@@ -144,7 +144,7 @@
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -402,7 +402,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="02-广告投放高并发" enabled="false">
         <stringProp name="ThreadGroup.num_threads">${__P(deliveryThreads,80)}</stringProp>
         <stringProp name="ThreadGroup.ramp_time">${__P(deliveryRamp,10)}</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
@@ -526,13 +526,13 @@
         </ResultCollector>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入" enabled="false">
-        <stringProp name="ThreadGroup.num_threads">${__P(eventThreads,100)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(eventRamp,10)}</stringProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="03-事件采集高并发写入">
+        <intProp name="ThreadGroup.num_threads">100</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">${__P(eventLoops,10)}</stringProp>
+          <stringProp name="LoopController.loops">1</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -705,51 +705,6 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-      </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="07-ES事件检索与search_after游标" enabled="false">
-        <stringProp name="ThreadGroup.num_threads">${__P(eventSearchThreads,20)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(eventSearchRamp,5)}</stringProp>
-        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
-        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">${__P(eventSearchLoops,20)}</stringProp>
-          <boolProp name="LoopController.continue_forever">false</boolProp>
-        </elementProp>
-      </ThreadGroup>
-      <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="EVENT-SEARCH-首页" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/search/events?size=1</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
-            <collectionProp name="Arguments.arguments"/>
-          </elementProp>
-        </HTTPSamplerProxy>
-        <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取nextCursor" enabled="true">
-            <stringProp name="JSONPostProcessor.referenceNames">eventCursor</stringProp>
-            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.nextCursor</stringProp>
-            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-            <stringProp name="JSONPostProcessor.defaultValues"></stringProp>
-          </JSONPostProcessor>
-          <hashTree/>
-        </hashTree>
-        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="存在游标时请求下一页" enabled="true">
-          <stringProp name="IfController.condition">${__groovy(vars.get('eventCursor') != null &amp;&amp; !vars.get('eventCursor').isBlank() &amp;&amp; vars.get('eventCursor') != 'null')}</stringProp>
-          <boolProp name="IfController.evaluateAll">false</boolProp>
-          <boolProp name="IfController.useExpression">true</boolProp>
-        </IfController>
-        <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="EVENT-SEARCH-search_after下一页" enabled="true">
-            <stringProp name="HTTPSampler.path">/api/search/events?size=1&amp;cursor=${__urlencode(${eventCursor})}</stringProp>
-            <stringProp name="HTTPSampler.method">GET</stringProp>
-            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
-            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
-              <collectionProp name="Arguments.arguments"/>
-            </elementProp>
-          </HTTPSamplerProxy>
-          <hashTree/>
-        </hashTree>
       </hashTree>
     </hashTree>
   </hashTree>

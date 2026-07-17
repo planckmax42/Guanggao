@@ -89,9 +89,7 @@ app:
     topics:
       event: event-topic
       config-change: ad-config-change
-      event-index: ad-event-index
       config-change-dlt: ad-config-change-dlt
-      event-index-dlt: ad-event-index-dlt
   elasticsearch:
     enabled: ${ELASTICSEARCH_ENABLED:true}
     candidate:
@@ -101,15 +99,11 @@ app:
       max-recall-size: 1000
       query-timeout: 100ms
       rebuild-lock-ttl: 10m
-    event:
-      index-prefix: ad-event-
-      template-name: ad-event-template
-      lifecycle-policy: ad-event-retention-30d
-      retention-days: 30
-      default-lookback: 24h
-      max-query-days: 31
     outbox:
+      # 默认由 Debezium 读取 MySQL Binlog；可临时设置 OUTBOX_TRANSPORT=polling 回退应用轮询。
+      transport: ${OUTBOX_TRANSPORT:debezium}
       publish-delay-ms: 500
       publish-initial-delay-ms: 3000
       batch-size: 100
-      sent-retention-days: 7
+      retention-days: 7
+      cleanup-cron: "0 20 3 * * *"

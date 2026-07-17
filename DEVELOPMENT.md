@@ -12,7 +12,7 @@
 - Kafka 异步解耦
 - Redis 实时计数、点击去重、频控、限流
 - MySQL 持久化业务数据和统计数据
-- Elasticsearch 支持广告多维粗召回和事件检索
+- Elasticsearch 支持广告多维粗召回
 - 后台数据看板
 - 后期 Docker Compose 一键部署
 
@@ -26,7 +26,8 @@
 - MyBatis-Plus
 - MySQL 8.x
 - Redis 7.x
-- Kafka 3.x
+- Kafka 4.3.x
+- Debezium 3.x / Kafka Connect
 - Elasticsearch 8.x
 - Maven
 
@@ -93,6 +94,7 @@ elasticsearch:
 02-delivery-schema.sql
 04-tracking-report-schema.sql
 06-elasticsearch-outbox-schema.sql
+07-debezium-cdc.sql
 99-seed-demo-data.sql
 ```
 
@@ -395,7 +397,7 @@ rate:api:{apiName}:{ip}:{timestampSecond}
 Topic：
 
 ```text
-ad-event
+event-topic
 ```
 
 验收标准：
@@ -437,41 +439,37 @@ ad-event
 - CTR、CVR 计算正确
 - Redis 和 MySQL 统计口径说明清楚
 
-### 阶段 7：Elasticsearch 粗召回与事件检索（已实现）
+### 阶段 7：Elasticsearch 多维粗召回（已实现）
 
 目标：
 
 - 将投放链路升级为 ES 静态粗召回、Redis 动态过滤、Java 精排
-- 支持事件多条件检索和 `search_after` 游标分页
 
 任务：
 
 - 版本化候选索引 + 读写别名，全量重建后原子切换
 - 广告位、时间、地域、设备、性别、年龄、标签等维度过滤
-- 素材、计划、定向、广告位变更通过 MySQL Outbox + Kafka 增量同步 ES
+- 素材、计划、定向、广告位变更与 MySQL Outbox 同事务提交
+- Debezium Kafka Connect 读取 MySQL Binlog，并通过 Outbox Event Router 发布 Kafka
+- 应用轮询 Relay 仅作为显式回退和集成测试方案，默认不启动
 - 停投变更先写 Redis stopped set，屏蔽 ES 最终一致窗口
 - ES 异常时通过熔断器降级 MySQL，ES 正常空结果不降级
-- 事件按天建索引，应用严格映射模板和 30 天 ILM
-- 事件同步同样经过 Outbox + Kafka，失败退避重试并支持 DLT
 
 索引：
 
 ```text
 ad-candidate-yyyyMMddHHmmssSSS
 ad-candidate-read / ad-candidate-write
-ad-event-yyyyMMdd
 ```
 
 接口：
 
 - `POST /api/admin/search/candidates/rebuild`
-- `GET /api/search/events`
 
 验收标准：
 
 - 投放请求可以按多维定向粗召回候选
 - 预算、频控和紧急停投不依赖 ES 快照实时性
-- 可以按事件类型、时间范围检索事件
 - ES 不可用时不影响核心投放链路
 
 ### 阶段 8：系统保护与稳定性
@@ -673,6 +671,17 @@ private static final Logger log = LoggerFactory.getLogger(Xxx.class);
 - 真实敏感 Token
 - 过大的完整请求体
 
+本地集中日志链路为：
+
+```text
+SLF4J/Logback ERROR -> logs/ad-platform-error.log -> Grafana Alloy -> Loki -> Grafana
+```
+
+- 只采集 `ERROR`，正常业务校验失败不应记为系统错误。
+- 错误文件按天和 20 MB 滚动，最多保留 7 天且总量不超过 1 GB。
+- Loki 也保留 7 天；本地使用文件系统存储，生产环境应使用对象存储、认证和独立的可观测集群。
+- Grafana 查询条件：`{application="ad-platform", environment="local", level="ERROR"}`。
+
 ### 6.7 事务规范
 
 需要事务的场景：
@@ -756,12 +765,11 @@ infra.kafka.KafkaTopicConstants
 
 ### 6.11 Elasticsearch 使用规范
 
-ES 用于检索和分析，不作为核心事务数据库。
+ES 只用于广告候选粗召回，不作为核心事务数据库。
 
 要求：
 
 - 写 ES 失败不能影响广告投放主链路
-- 事件索引按日期拆分
 - keyword 字段用于精确过滤
 - text 字段用于全文搜索
 

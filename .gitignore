@@ -3,7 +3,15 @@ target/
 *.iml
 *.log
 .DS_Store
-logs/
+
+# Local environment overrides and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime logs; keep the directory in Git without committing log contents
+/logs/*
+!/logs/.gitkeep
 
 # Local diagnostics and load-test outputs
 arthas-boot.jar

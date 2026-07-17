@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 /**
  * outbox_message 表映射。
  *
- * <p>{@code eventId} 是 Outbox 业务幂等标识，{@code messageKey} 决定 Kafka 分区；
- * {@code nextRetryAt} 让失败消息在数据库中持久化退避时间。</p>
+ * <p>{@code eventId} 是 Outbox 业务幂等标识，{@code messageKey} 决定 Kafka 分区。
+ * 状态和重试字段仅供 polling 回退模式使用；Debezium 模式只消费 INSERT Binlog。</p>
  */
 @Getter
 @Setter

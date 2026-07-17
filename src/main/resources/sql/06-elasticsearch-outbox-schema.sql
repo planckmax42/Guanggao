@@ -14,9 +14,10 @@ CREATE TABLE IF NOT EXISTS outbox_message (
     sent_at DATETIME NULL,
     UNIQUE KEY uk_outbox_event_id (event_id),
     KEY idx_outbox_pending (status, next_retry_at, id),
-    KEY idx_outbox_sent_at (status, sent_at)
+    KEY idx_outbox_sent_at (status, sent_at),
+    KEY idx_outbox_created_at (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 INSERT INTO schema_version (version, description)
-VALUES ('stage-6-elasticsearch-outbox', 'reliable outbox for candidate and event Elasticsearch indexing')
+VALUES ('stage-6-elasticsearch-outbox', 'reliable outbox for candidate Elasticsearch indexing')
 ON DUPLICATE KEY UPDATE description = VALUES(description);

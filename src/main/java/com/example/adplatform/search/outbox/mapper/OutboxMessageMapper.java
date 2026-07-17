@@ -61,4 +61,14 @@ public interface OutboxMessageMapper {
               AND sent_at < DATE_SUB(NOW(), INTERVAL #{retentionDays} DAY)
             """)
     int deleteSentBefore(@Param("retentionDays") int retentionDays);
+
+    /**
+     * Debezium 模式按时间清理追加式 Outbox。删除事件会被 Outbox Event Router 自动忽略。
+     * retentionDays 必须覆盖允许的 Connector 最长停机时间。
+     */
+    @Delete("""
+            DELETE FROM outbox_message
+            WHERE created_at < DATE_SUB(NOW(), INTERVAL #{retentionDays} DAY)
+            """)
+    int deleteCreatedBefore(@Param("retentionDays") int retentionDays);
 }

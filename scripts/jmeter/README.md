@@ -3,7 +3,7 @@
 ## 运行前准备
 
 1. 启动 MySQL、Redis、Kafka、Elasticsearch 和 Spring Boot 应用。
-2. 执行基础 SQL，其中必须包含 `06-elasticsearch-outbox-schema.sql`。
+2. 执行基础 SQL，其中必须包含 `06-elasticsearch-outbox-schema.sql` 和 `07-debezium-cdc.sql`。
 3. 确认应用和 ES 可用：
 
 ```bash
@@ -38,13 +38,12 @@ curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
 ## 线程组
 
 - `02-广告投放高并发`：演示数据上的 5 类业务场景，实际走 ES 粗召回、Redis 批量动态过滤和 Java 精排。
-- `03-事件采集高并发写入`：事件 API -> Kafka -> MySQL/Outbox -> Kafka -> ES 日索引。
+- `03-事件采集高并发写入`：事件 API -> Kafka -> MySQL 事件与计费流水，同时更新 Redis 实时统计。
 - `04-重复事件幂等冲突`：验证 `event_id` 唯一索引和消费幂等。
 - `05-报表查询混合读`：日报、漏斗和素材排行。
 - `06-ES多维粗召回投放链路`：专用于 1k / 5k / 10k 数据，覆盖 3 个压测广告位和多维定向。
-- `07-ES事件检索与search_after游标`：先查首页，提取 `nextCursor`，再查下一页。
 
-`06` 和 `07` 默认关闭，用 GUI 打开时建议同时关闭其他线程组，避免混杂指标。
+`06` 默认关闭，用 GUI 打开时建议同时关闭其他线程组，避免混杂指标。
 
 ## 命令行运行
 
@@ -70,7 +69,6 @@ eventThreads / eventRamp / eventLoops
 duplicateThreads / duplicateRamp / duplicateLoops
 reportThreads / reportRamp / loops
 esRecallThreads / esRecallRamp / esRecallLoops
-eventSearchThreads / eventSearchRamp / eventSearchLoops
 ```
 
 ## 建议压测方法
@@ -79,6 +77,6 @@ eventSearchThreads / eventSearchRamp / eventSearchLoops
 2. 分别在 1k、5k、10k 候选量下运行 `06`，记录吞吐、P95、P99 和错误率。
 3. 查看 `/actuator/metrics/ad.candidate.recall.duration`，确认 `source=ELASTICSEARCH`，避免把 MySQL 降级结果误当成 ES 结果。
 4. 停止 ES 再运行相同请求，验证接口仍成功，且指标出现 `source=MYSQL_FALLBACK`。恢复 ES 后继续压测，验证熔断器自动恢复。
-5. 运行 `03` 后再运行 `07`，同时观察 Outbox `PENDING` 数、Kafka consumer lag、ES 索引速率和查询 P95/P99。
+5. 运行 `03` 时观察 `tracking-consumer` Lag、MySQL `event`/`charge_record` 写入和 Redis 实时统计。Debezium 只负责广告配置 Outbox 到候选 ES 的同步。
 
 第一次请求可能需要从 MySQL 回建预算 Redis Key，建议先预热 30 秒再采集稳态数据。
