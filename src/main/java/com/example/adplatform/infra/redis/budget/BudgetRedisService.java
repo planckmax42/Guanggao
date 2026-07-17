@@ -32,12 +32,13 @@ public interface BudgetRedisService {
     /**
      * 扣费阶段实时预算扣减：预算足够时原子累加已消耗金额。
      *
+     * @param eventId 事件唯一标识，用于保证重试不重复扣减预算
      * @param plan 待扣费的广告计划
      * @param statDate 预算统计日期
      * @param amount 本次扣费金额
      * @return 预算足够且扣减成功时返回 {@code true}
      */
-    boolean tryCharge(PlanEntity plan, LocalDate statDate, long amount);
+    boolean tryChargeOnce(String eventId, PlanEntity plan, LocalDate statDate, long amount);
 
     /**
      * 根据 charge_record 成功扣费流水重建指定计划的预算消耗缓存。

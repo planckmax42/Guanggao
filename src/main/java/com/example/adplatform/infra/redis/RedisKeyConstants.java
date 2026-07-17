@@ -48,6 +48,27 @@ public final class RedisKeyConstants {
     }
 
     /**
+     * 保存单个事件的预算扣减决定，使 Kafka 重试不会重复扣减预算。
+     */
+    public static String eventChargeDecision(String eventId) {
+        return "budget:event:%s".formatted(eventId);
+    }
+
+    /**
+     * 标记实时事件计数已经处理，避免 Consumer 重试重复累计。
+     */
+    public static String eventStatisticsProcessed(String eventId) {
+        return "stats:event:%s".formatted(eventId);
+    }
+
+    /**
+     * 标记事件计费金额已经写入实时统计。
+     */
+    public static String eventCostStatisticsProcessed(String eventId) {
+        return "stats:cost:event:%s".formatted(eventId);
+    }
+
+    /**
      * 生成广告计划当日实时统计 Key。
      *
      * @param date 统计日期

@@ -36,6 +36,35 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    container_name: ad-platform-kafka-exporter
+    network_mode: host
+    command:
+      - --kafka.server=127.0.0.1:9092
+      - --web.listen-address=0.0.0.0:9308
+      - --topic.filter=^(event-topic|ad-config-change|ad-config-change-dlt)$
+      - --group.filter=^(event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer)$
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    container_name: ad-platform-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ad-platform-prometheus-data:/prometheus
+    depends_on:
+      - kafka-exporter
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:13.1.0
     container_name: ad-platform-grafana
@@ -51,9 +80,12 @@ services:
     depends_on:
       loki:
         condition: service_healthy
+      prometheus:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
   ad-platform-loki-data:
   ad-platform-alloy-data:
+  ad-platform-prometheus-data:
   ad-platform-grafana-data:

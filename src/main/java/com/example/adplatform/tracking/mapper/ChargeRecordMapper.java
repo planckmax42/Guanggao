@@ -9,6 +9,9 @@ import java.time.LocalDate;
 
 public interface ChargeRecordMapper extends BaseMapper<ChargeRecordEntity> {
 
+    @Select("SELECT * FROM charge_record WHERE event_id = #{eventId} LIMIT 1")
+    ChargeRecordEntity selectByEventId(@Param("eventId") String eventId);
+
     @Select("""
             SELECT COALESCE(SUM(amount), 0)
             FROM charge_record

@@ -9,10 +9,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.kafka.template: true
+        spring.kafka.listener: true
+        ad.event.consumer.processing: true
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -40,7 +47,6 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: tracking-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       auto-offset-reset: earliest
@@ -90,6 +96,11 @@ app:
       event: event-topic
       config-change: ad-config-change
       config-change-dlt: ad-config-change-dlt
+    consumer-groups:
+      legacy: tracking-consumer
+      archive: event-archive-consumer
+      billing: event-billing-consumer
+      statistics: event-statistics-consumer
   elasticsearch:
     enabled: ${ELASTICSEARCH_ENABLED:true}
     candidate:

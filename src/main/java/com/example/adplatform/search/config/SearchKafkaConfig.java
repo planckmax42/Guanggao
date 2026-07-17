@@ -6,6 +6,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -33,8 +34,10 @@ public class SearchKafkaConfig {
 
     /** 发送原始曝光、点击、转化事件的强类型模板。 */
     @Bean("eventKafkaTemplate")
-    public KafkaTemplate<String, EventMessage> eventKafkaTemplate(KafkaProperties properties) {
-        Map<String, Object> config = new HashMap<>(properties.buildProducerProperties());
+    public KafkaTemplate<String, EventMessage> eventKafkaTemplate(
+            KafkaProperties properties,
+            SslBundles sslBundles) {
+        Map<String, Object> config = new HashMap<>(properties.buildProducerProperties(sslBundles));
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(config));
@@ -42,8 +45,10 @@ public class SearchKafkaConfig {
 
     /** 发布 Outbox JSON payload 的字符串模板。 */
     @Bean("outboxKafkaTemplate")
-    public KafkaTemplate<String, String> outboxKafkaTemplate(KafkaProperties properties) {
-        Map<String, Object> config = new HashMap<>(properties.buildProducerProperties());
+    public KafkaTemplate<String, String> outboxKafkaTemplate(
+            KafkaProperties properties,
+            SslBundles sslBundles) {
+        Map<String, Object> config = new HashMap<>(properties.buildProducerProperties(sslBundles));
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(config));
@@ -53,8 +58,9 @@ public class SearchKafkaConfig {
     @Bean("searchKafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, String> searchKafkaListenerContainerFactory(
             KafkaProperties properties,
+            SslBundles sslBundles,
             KafkaTemplate<String, String> outboxKafkaTemplate) {
-        Map<String, Object> config = new HashMap<>(properties.buildConsumerProperties());
+        Map<String, Object> config = new HashMap<>(properties.buildConsumerProperties(sslBundles));
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         // application-local.yml 为原始事件消费者配置了默认 JSON 类型；字符串消费者必须移除。

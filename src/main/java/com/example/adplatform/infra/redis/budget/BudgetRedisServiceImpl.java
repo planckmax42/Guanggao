@@ -31,23 +31,33 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
     private static final Logger log = LoggerFactory.getLogger(BudgetRedisServiceImpl.class);
     private static final Duration DAILY_BUDGET_TTL = Duration.ofDays(2);
     private static final Duration TOTAL_BUDGET_TTL = Duration.ofDays(30);
+    private static final Duration EVENT_CHARGE_DECISION_TTL = Duration.ofDays(14);
 
     private static final DefaultRedisScript<Long> TRY_CHARGE_SCRIPT = new DefaultRedisScript<>("""
             local dailyKey = KEYS[1]
             local totalKey = KEYS[2]
+            local eventKey = KEYS[3]
             local amount = tonumber(ARGV[1])
             local dailyBudget = tonumber(ARGV[2])
             local totalBudget = tonumber(ARGV[3])
             local dailyTtl = tonumber(ARGV[4])
             local totalTtl = tonumber(ARGV[5])
+            local eventTtl = tonumber(ARGV[6])
+
+            local previousDecision = redis.call('GET', eventKey)
+            if previousDecision then
+                return tonumber(previousDecision)
+            end
 
             local dailyCost = tonumber(redis.call('GET', dailyKey) or '0')
             local totalCost = tonumber(redis.call('GET', totalKey) or '0')
 
             if dailyCost + amount > dailyBudget then
+                redis.call('SET', eventKey, '0', 'EX', eventTtl)
                 return 0
             end
             if totalCost + amount > totalBudget then
+                redis.call('SET', eventKey, '0', 'EX', eventTtl)
                 return 0
             end
 
@@ -55,6 +65,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
             redis.call('INCRBY', totalKey, amount)
             redis.call('EXPIRE', dailyKey, dailyTtl)
             redis.call('EXPIRE', totalKey, totalTtl)
+            redis.call('SET', eventKey, '1', 'EX', eventTtl)
             return 1
             """, Long.class);
 
@@ -117,9 +128,12 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
 
     /** {@inheritDoc} */
     @Override
-    public boolean tryCharge(PlanEntity plan, LocalDate statDate, long amount) {
+    public boolean tryChargeOnce(String eventId, PlanEntity plan, LocalDate statDate, long amount) {
         if (amount <= 0) {
             return false;
+        }
+        if (eventId == null || eventId.isBlank()) {
+            throw new IllegalArgumentException("eventId must not be blank");
         }
         if (!hasValidBudget(plan)) {
             return false;
@@ -129,12 +143,16 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         try {
             Long result = stringRedisTemplate.execute(
                     TRY_CHARGE_SCRIPT,
-                    List.of(dailyBudgetKey(statDate, plan.getId()), totalBudgetKey(plan.getId())),
+                    List.of(
+                            dailyBudgetKey(statDate, plan.getId()),
+                            totalBudgetKey(plan.getId()),
+                            RedisKeyConstants.eventChargeDecision(eventId)),
                     String.valueOf(amount),
                     String.valueOf(plan.getBudgetDaily()),
                     String.valueOf(plan.getBudgetTotal()),
                     String.valueOf(DAILY_BUDGET_TTL.toSeconds()),
-                    String.valueOf(TOTAL_BUDGET_TTL.toSeconds()));
+                    String.valueOf(TOTAL_BUDGET_TTL.toSeconds()),
+                    String.valueOf(EVENT_CHARGE_DECISION_TTL.toSeconds()));
             return result != null && result == 1L;
         } catch (RuntimeException ex) {
             log.warn("Redis 预算扣减失败，planId={}，本次降级查询 charge_record：{}", plan.getId(), ex.getMessage());

@@ -25,8 +25,7 @@ public class EventKafkaProducer implements EventPublisher {
 
     private final KafkaTemplate<String, EventMessage> kafkaTemplate;
 
-    public EventKafkaProducer(
-            @Qualifier("eventKafkaTemplate") KafkaTemplate<String, EventMessage> kafkaTemplate) {
+    public EventKafkaProducer(@Qualifier("eventKafkaTemplate") KafkaTemplate<String, EventMessage> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 

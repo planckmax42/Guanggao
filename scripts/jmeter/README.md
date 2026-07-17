@@ -77,6 +77,8 @@ esRecallThreads / esRecallRamp / esRecallLoops
 2. 分别在 1k、5k、10k 候选量下运行 `06`，记录吞吐、P95、P99 和错误率。
 3. 查看 `/actuator/metrics/ad.candidate.recall.duration`，确认 `source=ELASTICSEARCH`，避免把 MySQL 降级结果误当成 ES 结果。
 4. 停止 ES 再运行相同请求，验证接口仍成功，且指标出现 `source=MYSQL_FALLBACK`。恢复 ES 后继续压测，验证熔断器自动恢复。
-5. 运行 `03` 时观察 `tracking-consumer` Lag、MySQL `event`/`charge_record` 写入和 Redis 实时统计。Debezium 只负责广告配置 Outbox 到候选 ES 的同步。
+5. 运行 `03` 时打开 Grafana 的 **Kafka Event Pipeline** Dashboard，观察 HTTP 速率、Topic 写入、
+   三个事件 Consumer Group 的消费速率、分阶段处理 P95 与 Lag 是否同步变化，并核对 MySQL
+   `event`/`charge_record` 写入和 Redis 实时统计。Debezium 只负责广告配置 Outbox 到候选 ES 的同步。
 
 第一次请求可能需要从 MySQL 回建预算 Redis Key，建议先预热 30 秒再采集稳态数据。

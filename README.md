@@ -92,21 +92,43 @@ curl http://127.0.0.1:8080/api/health
 
 首次启动时，如果 `ad-candidate-read` 别名不存在，应用会从 MySQL 全量构建版本化候选索引。如果 ES 不可用，应用仍能启动，投放自动降级到 MySQL。
 
-## 错误日志（Loki）
+## 可观测性（Grafana、Prometheus 与 Loki）
 
 应用会把 `ERROR` 日志写入 `logs/ad-platform-error.log`，Grafana Alloy 异步采集该文件并发送到 Loki。这条链路与广告业务请求隔离，Loki 暂时不可用不会拖慢接口。
+
+同一套 Compose 还会启动 Prometheus 和 Kafka Exporter。Prometheus 每 5 秒采集宿主机应用的
+`/actuator/prometheus` 与 Kafka Exporter，指标持久化保留 7 天；Exporter 只读取广告平台的三个
+Topic 和两个 Consumer Group，避免内部 Topic 干扰看板。
 
 ```bash
 docker compose -f docker-compose.logging.yml up -d
 ```
 
-打开 `http://127.0.0.1:3000`，默认账号密码是 `admin/admin`。进入 **Explore**，选择已自动配置的 `Loki` 数据源，执行：
+打开 `http://127.0.0.1:3000`，默认账号密码是 `admin/admin`。`Ad Platform` 目录中的
+**Kafka Event Pipeline** Dashboard 与五条基础告警会自动加载。Dashboard 默认显示
+`event-topic` / `event-archive-consumer`，并可切换查看独立的
+`event-billing-consumer`、`event-statistics-consumer`，或配置同步链路的
+`candidate-index-consumer`。
+
+进入 **Explore**，选择保持为默认数据源的 `Loki`，可执行：
 
 ```logql
 {application="ad-platform", environment="local", level="ERROR"}
 ```
 
-Loki 就绪状态为 `http://127.0.0.1:3100/ready`，Alloy 采集状态页为 `http://127.0.0.1:12345`。本地 Loki 使用持久化 Docker Volume 并保留 7 天日志。
+常用检查地址：
+
+```text
+Grafana                 http://127.0.0.1:3000
+Prometheus Targets      http://127.0.0.1:9090/targets
+Kafka Exporter Metrics  http://127.0.0.1:9308/metrics
+应用 Prometheus Metrics http://127.0.0.1:8080/actuator/prometheus
+Loki Ready              http://127.0.0.1:3100/ready
+Alloy 状态页             http://127.0.0.1:12345
+```
+
+应用与 Kafka 仍运行在宿主机；Compose 使用 Linux `host-gateway` 访问应用，Kafka Exporter 使用
+host 网络访问仅监听 `127.0.0.1:9092` 的 Kafka。Grafana 告警只在 UI 内展示，不会向外部发送通知。
 
 ## 主要接口
 

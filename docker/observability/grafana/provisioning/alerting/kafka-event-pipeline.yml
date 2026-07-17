@@ -1,0 +1,297 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: kafka-event-pipeline
+    folder: Ad Platform
+    interval: 1m
+    rules:
+      - uid: pipeline-target-down
+        title: 应用或 Kafka Exporter 不可采集
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: 'up{job=~"ad-platform|kafka-exporter"}'
+              instant: true
+              intervalMs: 1000
+              legendFormat: '{{job}}'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: 'Prometheus 已连续 1 分钟无法采集 {{ $labels.job }}。'
+          summary: '采集目标 {{ $labels.job }} 不可用'
+        labels:
+          severity: critical
+          service: observability
+        isPaused: false
+
+      - uid: pipeline-consumer-lag-high
+        title: Consumer Group Lag 超过 100
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: 'max by (consumergroup, topic) (kafka_consumergroup_lag_sum{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer",topic=~"event-topic|ad-config-change|ad-config-change-dlt"})'
+              instant: true
+              intervalMs: 1000
+              legendFormat: '{{consumergroup}} / {{topic}}'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [100]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: '{{ $labels.consumergroup }} 在 {{ $labels.topic }} 的 Lag 已连续 1 分钟超过 100。'
+          summary: 'Consumer Group 积压过高'
+        labels:
+          severity: warning
+          service: kafka
+        isPaused: false
+
+      - uid: pipeline-consumer-stalled
+        title: Consumer 有积压但无消费
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 180
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: '(kafka_consumergroup_lag_sum{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer",topic=~"event-topic|ad-config-change|ad-config-change-dlt"} > 0) and on (consumergroup, topic) (clamp_min(rate(kafka_consumergroup_current_offset_sum{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer",topic=~"event-topic|ad-config-change|ad-config-change-dlt"}[1m]), 0) == 0)'
+              instant: true
+              intervalMs: 1000
+              legendFormat: '{{consumergroup}} / {{topic}}'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: '{{ $labels.consumergroup }} 在 {{ $labels.topic }} 有 Lag，但消费位点已连续 1 分钟没有推进。'
+          summary: 'Consumer 消费停滞'
+        labels:
+          severity: critical
+          service: kafka
+        isPaused: false
+
+      - uid: pipeline-consumer-no-members
+        title: Consumer Group 成员数为 0
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: 'kafka_consumergroup_members{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer"}'
+              instant: true
+              intervalMs: 1000
+              legendFormat: '{{consumergroup}}'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: '{{ $labels.consumergroup }} 已连续 1 分钟没有活跃成员。'
+          summary: 'Consumer Group 无活跃成员'
+        labels:
+          severity: critical
+          service: kafka
+        isPaused: false
+
+      - uid: pipeline-business-errors
+        title: 广告事件业务处理出现错误
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: 'sum by (stage, result) (increase(ad_event_consumer_messages_total{result=~"business_error|failure"}[1m]))'
+              instant: true
+              intervalMs: 1000
+              legendFormat: '{{stage}} / {{result}}'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: '最近 1 分钟出现广告事件处理错误，结果类型为 {{ $labels.result }}。'
+          summary: '广告事件业务处理错误'
+        labels:
+          severity: warning
+          service: ad-platform
+        isPaused: false
