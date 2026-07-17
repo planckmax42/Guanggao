@@ -8,7 +8,6 @@ import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
-import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventContextResolver;
 import com.example.adplatform.tracking.service.EventProcessingContext;
@@ -30,7 +29,6 @@ class EventBillingProcessorTests {
 
     private EventContextResolver contextResolver;
     private ChargeRecordMapper chargeRecordMapper;
-    private EventMapper eventMapper;
     private BudgetRedisService budgetRedisService;
     private EventStatisticsStore statisticsStore;
     private EventBillingProcessorImpl processor;
@@ -41,19 +39,17 @@ class EventBillingProcessorTests {
     void setUp() {
         contextResolver = mock(EventContextResolver.class);
         chargeRecordMapper = mock(ChargeRecordMapper.class);
-        eventMapper = mock(EventMapper.class);
         budgetRedisService = mock(BudgetRedisService.class);
         statisticsStore = mock(EventStatisticsStore.class);
         processor = new EventBillingProcessorImpl(
                 contextResolver,
                 chargeRecordMapper,
-                eventMapper,
                 mock(DailyReportMapper.class),
                 budgetRedisService,
                 statisticsStore);
 
         LocalDateTime eventTime = LocalDateTime.of(2026, 7, 17, 12, 0);
-        message = new EventMessage("event-1", "request-1", "CLICK", 10L, 20L, eventTime);
+        message = new EventMessage("event-1", "request-1", EventType.CLICK, 10L, 20L, eventTime);
         MaterialEntity material = new MaterialEntity();
         material.setId(10L);
         material.setPlanId(30L);
@@ -65,7 +61,6 @@ class EventBillingProcessorTests {
         plan.setBudgetDaily(10_000L);
         plan.setBudgetTotal(100_000L);
         context = new EventProcessingContext(
-                EventType.CLICK,
                 material,
                 plan,
                 "CPC",
@@ -75,7 +70,7 @@ class EventBillingProcessorTests {
     }
 
     @Test
-    void shouldCreateChargeAndSynchronizeBothProjections() {
+    void shouldCreateChargeAndRecordCostStatistics() {
         when(chargeRecordMapper.selectByEventId("event-1")).thenReturn(null);
         when(budgetRedisService.tryChargeOnce("event-1", context.plan(), context.statDate(), 25L))
                 .thenReturn(true);
@@ -83,7 +78,6 @@ class EventBillingProcessorTests {
         processor.bill(message);
 
         verify(chargeRecordMapper).insert(any(ChargeRecordEntity.class));
-        verify(eventMapper).updateChargeResult("event-1", 1, 25L);
         verify(statisticsStore).recordCostOnce("event-1", context, 25L);
     }
 
@@ -99,7 +93,6 @@ class EventBillingProcessorTests {
 
         verify(budgetRedisService, never()).tryChargeOnce(any(), any(), any(), eq(25L));
         verify(chargeRecordMapper, never()).insert(any(ChargeRecordEntity.class));
-        verify(eventMapper).updateChargeResult("event-1", 1, 25L);
         verify(statisticsStore).recordCostOnce("event-1", context, 25L);
     }
 }

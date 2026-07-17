@@ -19,6 +19,6 @@ public class EventStatisticsProcessorImpl implements EventStatisticsProcessor {
     @Override
     public void record(EventMessage message) {
         EventProcessingContext context = contextResolver.resolve(message);
-        eventStatisticsStore.recordEventOnce(message.eventId(), message.viewerId(), context);
+        eventStatisticsStore.recordEventOnce(message, context);
     }
 }

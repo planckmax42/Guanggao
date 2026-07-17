@@ -2,6 +2,7 @@ package com.example.adplatform.infra.kafka;
 
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +27,7 @@ class EventConsumerDispatcherTests {
         message = new EventMessage(
                 "event-1",
                 "request-1",
-                "IMPRESSION",
+                EventType.IMPRESSION,
                 1L,
                 2L,
                 LocalDateTime.now());

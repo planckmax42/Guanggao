@@ -1,5 +1,7 @@
 package com.example.adplatform.tracking.message;
 
+import com.example.adplatform.tracking.entity.EventType;
+
 import java.time.LocalDateTime;
 
 /**
@@ -8,7 +10,7 @@ import java.time.LocalDateTime;
 public record EventMessage(
         String eventId,
         String requestId,
-        String eventType,
+        EventType eventType,
         Long materialId,
         Long viewerId,
         LocalDateTime eventTime) {

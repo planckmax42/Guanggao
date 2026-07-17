@@ -119,7 +119,7 @@
 
   <!-- ad_event -->
   <g id="ad_event" transform="translate(900,560)">
-    <rect class="table" x="0" y="0" width="330" height="390"/>
+    <rect class="table" x="0" y="0" width="330" height="338"/>
     <rect class="head-report" x="0" y="0" width="330" height="38" rx="8"/>
     <text class="head-text" x="16" y="25">ad_event</text>
     <text class="row-text" x="16" y="62">id <tspan class="key">PK</tspan></text>
@@ -131,10 +131,8 @@
     <text class="row-text" x="16" y="218">ad_slot_id <tspan class="key">FK inferred</tspan></text>
     <text class="row-text" x="16" y="244">user_id external/no users table</text>
     <text class="row-text" x="16" y="270">billing_type</text>
-    <text class="row-text" x="16" y="296">charged</text>
-    <text class="row-text" x="16" y="322">cost_amount</text>
-    <text class="row-text" x="16" y="348">event_time</text>
-    <text class="row-text" x="16" y="374">created_at</text>
+    <text class="row-text" x="16" y="296">event_time</text>
+    <text class="row-text" x="16" y="322">created_at</text>
   </g>
 
   <!-- ad_stats_daily -->

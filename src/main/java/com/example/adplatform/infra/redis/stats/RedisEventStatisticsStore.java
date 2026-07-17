@@ -2,6 +2,7 @@ package com.example.adplatform.infra.redis.stats;
 
 import com.example.adplatform.infra.redis.RedisKeyConstants;
 import com.example.adplatform.tracking.entity.EventType;
+import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventProcessingContext;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
@@ -60,18 +61,19 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
     private final StringRedisTemplate stringRedisTemplate;
 
     @Override
-    public boolean recordEventOnce(String eventId, Long viewerId, EventProcessingContext context) {
-        long impressions = context.eventType() == EventType.IMPRESSION ? 1L : 0L;
-        long clicks = context.eventType() == EventType.CLICK ? 1L : 0L;
-        long conversions = context.eventType() == EventType.CONVERSION ? 1L : 0L;
+    public boolean recordEventOnce(EventMessage message, EventProcessingContext context) {
+        long impressions = message.eventType() == EventType.IMPRESSION ? 1L : 0L;
+        long clicks = message.eventType() == EventType.CLICK ? 1L : 0L;
+        long conversions = message.eventType() == EventType.CONVERSION ? 1L : 0L;
         String statsKey = statsKey(context);
         Long result = stringRedisTemplate.execute(
                 RECORD_EVENT_SCRIPT,
                 List.of(
-                        RedisKeyConstants.eventStatisticsProcessed(eventId),
+                        RedisKeyConstants.eventStatisticsProcessed(message.eventId()),
                         statsKey,
                         RedisKeyConstants.dailyStatsDirtySet(context.statDate()),
-                        RedisKeyConstants.viewerPlanFrequency(viewerId, context.plan().getId(), context.statDate())),
+                        RedisKeyConstants.viewerPlanFrequency(
+                                message.viewerId(), context.plan().getId(), context.statDate())),
                 String.valueOf(DEDUP_TTL.toSeconds()),
                 String.valueOf(impressions),
                 String.valueOf(clicks),

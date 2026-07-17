@@ -95,6 +95,7 @@ elasticsearch:
 04-tracking-report-schema.sql
 06-elasticsearch-outbox-schema.sql
 07-debezium-cdc.sql
+08-remove-event-charge-projection.sql
 99-seed-demo-data.sql
 ```
 

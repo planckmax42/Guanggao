@@ -7,7 +7,6 @@ import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
-import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventBillingProcessor;
 import com.example.adplatform.tracking.service.EventContextResolver;
@@ -25,7 +24,6 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
 
     private final EventContextResolver contextResolver;
     private final ChargeRecordMapper chargeRecordMapper;
-    private final EventMapper eventMapper;
     private final DailyReportMapper dailyReportMapper;
     private final BudgetRedisService budgetRedisService;
     private final EventStatisticsStore eventStatisticsStore;
@@ -34,7 +32,7 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
     @Transactional(rollbackFor = Exception.class)
     public void bill(EventMessage message) {
         EventProcessingContext context = contextResolver.resolve(message);
-        long costAmount = calculateCostAmount(context);
+        long costAmount = calculateCostAmount(message, context);
         if (costAmount <= 0) {
             return;
         }
@@ -58,20 +56,20 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
         if (charge == null) {
             throw new IllegalStateException("计费流水写入后无法读取，eventId=" + message.eventId());
         }
-        synchronizeProjections(message.eventId(), context, charge);
+        recordCostStatistics(message.eventId(), context, charge);
     }
 
-    private long calculateCostAmount(EventProcessingContext context) {
+    private long calculateCostAmount(EventMessage message, EventProcessingContext context) {
         if (BillingType.CPC.name().equals(context.billingType())
-                && context.eventType() == EventType.CLICK) {
+                && message.eventType() == EventType.CLICK) {
             return context.plan().getBidPrice();
         }
         if (BillingType.CPA.name().equals(context.billingType())
-                && context.eventType() == EventType.CONVERSION) {
+                && message.eventType() == EventType.CONVERSION) {
             return context.plan().getBidPrice();
         }
         if (BillingType.CPM.name().equals(context.billingType())
-                && context.eventType() == EventType.IMPRESSION) {
+                && message.eventType() == EventType.IMPRESSION) {
             long currentImpressions = dailyReportMapper.sumImpressionsByPlan(
                     context.statDate(), context.plan().getId());
             return (currentImpressions + 1) % 1000 == 0 ? context.plan().getBidPrice() : 0L;
@@ -79,13 +77,12 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
         return 0L;
     }
 
-    private void synchronizeProjections(
+    private void recordCostStatistics(
             String eventId,
             EventProcessingContext context,
             ChargeRecordEntity charge) {
         boolean charged = ChargeStatus.SUCCESS.name().equals(charge.getChargeStatus());
         long finalCost = charged ? charge.getAmount() : 0L;
-        eventMapper.updateChargeResult(eventId, charged ? 1 : 0, finalCost);
         eventStatisticsStore.recordCostOnce(eventId, context, finalCost);
     }
 

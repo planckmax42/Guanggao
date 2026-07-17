@@ -45,6 +45,7 @@ src/main/resources/sql/02-delivery-schema.sql
 src/main/resources/sql/04-tracking-report-schema.sql
 src/main/resources/sql/06-elasticsearch-outbox-schema.sql
 src/main/resources/sql/07-debezium-cdc.sql
+src/main/resources/sql/08-remove-event-charge-projection.sql
 src/main/resources/sql/99-seed-demo-data.sql
 ```
 

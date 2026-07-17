@@ -49,15 +49,6 @@ public class EventEntity {
      */
     private String billingType;
 
-    /**
-     * 是否已扣费：1 表示本事件产生扣费，0 表示未扣费。
-     */
-    private Integer charged;
-
-    /**
-     * 本次事件扣费金额，单位为分。
-     */
-    private Long costAmount;
     private LocalDateTime eventTime;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

@@ -22,7 +22,7 @@ class EventStatisticsProcessorTests {
         EventContextResolver resolver = mock(EventContextResolver.class);
         EventStatisticsStore store = mock(EventStatisticsStore.class);
         EventMessage message = new EventMessage(
-                "event-1", "request-1", "IMPRESSION", 10L, 20L, LocalDateTime.now());
+                "event-1", "request-1", EventType.IMPRESSION, 10L, 20L, LocalDateTime.now());
         MaterialEntity material = new MaterialEntity();
         material.setId(10L);
         material.setPlanId(30L);
@@ -30,7 +30,6 @@ class EventStatisticsProcessorTests {
         PlanEntity plan = new PlanEntity();
         plan.setId(30L);
         EventProcessingContext context = new EventProcessingContext(
-                EventType.IMPRESSION,
                 material,
                 plan,
                 "CPM",
@@ -40,6 +39,6 @@ class EventStatisticsProcessorTests {
 
         new EventStatisticsProcessorImpl(resolver, store).record(message);
 
-        verify(store).recordEventOnce("event-1", 20L, context);
+        verify(store).recordEventOnce(message, context);
     }
 }

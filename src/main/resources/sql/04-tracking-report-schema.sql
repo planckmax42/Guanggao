@@ -26,8 +26,6 @@ CREATE TABLE IF NOT EXISTS `event` (
     slot_id BIGINT NOT NULL,
     viewer_id BIGINT NOT NULL,
     billing_type VARCHAR(16) NOT NULL,
-    charged TINYINT NOT NULL DEFAULT 0,
-    cost_amount BIGINT NOT NULL DEFAULT 0,
     event_time DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_event_event_id (event_id),

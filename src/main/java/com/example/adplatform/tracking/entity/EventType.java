@@ -1,5 +1,6 @@
 package com.example.adplatform.tracking.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 
@@ -26,6 +27,7 @@ public enum EventType {
     /**
      * 解析接口传入的事件类型，并统一转成枚举值。
      */
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public static EventType parse(String value) {
         try {
             return EventType.valueOf(value.trim().toUpperCase());

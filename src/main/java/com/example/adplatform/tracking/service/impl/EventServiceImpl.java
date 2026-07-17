@@ -19,14 +19,12 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventResponse collect(EventRequest request) {
         EventType eventType = EventType.parse(request.eventType());
-        eventPublisher.publish(eventConverter.toMessage(request));
+        eventPublisher.publish(eventConverter.toMessage(request, eventType));
 
         return new EventResponse(
                 request.eventId(),
                 eventType.name(),
                 false,
-                false,
-                0L,
                 null);
     }
 }
