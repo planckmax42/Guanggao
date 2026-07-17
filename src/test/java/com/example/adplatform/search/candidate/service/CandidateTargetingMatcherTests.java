@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.dto.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import org.junit.jupiter.api.Test;
 

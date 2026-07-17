@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.dto.AuditMaterialRequest;
-import com.example.adplatform.admin.dto.CreateMaterialRequest;
+import com.example.adplatform.admin.request.AuditMaterialRequest;
+import com.example.adplatform.admin.request.CreateMaterialRequest;
 import com.example.adplatform.admin.service.MaterialService;
-import com.example.adplatform.admin.vo.MaterialVO;
+import com.example.adplatform.admin.response.MaterialResponse;
 import com.example.adplatform.common.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -33,7 +33,7 @@ public class MaterialController {
      * 为已有广告计划创建广告素材，初始审核状态为待审核。
      */
     @PostMapping
-    public Result<ResourceRefVO> create(@Valid @RequestBody CreateMaterialRequest request) {
+    public Result<ResourceRefResponse> create(@Valid @RequestBody CreateMaterialRequest request) {
         return Result.success(materialService.create(request));
     }
 
@@ -41,7 +41,7 @@ public class MaterialController {
      * 更新广告素材审核状态，可设置为待审核、审核通过或审核拒绝。
      */
     @PutMapping("/{id}/audit")
-    public Result<MaterialVO> audit(
+    public Result<MaterialResponse> audit(
             @PathVariable Long id,
             @Valid @RequestBody AuditMaterialRequest request) {
         return Result.success(materialService.audit(id, request));
@@ -51,7 +51,7 @@ public class MaterialController {
      * 分页查询广告素材，支持按广告计划 ID 和审核状态筛选。
      */
     @GetMapping("/page")
-    public Result<PageResponse<MaterialVO>> page(
+    public Result<PageResponse<MaterialResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) Long planId,

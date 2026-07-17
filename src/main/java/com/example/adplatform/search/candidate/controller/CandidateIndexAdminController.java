@@ -2,7 +2,7 @@ package com.example.adplatform.search.candidate.controller;
 
 import com.example.adplatform.common.response.Result;
 import com.example.adplatform.search.candidate.service.CandidateIndexManager;
-import com.example.adplatform.search.candidate.vo.CandidateRebuildVO;
+import com.example.adplatform.search.candidate.response.CandidateRebuildResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +18,7 @@ public class CandidateIndexAdminController {
 
     /** 创建新物理索引并在写入完成后原子切换读写别名。 */
     @PostMapping("/rebuild")
-    public Result<CandidateRebuildVO> rebuild() {
+    public Result<CandidateRebuildResponse> rebuild() {
         return Result.success(candidateIndexManager.rebuild());
     }
 }

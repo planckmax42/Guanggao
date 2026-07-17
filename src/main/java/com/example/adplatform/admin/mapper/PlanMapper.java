@@ -1,7 +1,7 @@
 package com.example.adplatform.admin.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.example.adplatform.admin.dto.PlanRuleJoinRow;
+import com.example.adplatform.admin.query.PlanRuleJoinRow;
 import com.example.adplatform.admin.entity.PlanEntity;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;

@@ -1,16 +1,16 @@
 package com.example.adplatform.admin.service;
 
-import com.example.adplatform.admin.dto.AuditMaterialRequest;
-import com.example.adplatform.admin.dto.CreateMaterialRequest;
-import com.example.adplatform.admin.vo.MaterialVO;
+import com.example.adplatform.admin.request.AuditMaterialRequest;
+import com.example.adplatform.admin.request.CreateMaterialRequest;
+import com.example.adplatform.admin.response.MaterialResponse;
 import com.example.adplatform.common.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface MaterialService {
 
-    ResourceRefVO create(CreateMaterialRequest request);
+    ResourceRefResponse create(CreateMaterialRequest request);
 
-    MaterialVO audit(Long id, AuditMaterialRequest request);
+    MaterialResponse audit(Long id, AuditMaterialRequest request);
 
-    PageResponse<MaterialVO> pageQuery(long current, long size, Long planId, String auditStatus);
+    PageResponse<MaterialResponse> pageQuery(long current, long size, Long planId, String auditStatus);
 }

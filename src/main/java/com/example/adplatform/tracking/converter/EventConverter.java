@@ -1,7 +1,7 @@
 package com.example.adplatform.tracking.converter;
 
 import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.tracking.dto.EventRequest;
+import com.example.adplatform.tracking.request.EventRequest;
 import com.example.adplatform.tracking.entity.EventEntity;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;

@@ -1,10 +1,10 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.dto.CreateUserRequest;
+import com.example.adplatform.admin.request.CreateUserRequest;
 import com.example.adplatform.admin.entity.UserEntity;
-import com.example.adplatform.admin.vo.UserVO;
+import com.example.adplatform.admin.response.UserResponse;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -17,8 +17,8 @@ public interface UserConverter {
     @Mapping(target = "updatedAt", ignore = true)
     UserEntity toEntity(CreateUserRequest request);
 
-    UserVO toVO(UserEntity entity);
+    UserResponse toResponse(UserEntity entity);
 
     @Mapping(target = "bizKey", source = "name")
-    ResourceRefVO toRef(UserEntity entity);
+    ResourceRefResponse toRef(UserEntity entity);
 }

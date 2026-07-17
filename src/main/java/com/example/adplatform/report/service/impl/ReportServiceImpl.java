@@ -7,9 +7,9 @@ import com.example.adplatform.report.converter.ReportConverter;
 import com.example.adplatform.report.entity.DailyReportEntity;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.service.ReportService;
-import com.example.adplatform.report.vo.DailyReportVO;
-import com.example.adplatform.report.vo.FunnelStatsVO;
-import com.example.adplatform.report.vo.TopMaterialVO;
+import com.example.adplatform.report.response.DailyReportResponse;
+import com.example.adplatform.report.response.FunnelStatsResponse;
+import com.example.adplatform.report.response.TopMaterialResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,19 +30,19 @@ public class ReportServiceImpl implements ReportService {
     private final ReportConverter reportConverter;
 
     @Override
-    public List<DailyReportVO> daily(LocalDate statDate, Long planId) {
+    public List<DailyReportResponse> daily(LocalDate statDate, Long planId) {
         LambdaQueryWrapper<DailyReportEntity> query = new LambdaQueryWrapper<DailyReportEntity>()
                 .eq(DailyReportEntity::getStatDate, statDate)
                 .eq(planId != null, DailyReportEntity::getPlanId, planId)
                 .orderByDesc(DailyReportEntity::getCostAmount)
                 .orderByDesc(DailyReportEntity::getClickCount);
         return dailyReportMapper.selectList(query).stream()
-                .map(reportConverter::toDailyReportVO)
+                .map(reportConverter::toDailyReportResponse)
                 .toList();
     }
 
     @Override
-    public FunnelStatsVO funnel(LocalDate startDate, LocalDate endDate, Long planId) {
+    public FunnelStatsResponse funnel(LocalDate startDate, LocalDate endDate, Long planId) {
         if (endDate.isBefore(startDate)) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束日期不能早于开始日期");
         }
@@ -55,7 +55,7 @@ public class ReportServiceImpl implements ReportService {
         long clicks = rows.stream().mapToLong(DailyReportEntity::getClickCount).sum();
         long conversions = rows.stream().mapToLong(DailyReportEntity::getConversionCount).sum();
         long costAmount = rows.stream().mapToLong(DailyReportEntity::getCostAmount).sum();
-        return new FunnelStatsVO(
+        return new FunnelStatsResponse(
                 startDate,
                 endDate,
                 planId,
@@ -68,7 +68,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<TopMaterialVO> topMaterials(LocalDate startDate, LocalDate endDate, Long planId, Integer limit) {
+    public List<TopMaterialResponse> topMaterials(LocalDate startDate, LocalDate endDate, Long planId, Integer limit) {
         if (endDate.isBefore(startDate)) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束日期不能早于开始日期");
         }
@@ -89,10 +89,10 @@ public class ReportServiceImpl implements ReportService {
             accumulator.add(row);
         });
         return accumulatorMap.values().stream()
-                .map(MaterialStatsAccumulator::toVO)
-                .sorted(Comparator.comparing(TopMaterialVO::costAmount).reversed()
-                        .thenComparing(TopMaterialVO::clickCount, Comparator.reverseOrder())
-                        .thenComparing(TopMaterialVO::impressionCount, Comparator.reverseOrder()))
+                .map(MaterialStatsAccumulator::toResponse)
+                .sorted(Comparator.comparing(TopMaterialResponse::costAmount).reversed()
+                        .thenComparing(TopMaterialResponse::clickCount, Comparator.reverseOrder())
+                        .thenComparing(TopMaterialResponse::impressionCount, Comparator.reverseOrder()))
                 .limit(actualLimit)
                 .toList();
     }
@@ -127,8 +127,8 @@ public class ReportServiceImpl implements ReportService {
             costAmount += row.getCostAmount();
         }
 
-        private TopMaterialVO toVO() {
-            return new TopMaterialVO(
+        private TopMaterialResponse toResponse() {
+            return new TopMaterialResponse(
                     planId,
                     materialId,
                     slotId,

@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.dto.CreateMaterialRequest;
+import com.example.adplatform.admin.request.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.MaterialAuditStatus;
 import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.admin.vo.MaterialVO;
+import com.example.adplatform.admin.response.MaterialResponse;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -19,8 +19,8 @@ public interface MaterialConverter {
     @Mapping(target = "updatedAt", ignore = true)
     MaterialEntity toEntity(CreateMaterialRequest request);
 
-    MaterialVO toVO(MaterialEntity entity);
+    MaterialResponse toResponse(MaterialEntity entity);
 
     @Mapping(target = "bizKey", source = "title")
-    ResourceRefVO toRef(MaterialEntity entity);
+    ResourceRefResponse toRef(MaterialEntity entity);
 }

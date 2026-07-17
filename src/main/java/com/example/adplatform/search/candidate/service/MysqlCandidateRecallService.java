@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.dto.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import lombok.RequiredArgsConstructor;

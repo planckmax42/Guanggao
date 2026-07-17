@@ -1,8 +1,8 @@
 package com.example.adplatform.health.controller;
 
 import com.example.adplatform.common.response.Result;
-import com.example.adplatform.health.vo.ComponentHealthVO;
-import com.example.adplatform.health.vo.HealthVO;
+import com.example.adplatform.health.response.ComponentHealthResponse;
+import com.example.adplatform.health.response.HealthResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.connection.RedisConnection;
@@ -35,39 +35,39 @@ public class HealthController {
      * 检查应用健康状态，并验证 MySQL 和 Redis 连接是否正常。
      */
     @GetMapping("/api/health")
-    public Result<HealthVO> health() {
-        ComponentHealthVO mysql = checkMysql();
-        ComponentHealthVO redis = checkRedis();
+    public Result<HealthResponse> health() {
+        ComponentHealthResponse mysql = checkMysql();
+        ComponentHealthResponse redis = checkRedis();
         String status = isUp(mysql) && isUp(redis) ? "UP" : "DOWN";
-        return Result.success(new HealthVO(applicationName, status, mysql, redis, LocalDateTime.now()));
+        return Result.success(new HealthResponse(applicationName, status, mysql, redis, LocalDateTime.now()));
     }
 
-    private ComponentHealthVO checkMysql() {
+    private ComponentHealthResponse checkMysql() {
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(2);
             statement.execute("SELECT 1");
-            return ComponentHealthVO.up(System.currentTimeMillis() - start);
+            return ComponentHealthResponse.up(System.currentTimeMillis() - start);
         } catch (Exception ex) {
-            return ComponentHealthVO.down(ex.getMessage(), System.currentTimeMillis() - start);
+            return ComponentHealthResponse.down(ex.getMessage(), System.currentTimeMillis() - start);
         }
     }
 
-    private ComponentHealthVO checkRedis() {
+    private ComponentHealthResponse checkRedis() {
         long start = System.currentTimeMillis();
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
             String pong = connection.ping();
             if ("PONG".equalsIgnoreCase(pong)) {
-                return ComponentHealthVO.up(System.currentTimeMillis() - start);
+                return ComponentHealthResponse.up(System.currentTimeMillis() - start);
             }
-            return ComponentHealthVO.down("unexpected ping response: " + pong, System.currentTimeMillis() - start);
+            return ComponentHealthResponse.down("unexpected ping response: " + pong, System.currentTimeMillis() - start);
         } catch (RedisConnectionFailureException ex) {
-            return ComponentHealthVO.down(ex.getMessage(), System.currentTimeMillis() - start);
+            return ComponentHealthResponse.down(ex.getMessage(), System.currentTimeMillis() - start);
         }
     }
 
-    private boolean isUp(ComponentHealthVO componentHealth) {
+    private boolean isUp(ComponentHealthResponse componentHealth) {
         return "UP".equals(componentHealth.status());
     }
 }

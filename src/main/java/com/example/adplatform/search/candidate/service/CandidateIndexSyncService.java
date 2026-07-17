@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.search.candidate.dto.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.config.AdElasticsearchProperties;

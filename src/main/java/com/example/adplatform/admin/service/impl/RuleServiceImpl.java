@@ -2,16 +2,16 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.converter.RuleConverter;
-import com.example.adplatform.admin.dto.CreateRuleRequest;
+import com.example.adplatform.admin.request.CreateRuleRequest;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.RuleMapper;
 import com.example.adplatform.admin.service.RuleService;
-import com.example.adplatform.admin.vo.RuleVO;
+import com.example.adplatform.admin.response.RuleResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class RuleServiceImpl implements RuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ResourceRefVO createOrUpdate(CreateRuleRequest request) {
+    public ResourceRefResponse createOrUpdate(CreateRuleRequest request) {
         PlanEntity plan = planMapper.selectById(request.planId());
         if (plan == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
@@ -68,12 +68,12 @@ public class RuleServiceImpl implements RuleService {
     }
 
     @Override
-    public RuleVO getByPlanId(Long planId) {
+    public RuleResponse getByPlanId(Long planId) {
         RuleEntity entity = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
                 .eq(RuleEntity::getPlanId, planId));
         if (entity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
         }
-        return ruleConverter.toVO(entity);
+        return ruleConverter.toResponse(entity);
     }
 }

@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.dto.CreateSlotRequest;
-import com.example.adplatform.admin.dto.UpdateSlotRequest;
+import com.example.adplatform.admin.request.CreateSlotRequest;
+import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.admin.vo.SlotVO;
+import com.example.adplatform.admin.response.SlotResponse;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -24,8 +24,8 @@ public interface SlotConverter {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
 
-    SlotVO toVO(SlotEntity entity);
+    SlotResponse toResponse(SlotEntity entity);
 
     @Mapping(target = "bizKey", source = "slotCode")
-    ResourceRefVO toRef(SlotEntity entity);
+    ResourceRefResponse toRef(SlotEntity entity);
 }

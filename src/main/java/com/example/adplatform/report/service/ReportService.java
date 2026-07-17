@@ -1,17 +1,17 @@
 package com.example.adplatform.report.service;
 
-import com.example.adplatform.report.vo.DailyReportVO;
-import com.example.adplatform.report.vo.FunnelStatsVO;
-import com.example.adplatform.report.vo.TopMaterialVO;
+import com.example.adplatform.report.response.DailyReportResponse;
+import com.example.adplatform.report.response.FunnelStatsResponse;
+import com.example.adplatform.report.response.TopMaterialResponse;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public interface ReportService {
 
-    List<DailyReportVO> daily(LocalDate statDate, Long planId);
+    List<DailyReportResponse> daily(LocalDate statDate, Long planId);
 
-    FunnelStatsVO funnel(LocalDate startDate, LocalDate endDate, Long planId);
+    FunnelStatsResponse funnel(LocalDate startDate, LocalDate endDate, Long planId);
 
-    List<TopMaterialVO> topMaterials(LocalDate startDate, LocalDate endDate, Long planId, Integer limit);
+    List<TopMaterialResponse> topMaterials(LocalDate startDate, LocalDate endDate, Long planId, Integer limit);
 }

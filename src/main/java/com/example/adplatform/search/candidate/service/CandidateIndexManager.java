@@ -2,10 +2,10 @@ package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.search.candidate.dto.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.search.candidate.vo.CandidateRebuildVO;
+import com.example.adplatform.search.candidate.response.CandidateRebuildResponse;
 import com.example.adplatform.search.config.AdElasticsearchProperties;
 import com.example.adplatform.search.support.ElasticsearchRestSupport;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +65,7 @@ public class CandidateIndexManager {
      *
      * @return 新物理索引名称、写入数量及切换时间
      */
-    public CandidateRebuildVO rebuild() {
+    public CandidateRebuildResponse rebuild() {
         if (!properties.isEnabled()) {
             throw new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "Elasticsearch未启用");
         }
@@ -95,7 +95,7 @@ public class CandidateIndexManager {
             // 3. refresh 后再切别名，确保切换瞬间所有文档已经可搜索。
             operations.indexOps(IndexCoordinates.of(indexName)).refresh();
             switchAliases(indexName);
-            return new CandidateRebuildVO(indexName, indexed, 0, LocalDateTime.now());
+            return new CandidateRebuildResponse(indexName, indexed, 0, LocalDateTime.now());
         } catch (Exception ex) {
             log.error("Candidate index rebuild failed, targetIndex={}", indexName, ex);
             throw new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "候选索引重建失败");

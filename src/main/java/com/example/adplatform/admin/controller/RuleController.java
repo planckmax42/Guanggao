@@ -1,9 +1,9 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.dto.CreateRuleRequest;
+import com.example.adplatform.admin.request.CreateRuleRequest;
 import com.example.adplatform.admin.service.RuleService;
-import com.example.adplatform.admin.vo.RuleVO;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.admin.response.RuleResponse;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ public class RuleController {
      * 创建或替换广告计划的定向规则。
      */
     @PostMapping
-    public Result<ResourceRefVO> createOrUpdate(@Valid @RequestBody CreateRuleRequest request) {
+    public Result<ResourceRefResponse> createOrUpdate(@Valid @RequestBody CreateRuleRequest request) {
         return Result.success(ruleService.createOrUpdate(request));
     }
 
@@ -33,7 +33,7 @@ public class RuleController {
      * 查询指定广告计划已配置的定向规则。
      */
     @GetMapping("/{planId}")
-    public Result<RuleVO> getByPlanId(@PathVariable Long planId) {
+    public Result<RuleResponse> getByPlanId(@PathVariable Long planId) {
         return Result.success(ruleService.getByPlanId(planId));
     }
 }

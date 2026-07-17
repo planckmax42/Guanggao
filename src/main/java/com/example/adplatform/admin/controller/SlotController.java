@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.dto.CreateSlotRequest;
-import com.example.adplatform.admin.dto.UpdateSlotRequest;
+import com.example.adplatform.admin.request.CreateSlotRequest;
+import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.service.SlotService;
-import com.example.adplatform.admin.vo.SlotVO;
+import com.example.adplatform.admin.response.SlotResponse;
 import com.example.adplatform.common.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -33,7 +33,7 @@ public class SlotController {
      * 创建广告位，用于表示客户端场景中的广告投放位置。
      */
     @PostMapping
-    public Result<ResourceRefVO> create(@Valid @RequestBody CreateSlotRequest request) {
+    public Result<ResourceRefResponse> create(@Valid @RequestBody CreateSlotRequest request) {
         return Result.success(slotService.create(request));
     }
 
@@ -41,7 +41,7 @@ public class SlotController {
      * 更新广告位基础信息。修改广告位编码或启停状态后，会同步刷新投放链路使用的 Redis 缓存。
      */
     @PutMapping("/{id}")
-    public Result<SlotVO> update(
+    public Result<SlotResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateSlotRequest request) {
         return Result.success(slotService.update(id, request));
@@ -51,7 +51,7 @@ public class SlotController {
      * 分页查询广告位，支持按广告位编码关键字和启用状态筛选。
      */
     @GetMapping("/page")
-    public Result<PageResponse<SlotVO>> page(
+    public Result<PageResponse<SlotResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) String slotCode,

@@ -2,7 +2,7 @@ package com.example.adplatform.delivery.converter;
 
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.delivery.vo.AdItemVO;
+import com.example.adplatform.delivery.response.AdItemResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -17,5 +17,5 @@ public interface AdDeliveryConverter {
     @Mapping(target = "imageUrl", source = "material.imageUrl")
     @Mapping(target = "landingPageUrl", source = "material.landingPageUrl")
     @Mapping(target = "bidPrice", source = "plan.bidPrice")
-    AdItemVO toAdItemVO(MaterialEntity material, PlanEntity plan, double score);
+    AdItemResponse toAdItemResponse(MaterialEntity material, PlanEntity plan, double score);
 }

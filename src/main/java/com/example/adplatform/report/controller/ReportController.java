@@ -2,9 +2,9 @@ package com.example.adplatform.report.controller;
 
 import com.example.adplatform.common.response.Result;
 import com.example.adplatform.report.service.ReportService;
-import com.example.adplatform.report.vo.DailyReportVO;
-import com.example.adplatform.report.vo.FunnelStatsVO;
-import com.example.adplatform.report.vo.TopMaterialVO;
+import com.example.adplatform.report.response.DailyReportResponse;
+import com.example.adplatform.report.response.FunnelStatsResponse;
+import com.example.adplatform.report.response.TopMaterialResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,7 +26,7 @@ public class ReportController {
      * 查询某一天的广告统计明细，可按广告计划过滤。
      */
     @GetMapping("/daily")
-    public Result<List<DailyReportVO>> daily(
+    public Result<List<DailyReportResponse>> daily(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate statDate,
             @RequestParam(required = false) Long planId) {
         return Result.success(reportService.daily(statDate, planId));
@@ -36,7 +36,7 @@ public class ReportController {
      * 查询指定日期范围内的曝光、点击、转化和消耗漏斗数据。
      */
     @GetMapping("/funnel")
-    public Result<FunnelStatsVO> funnel(
+    public Result<FunnelStatsResponse> funnel(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) Long planId) {
@@ -47,7 +47,7 @@ public class ReportController {
      * 查询指定日期范围内的广告素材效果排行，可按广告计划过滤。
      */
     @GetMapping("/top-materials")
-    public Result<List<TopMaterialVO>> topMaterials(
+    public Result<List<TopMaterialResponse>> topMaterials(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) Long planId,

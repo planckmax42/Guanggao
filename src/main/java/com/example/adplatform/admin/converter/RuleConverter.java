@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.dto.CreateRuleRequest;
+import com.example.adplatform.admin.request.CreateRuleRequest;
 import com.example.adplatform.admin.entity.RuleEntity;
-import com.example.adplatform.admin.vo.RuleVO;
+import com.example.adplatform.admin.response.RuleResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,10 +46,10 @@ public abstract class RuleConverter {
     @Mapping(target = "regions", source = "region", qualifiedByName = "fromJson")
     @Mapping(target = "deviceTypes", source = "deviceType", qualifiedByName = "fromJson")
     @Mapping(target = "userTags", source = "userTags", qualifiedByName = "fromJson")
-    public abstract RuleVO toVO(RuleEntity entity);
+    public abstract RuleResponse toResponse(RuleEntity entity);
 
     @Mapping(target = "bizKey", expression = "java(String.valueOf(entity.getPlanId()))")
-    public abstract ResourceRefVO toRef(RuleEntity entity);
+    public abstract ResourceRefResponse toRef(RuleEntity entity);
 
     @Named("toJson")
     protected String toJson(List<String> values) {

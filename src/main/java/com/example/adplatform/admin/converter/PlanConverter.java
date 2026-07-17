@@ -1,12 +1,12 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.dto.CreatePlanRequest;
-import com.example.adplatform.admin.dto.UpdatePlanRequest;
+import com.example.adplatform.admin.request.CreatePlanRequest;
+import com.example.adplatform.admin.request.UpdatePlanRequest;
 import com.example.adplatform.admin.entity.BillingType;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
-import com.example.adplatform.admin.vo.PlanVO;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.admin.response.PlanResponse;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -29,8 +29,8 @@ public interface PlanConverter {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdatePlanRequest request, @MappingTarget PlanEntity entity);
 
-    PlanVO toVO(PlanEntity entity);
+    PlanResponse toResponse(PlanEntity entity);
 
     @Mapping(target = "bizKey", source = "name")
-    ResourceRefVO toRef(PlanEntity entity);
+    ResourceRefResponse toRef(PlanEntity entity);
 }

@@ -5,7 +5,7 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.json.JsonData;
-import com.example.adplatform.delivery.dto.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.search.config.AdElasticsearchProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;

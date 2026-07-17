@@ -1,9 +1,9 @@
 package com.example.adplatform.delivery.controller;
 
 import com.example.adplatform.common.response.Result;
-import com.example.adplatform.delivery.dto.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
-import com.example.adplatform.delivery.vo.AdDeliveryResponse;
+import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;

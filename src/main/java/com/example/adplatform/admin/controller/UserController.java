@@ -1,10 +1,10 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.dto.CreateUserRequest;
+import com.example.adplatform.admin.request.CreateUserRequest;
 import com.example.adplatform.admin.service.UserService;
-import com.example.adplatform.admin.vo.UserVO;
+import com.example.adplatform.admin.response.UserResponse;
 import com.example.adplatform.common.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -30,7 +30,7 @@ public class UserController {
      * 创建广告主账号，作为广告计划的归属主体。
      */
     @PostMapping
-    public Result<ResourceRefVO> create(@Valid @RequestBody CreateUserRequest request) {
+    public Result<ResourceRefResponse> create(@Valid @RequestBody CreateUserRequest request) {
         return Result.success(userService.create(request));
     }
 
@@ -38,7 +38,7 @@ public class UserController {
      * 分页查询广告主，支持按名称关键字和启用状态筛选。
      */
     @GetMapping("/page")
-    public Result<PageResponse<UserVO>> page(
+    public Result<PageResponse<UserResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) String name,

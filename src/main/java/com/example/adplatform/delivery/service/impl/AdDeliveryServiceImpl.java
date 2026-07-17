@@ -4,15 +4,15 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.delivery.dto.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
-import com.example.adplatform.delivery.vo.AdDeliveryResponse;
-import com.example.adplatform.delivery.vo.AdItemVO;
+import com.example.adplatform.delivery.response.AdDeliveryResponse;
+import com.example.adplatform.delivery.response.AdItemResponse;
 import com.example.adplatform.infra.redis.budget.BudgetRedisService;
 import com.example.adplatform.infra.redis.frequency.FrequencyRedisService;
 import com.example.adplatform.infra.redis.slot.SlotCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
-import com.example.adplatform.report.vo.PlanDailyMetricVO;
+import com.example.adplatform.report.query.PlanDailyMetricRow;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallResult;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
@@ -122,21 +122,21 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .map(AdCandidateDocument::getPlanId)
                 .distinct()
                 .toList();
-        Map<Long, PlanDailyMetricVO> metricMap = dailyReportMapper.selectPlanDailyMetrics(today, planIds).stream()
-                .collect(Collectors.toMap(PlanDailyMetricVO::getPlanId, Function.identity()));
+        Map<Long, PlanDailyMetricRow> metricMap = dailyReportMapper.selectPlanDailyMetrics(today, planIds).stream()
+                .collect(Collectors.toMap(PlanDailyMetricRow::getPlanId, Function.identity()));
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
-        List<AdItemVO> ads = dynamicallyValid.stream()
+        List<AdItemResponse> ads = dynamicallyValid.stream()
                 .map(candidate -> score(candidate, metricMap.get(candidate.getPlanId())))
                 .sorted(Comparator.comparingDouble(ScoredCandidate::score).reversed()
                         .thenComparing(item -> item.candidate().getMaterialId(), Comparator.reverseOrder()))
                 .limit(limit)
-                .map(this::toAdItemVO)
+                .map(this::toAdItemResponse)
                 .toList();
         return new AdDeliveryResponse(requestId, recalled.size(), ads.size(), ads);
     }
 
-    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricVO metric) {
+    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricRow metric) {
         long impressions = metric == null || metric.getImpressionCount() == null ? 0L : metric.getImpressionCount();
         long clicks = metric == null || metric.getClickCount() == null ? 0L : metric.getClickCount();
         // 冷启动候选使用 2% 先验 CTR，避免零曝光素材永远排不到前面。
@@ -146,9 +146,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         return new ScoredCandidate(candidate, value);
     }
 
-    private AdItemVO toAdItemVO(ScoredCandidate item) {
+    private AdItemResponse toAdItemResponse(ScoredCandidate item) {
         AdCandidateDocument candidate = item.candidate();
-        return new AdItemVO(
+        return new AdItemResponse(
                 candidate.getPlanId(),
                 candidate.getMaterialId(),
                 candidate.getSlotId(),

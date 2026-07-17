@@ -1,12 +1,12 @@
 package com.example.adplatform.admin.service;
 
-import com.example.adplatform.admin.dto.CreateRuleRequest;
-import com.example.adplatform.admin.vo.RuleVO;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.admin.request.CreateRuleRequest;
+import com.example.adplatform.admin.response.RuleResponse;
+import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface RuleService {
 
-    ResourceRefVO createOrUpdate(CreateRuleRequest request);
+    ResourceRefResponse createOrUpdate(CreateRuleRequest request);
 
-    RuleVO getByPlanId(Long planId);
+    RuleResponse getByPlanId(Long planId);
 }

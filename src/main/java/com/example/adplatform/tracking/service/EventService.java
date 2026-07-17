@@ -1,7 +1,7 @@
 package com.example.adplatform.tracking.service;
 
-import com.example.adplatform.tracking.dto.EventRequest;
-import com.example.adplatform.tracking.vo.EventResponse;
+import com.example.adplatform.tracking.request.EventRequest;
+import com.example.adplatform.tracking.response.EventResponse;
 
 public interface EventService {
 

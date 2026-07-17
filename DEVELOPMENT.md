@@ -562,7 +562,7 @@ com.example.adplatform.{module}
 - 实体类：`XxxEntity`
 - 请求对象：`XxxRequest`
 - 响应对象：`XxxResponse`
-- 视图对象：`XxxVO`
+- 返回对象：`XxxResponse`
 - 数据传输对象：`XxxDTO`
 
 方法名：
@@ -594,10 +594,10 @@ Mapper：
 - 优先使用 MyBatis-Plus 通用方法
 - 复杂 SQL 写 XML
 
-DTO / VO：
+Request / Response：
 
-- Request DTO 用于接收请求
-- Response / VO 用于返回前端
+- Request model 用于接收请求
+- Response model 用于返回前端
 - Entity 不直接作为接口返回值
 
 ### 6.3 接口返回规范

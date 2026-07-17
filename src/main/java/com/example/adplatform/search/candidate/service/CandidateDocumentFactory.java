@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.search.candidate.dto.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

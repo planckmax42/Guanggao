@@ -2,7 +2,7 @@ package com.example.adplatform.report.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.adplatform.report.entity.DailyReportEntity;
-import com.example.adplatform.report.vo.PlanDailyMetricVO;
+import com.example.adplatform.report.query.PlanDailyMetricRow;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -76,7 +76,7 @@ public interface DailyReportMapper extends BaseMapper<DailyReportEntity> {
             GROUP BY plan_id
             </script>
             """)
-    List<PlanDailyMetricVO> selectPlanDailyMetrics(
+    List<PlanDailyMetricRow> selectPlanDailyMetrics(
             @Param("statDate") LocalDate statDate,
             @Param("planIds") List<Long> planIds);
 

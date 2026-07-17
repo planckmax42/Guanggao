@@ -1,11 +1,11 @@
 package com.example.adplatform.tracking.service.impl;
 
 import com.example.adplatform.tracking.converter.EventConverter;
-import com.example.adplatform.tracking.dto.EventRequest;
+import com.example.adplatform.tracking.request.EventRequest;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.port.EventPublisher;
 import com.example.adplatform.tracking.service.EventService;
-import com.example.adplatform.tracking.vo.EventResponse;
+import com.example.adplatform.tracking.response.EventResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

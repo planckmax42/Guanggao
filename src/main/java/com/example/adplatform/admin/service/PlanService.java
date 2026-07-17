@@ -1,22 +1,22 @@
 package com.example.adplatform.admin.service;
 
-import com.example.adplatform.admin.dto.CreatePlanRequest;
-import com.example.adplatform.admin.dto.UpdatePlanRequest;
-import com.example.adplatform.admin.vo.PlanVO;
+import com.example.adplatform.admin.request.CreatePlanRequest;
+import com.example.adplatform.admin.request.UpdatePlanRequest;
+import com.example.adplatform.admin.response.PlanResponse;
 import com.example.adplatform.common.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefVO;
+import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface PlanService {
 
-    ResourceRefVO create(CreatePlanRequest request);
+    ResourceRefResponse create(CreatePlanRequest request);
 
-    PlanVO update(Long id, UpdatePlanRequest request);
+    PlanResponse update(Long id, UpdatePlanRequest request);
 
-    PlanVO online(Long id);
+    PlanResponse online(Long id);
 
-    PlanVO pause(Long id);
+    PlanResponse pause(Long id);
 
-    PlanVO offline(Long id);
+    PlanResponse offline(Long id);
 
-    PageResponse<PlanVO> pageQuery(long current, long size, Long userId, String status);
+    PageResponse<PlanResponse> pageQuery(long current, long size, Long userId, String status);
 }

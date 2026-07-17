@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.mapper;
 
-import com.example.adplatform.search.candidate.dto.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
