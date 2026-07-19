@@ -51,6 +51,7 @@ class EventMetadataCacheConcurrencyTests {
         Fixture fixture = fixture(
                 redisTemplate(redis, threeReadersMissedRedis),
                 materialMapper,
+                Duration.ofMillis(30),
                 Duration.ofSeconds(1));
 
         CompletableFuture<EventMaterialMetadata> archive = CompletableFuture.supplyAsync(
@@ -61,6 +62,9 @@ class EventMetadataCacheConcurrencyTests {
         CompletableFuture<EventMaterialMetadata> statistics = CompletableFuture.supplyAsync(
                 () -> fixture.service().get(10L));
         assertEquals(true, threeReadersMissedRedis.await(1, TimeUnit.SECONDS));
+        Thread.sleep(100L);
+        assertFalse(billing.isDone());
+        assertFalse(statistics.isDone());
         allowMysqlReturn.countDown();
 
         assertEquals(metadata(), archive.get(1, TimeUnit.SECONDS));
@@ -102,6 +106,45 @@ class EventMetadataCacheConcurrencyTests {
         committedInvalidation.get(1, TimeUnit.SECONDS);
 
         assertFalse(redis.containsKey(RedisKeyConstants.eventMaterialMetadata(10L)));
+    }
+
+    @Test
+    void shouldTimeoutFollowerWithoutCancellingSharedMysqlLoad() throws Exception {
+        Map<String, String> redis = new ConcurrentHashMap<>();
+        CountDownLatch mysqlReadStarted = new CountDownLatch(1);
+        CountDownLatch allowMysqlReturn = new CountDownLatch(1);
+        MaterialMapper materialMapper = mock(MaterialMapper.class);
+        when(materialMapper.selectMaterialPlanById(10L)).thenAnswer(invocation -> {
+            mysqlReadStarted.countDown();
+            assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
+            return row();
+        });
+        Fixture fixture = fixture(
+                redisTemplate(redis, null),
+                materialMapper,
+                Duration.ofSeconds(1),
+                Duration.ofMillis(30));
+
+        CompletableFuture<EventMaterialMetadata> leader = CompletableFuture.supplyAsync(
+                () -> fixture.service().get(10L));
+        assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
+        CompletableFuture<Throwable> follower = CompletableFuture.supplyAsync(() -> {
+            try {
+                fixture.service().get(10L);
+                return null;
+            } catch (Throwable ex) {
+                return ex;
+            }
+        });
+
+        BusinessException failure = assertInstanceOf(
+                BusinessException.class,
+                follower.get(1, TimeUnit.SECONDS));
+        assertEquals(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, failure.getErrorCode());
+
+        allowMysqlReturn.countDown();
+        assertEquals(metadata(), leader.get(1, TimeUnit.SECONDS));
+        verify(materialMapper, times(1)).selectMaterialPlanById(10L);
     }
 
     @Test
@@ -165,7 +208,16 @@ class EventMetadataCacheConcurrencyTests {
             StringRedisTemplate redisTemplate,
             MaterialMapper materialMapper,
             Duration readWaitTimeout) {
+        return fixture(redisTemplate, materialMapper, readWaitTimeout, Duration.ofSeconds(1));
+    }
+
+    private Fixture fixture(
+            StringRedisTemplate redisTemplate,
+            MaterialMapper materialMapper,
+            Duration readWaitTimeout,
+            Duration singleFlightWaitTimeout) {
         EventMetadataCacheProperties properties = properties(readWaitTimeout);
+        properties.setSingleFlightWaitTimeout(singleFlightWaitTimeout);
         MaterialIdBloomFilterManager bloomFilterManager = mock(MaterialIdBloomFilterManager.class);
         when(bloomFilterManager.definitelyNotContains(any())).thenReturn(false);
         EventMetadataCacheLockManager lockManager = new EventMetadataCacheLockManager(properties);
@@ -183,6 +235,7 @@ class EventMetadataCacheConcurrencyTests {
         EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
         properties.setRedisTtl(Duration.ofHours(1));
         properties.setRedisTtlJitter(Duration.ZERO);
+        properties.setSingleFlightWaitTimeout(Duration.ofSeconds(1));
         properties.getLock().setStripes(1_024);
         properties.getLock().setReadWaitTimeout(readWaitTimeout);
         return properties;

@@ -29,7 +29,7 @@ public class EventMetadataCacheLockManager {
 
     /** 读侧限时获取 materialId 对应的条带锁。 */
     public Optional<LockHandle> tryAcquireForRead(Long materialId) {
-        ReentrantLock lock = lockFor(materialId);
+        ReentrantLock lock = stripes[stripeIndex(materialId)];
         try {
             if (!lock.tryLock(readWaitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                 return Optional.empty();
@@ -52,10 +52,6 @@ public class EventMetadataCacheLockManager {
                 .toList();
         locks.forEach(ReentrantLock::lock);
         return new LockHandle(locks);
-    }
-
-    private ReentrantLock lockFor(Long materialId) {
-        return stripes[stripeIndex(materialId)];
     }
 
     private int stripeIndex(Long materialId) {

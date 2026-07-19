@@ -1,6 +1,7 @@
 package com.example.adplatform.infra.kafka;
 
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.tracking.message.EventMessage;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -42,6 +43,12 @@ public class EventConsumerDispatcher {
             processor.accept(message);
             stageMeters.success().increment();
         } catch (BusinessException ex) {
+            if (ex.getErrorCode() == ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE) {
+                stageMeters.failure().increment();
+                log.warn("广告事件消费临时依赖失败，将交由 Kafka 重试，stage={}，eventId={}，原因={}",
+                        stage.metricTag(), message.eventId(), ex.getMessage());
+                throw ex;
+            }
             stageMeters.businessError().increment();
             log.warn("广告事件消费业务校验失败，stage={}，eventId={}，原因={}",
                     stage.metricTag(), message.eventId(), ex.getMessage());

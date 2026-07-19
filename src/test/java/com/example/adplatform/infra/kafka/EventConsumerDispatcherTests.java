@@ -74,6 +74,26 @@ class EventConsumerDispatcherTests {
         assertEquals(1L, processingCount("statistics"));
     }
 
+    @Test
+    void shouldRecordAndRethrowTemporaryDependencyFailure() {
+        BusinessException failure = new BusinessException(
+                ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                "event metadata busy");
+
+        BusinessException thrown = assertThrows(
+                BusinessException.class,
+                () -> dispatcher.dispatch(
+                        EventConsumerStage.BILLING,
+                        message,
+                        ignored -> { throw failure; }));
+
+        assertSame(failure, thrown);
+        assertEquals(0D, messageCount("billing", "success"));
+        assertEquals(0D, messageCount("billing", "business_error"));
+        assertEquals(1D, messageCount("billing", "failure"));
+        assertEquals(1L, processingCount("billing"));
+    }
+
     private double messageCount(String stage, String result) {
         return meterRegistry.get("ad.event.consumer.messages")
                 .tag("stage", stage)

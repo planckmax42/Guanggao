@@ -18,7 +18,12 @@ import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -31,6 +36,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
     private final MaterialIdBloomFilterManager bloomFilterManager;
     private final EventMetadataCacheProperties properties;
     private final EventMetadataCacheLockManager lockManager;
+    private final ConcurrentHashMap<Long, CompletableFuture<EventMaterialMetadata>> inFlight = new ConcurrentHashMap<>();
 
     @Override
     public EventMaterialMetadata get(Long materialId) {
@@ -46,29 +52,47 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             return cached;
         }
 
-        // 三个 Consumer Group 可能同时首次遇到同一素材。按 materialId 合并回源，
-        // 获得锁后二次检查 Redis，避免同一 JVM 打出三次相同 JOIN。
-        EventMetadataCacheLockManager.LockHandle readLock =
+        // 同一 JVM 内的三个 Consumer Group 共享同一次回源结果。
+        CompletableFuture<EventMaterialMetadata> created = new CompletableFuture<>();
+        CompletableFuture<EventMaterialMetadata> existing = inFlight.putIfAbsent(materialId, created);
+        if (existing != null) {
+            return awaitSingleFlight(materialId, existing);
+        }
+
+        try {
+            EventMaterialMetadata metadata = loadAndCacheAsLeader(materialId);
+            created.complete(metadata);
+            return metadata;
+        } catch (RuntimeException ex) {
+            created.completeExceptionally(ex);
+            throw ex;
+        } catch (Error ex) {
+            created.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlight.remove(materialId, created);
+        }
+    }
+
+    private EventMaterialMetadata loadAndCacheAsLeader(Long materialId) {
+        EventMetadataCacheLockManager.LockHandle loadLock =
                 lockManager.tryAcquireForRead(materialId).orElse(null);
-        if (readLock == null) {
+        if (loadLock == null) {
             if (Thread.currentThread().isInterrupted()) {
                 log.warn("事件元数据缓存回源锁等待被中断，materialId={}", materialId);
-                throw new BusinessException(
-                        ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
-                        "事件元数据查询被中断，请稍后重试");
+                throw dependencyUnavailable("事件元数据查询被中断，请稍后重试");
             }
-            cached = readRedis(materialId);
+            EventMaterialMetadata cached = readRedis(materialId);
             if (cached != null) {
                 return cached;
             }
             log.warn("事件元数据缓存回源锁等待超时，materialId={}", materialId);
-            throw new BusinessException(
-                    ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
-                    "事件元数据查询繁忙，请稍后重试");
+            throw dependencyUnavailable("事件元数据查询繁忙，请稍后重试");
         }
 
-        try (readLock) {
-            cached = readRedis(materialId);
+        // 条带锁只由 Single Flight 领导者获取，用于与提交后缓存失效互斥。
+        try (loadLock) {
+            EventMaterialMetadata cached = readRedis(materialId);
             if (cached != null) {
                 return cached;
             }
@@ -86,6 +110,36 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             EventMaterialMetadata metadata = toMetadata(row);
             cache(materialId, metadata);
             return metadata;
+        }
+    }
+
+    private EventMaterialMetadata awaitSingleFlight(
+            Long materialId,
+            CompletableFuture<EventMaterialMetadata> future) {
+        try {
+            return future.get(
+                    properties.getSingleFlightWaitTimeout().toNanos(),
+                    TimeUnit.NANOSECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("等待事件元数据共享回源结果被中断，materialId={}", materialId);
+            throw dependencyUnavailable("事件元数据查询被中断，请稍后重试");
+        } catch (TimeoutException ex) {
+            EventMaterialMetadata cached = readRedis(materialId);
+            if (cached != null) {
+                return cached;
+            }
+            log.warn("等待事件元数据共享回源结果超时，materialId={}", materialId);
+            throw dependencyUnavailable("事件元数据查询繁忙，请稍后重试");
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw new IllegalStateException("事件元数据共享回源任务异常", cause);
         }
     }
 
@@ -227,5 +281,9 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
 
     private BusinessException materialNotFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
+    }
+
+    private BusinessException dependencyUnavailable(String message) {
+        return new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, message);
     }
 }

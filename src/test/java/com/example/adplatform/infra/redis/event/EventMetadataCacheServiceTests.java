@@ -171,6 +171,7 @@ class EventMetadataCacheServiceTests {
         EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
         properties.setRedisTtl(Duration.ofHours(1));
         properties.setRedisTtlJitter(Duration.ZERO);
+        properties.setSingleFlightWaitTimeout(Duration.ofMillis(500));
         properties.getLock().setStripes(1_024);
         properties.getLock().setReadWaitTimeout(Duration.ofMillis(100));
         return properties;

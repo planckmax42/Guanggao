@@ -94,6 +94,7 @@ app:
   event-metadata-cache:
     redis-ttl: 1h
     redis-ttl-jitter: 10m
+    single-flight-wait-timeout: 500ms
     lock:
       stripes: 1024
       read-wait-timeout: 100ms

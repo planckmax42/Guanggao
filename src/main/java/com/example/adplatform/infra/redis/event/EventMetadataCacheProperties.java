@@ -25,12 +25,21 @@ public class EventMetadataCacheProperties {
     private Duration redisTtl;
     @NotNull
     private Duration redisTtlJitter;
+    @NotNull
+    private Duration singleFlightWaitTimeout;
     @Valid
     @NotNull
     private Lock lock = new Lock();
     @Valid
     @NotNull
     private Bloom bloom = new Bloom();
+
+    @AssertTrue(message = "singleFlightWaitTimeout must be greater than zero")
+    public boolean isSingleFlightWaitTimeoutPositive() {
+        return singleFlightWaitTimeout != null
+                && !singleFlightWaitTimeout.isZero()
+                && !singleFlightWaitTimeout.isNegative();
+    }
 
     @Getter
     @Setter
