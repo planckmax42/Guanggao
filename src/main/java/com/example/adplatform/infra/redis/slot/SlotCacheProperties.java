@@ -1,6 +1,7 @@
 package com.example.adplatform.infra.redis.slot;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -27,6 +28,11 @@ public class SlotCacheProperties {
     @NotNull
     private Duration redisTtl;
 
+    /** 单实例内协调缓存回填与提交后刷新的条带锁参数。 */
+    @Valid
+    @NotNull
+    private Lock lock = new Lock();
+
     /** 广告位编码布隆过滤器参数。 */
     @Valid
     @NotNull
@@ -36,6 +42,27 @@ public class SlotCacheProperties {
     @Valid
     @NotNull
     private MysqlCircuitBreaker mysqlCircuitBreaker = new MysqlCircuitBreaker();
+
+    /** Slot 编码条带锁数量和缓存未命中读请求的最长等待时间。 */
+    @Getter
+    @Setter
+    public static class Lock {
+
+        /** 固定条带数量；编码哈希碰撞时共享同一把非公平互斥锁。 */
+        @Min(1)
+        private int stripes;
+
+        /** 缓存未命中后等待同编码回填锁的最长时间。 */
+        @NotNull
+        private Duration readWaitTimeout;
+
+        @AssertTrue(message = "readWaitTimeout must be greater than zero")
+        public boolean isReadWaitTimeoutPositive() {
+            return readWaitTimeout != null
+                    && !readWaitTimeout.isZero()
+                    && !readWaitTimeout.isNegative();
+        }
+    }
 
     /** 广告位编码布隆过滤器的容量、误判率和自动扩容配置。 */
     @Getter

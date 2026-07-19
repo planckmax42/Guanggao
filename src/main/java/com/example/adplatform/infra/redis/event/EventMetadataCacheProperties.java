@@ -1,6 +1,7 @@
 package com.example.adplatform.infra.redis.event;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -26,7 +27,26 @@ public class EventMetadataCacheProperties {
     private Duration redisTtlJitter;
     @Valid
     @NotNull
+    private Lock lock = new Lock();
+    @Valid
+    @NotNull
     private Bloom bloom = new Bloom();
+
+    @Getter
+    @Setter
+    public static class Lock {
+        @Min(1)
+        private int stripes;
+        @NotNull
+        private Duration readWaitTimeout;
+
+        @AssertTrue(message = "readWaitTimeout must be greater than zero")
+        public boolean isReadWaitTimeoutPositive() {
+            return readWaitTimeout != null
+                    && !readWaitTimeout.isZero()
+                    && !readWaitTimeout.isNegative();
+        }
+    }
 
     @Getter
     @Setter

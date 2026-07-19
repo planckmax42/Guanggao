@@ -42,6 +42,7 @@ public class SlotCacheServiceImpl implements SlotCacheService {
     private final SlotCodeBloomFilterManager bloomFilterManager;
     private final SlotBloomFilterMetrics bloomFilterMetrics;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
+    private final SlotCacheLockManager lockManager;
 
     /** {@inheritDoc} */
     @Override
@@ -59,6 +60,38 @@ public class SlotCacheServiceImpl implements SlotCacheService {
             return cachedSlotId;
         }
 
+        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
+        if (readLock == null) {
+            if (Thread.currentThread().isInterrupted()) {
+                log.warn("广告位缓存回源锁等待被中断，slotCode={}", slotCode);
+                throw new BusinessException(
+                        ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                        "广告位查询被中断，请稍后重试");
+            }
+            cachedSlotId = getSlotIdFromRedis(slotCode);
+            if (cachedSlotId.isPresent()) {
+                return cachedSlotId;
+            }
+            log.warn("广告位缓存回源锁等待超时，slotCode={}", slotCode);
+            throw new BusinessException(
+                    ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                    "广告位查询繁忙，请稍后重试");
+        }
+
+        try (readLock) {
+            cachedSlotId = getSlotIdFromRedis(slotCode);
+            if (cachedSlotId.isPresent()) {
+                return cachedSlotId;
+            }
+            if (bloomFilterManager.definitelyNotContains(slotCode)) {
+                bloomFilterMetrics.recordDefiniteMiss();
+                return Optional.empty();
+            }
+            return loadEnabledSlotFromMysql(slotCode);
+        }
+    }
+
+    private Optional<Long> loadEnabledSlotFromMysql(String slotCode) {
         SlotEntity slot;
         try {
             slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
@@ -89,12 +122,22 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         if (slot == null || !StringUtils.hasText(slot.getSlotCode())) {
             return;
         }
+        if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
+            bloomFilterManager.put(slot.getSlotCode());
+        }
+        writeSlotToRedis(slot);
+    }
+
+    /** 只刷新 Redis，不改变布隆过滤器；用于数据库提交后的缓存同步。 */
+    private void writeSlotToRedis(SlotEntity slot) {
+        if (slot == null || !StringUtils.hasText(slot.getSlotCode())) {
+            return;
+        }
         if (!Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             evictSlotCode(slot.getSlotCode());
             return;
         }
 
-        bloomFilterManager.put(slot.getSlotCode());
         try {
             stringRedisTemplate.opsForValue().set(
                     RedisKeyConstants.slotCodeToId(slot.getSlotCode()),
@@ -108,6 +151,10 @@ public class SlotCacheServiceImpl implements SlotCacheService {
     /** {@inheritDoc} */
     @Override
     public void refreshSlot(SlotEntity slot, String oldSlotCode) {
+        if (slot != null && Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
+            // 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
+            bloomFilterManager.put(slot.getSlotCode());
+        }
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -129,10 +176,15 @@ public class SlotCacheServiceImpl implements SlotCacheService {
      * @param oldSlotCode 更新前的广告位编码
      */
     private void refreshSlotCache(SlotEntity slot, String oldSlotCode) {
-        if (StringUtils.hasText(oldSlotCode) && (slot == null || !oldSlotCode.equals(slot.getSlotCode()))) {
-            evictSlotCode(oldSlotCode);
+        String currentSlotCode = slot == null ? null : slot.getSlotCode();
+        try (SlotCacheLockManager.LockHandle ignored =
+                     lockManager.acquireForWrite(oldSlotCode, currentSlotCode)) {
+            if (StringUtils.hasText(oldSlotCode)
+                    && (slot == null || !oldSlotCode.equals(currentSlotCode))) {
+                evictSlotCode(oldSlotCode);
+            }
+            writeSlotToRedis(slot);
         }
-        cacheSlot(slot);
     }
 
     /** {@inheritDoc} */
@@ -150,12 +202,15 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         }
 
         int successCount = 0;
-        for (SlotEntity slot : enabledSlots.get()) {
-            try {
-                stringRedisTemplate.opsForValue().set(
-                        RedisKeyConstants.slotCodeToId(slot.getSlotCode()),
-                        String.valueOf(slot.getId()),
-                        properties.getRedisTtl());
+        for (SlotEntity snapshot : enabledSlots.get()) {
+            try (SlotCacheLockManager.LockHandle ignored =
+                         lockManager.acquireForWrite(snapshot.getSlotCode())) {
+                SlotEntity current = selectEnabledSlotByCode(snapshot.getSlotCode());
+                if (current == null) {
+                    evictSlotCode(snapshot.getSlotCode());
+                    continue;
+                }
+                writeSlotToRedis(current);
                 successCount++;
             } catch (RuntimeException ex) {
                 log.warn("广告位缓存预热写入 Redis 失败，已停止本次 Redis 预热：{}", ex.getMessage());

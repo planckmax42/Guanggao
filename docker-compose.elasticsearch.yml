@@ -24,6 +24,26 @@ services:
       CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
       CONNECT_PRODUCER_ACKS: all
       CONNECT_PRODUCER_ENABLE_IDEMPOTENCE: "true"
+      # 本地环境只输出到 stdout，由 Docker 统一轮转，避免 /kafka/logs 重复落盘。
+      CONNECT_LOG4J_LOGGERS: "INFO, stdout"
+      KAFKA_WAIT_HOST: 127.0.0.1
+      KAFKA_WAIT_PORT: 9092
+      KAFKA_WAIT_INTERVAL_SECONDS: 2
+    volumes:
+      - ./docker/debezium/wait-for-kafka.sh:/opt/debezium/wait-for-kafka.sh:ro
+    entrypoint: ["/bin/bash", "/opt/debezium/wait-for-kafka.sh"]
+    command: ["start"]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c 'exec 3<>/dev/tcp/127.0.0.1/8083' || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     restart: unless-stopped
 
   debezium-init:
@@ -32,7 +52,7 @@ services:
     network_mode: host
     depends_on:
       debezium-connect:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./docker/debezium/outbox-connector.json:/config/outbox-connector.json:ro
     entrypoint: ["/bin/sh", "-ec"]

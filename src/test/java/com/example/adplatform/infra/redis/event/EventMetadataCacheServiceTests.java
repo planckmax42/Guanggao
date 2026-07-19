@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,30 +84,43 @@ class EventMetadataCacheServiceTests {
     @Test
     void shouldRejectDefiniteBloomMissWithoutQueryingMysql() {
         Fixture fixture = fixture();
-        when(fixture.values.get(RedisKeyConstants.eventMaterialMetadata(10L))).thenReturn(null);
         when(fixture.bloomFilterManager.definitelyNotContains(10L)).thenReturn(true);
 
         assertThatThrownBy(() -> fixture.service.get(10L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("广告素材不存在");
+        verify(fixture.values, never()).get(anyString());
         verify(fixture.materialMapper, never()).selectMaterialPlanById(any());
     }
 
     @Test
-    void shouldPopulateNewMaterialOnlyAfterTransactionCommit() {
+    void shouldRegisterBloomImmediatelyAndPopulateRedisOnlyAfterTransactionCommit() {
         Fixture fixture = fixture();
         beginTransactionSynchronization();
 
         fixture.service.refreshAfterCommit(10L, metadata());
 
-        verify(fixture.bloomFilterManager, never()).put(10L);
+        verify(fixture.bloomFilterManager).put(10L);
         verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
         commitSynchronizations();
-        verify(fixture.bloomFilterManager).put(10L);
+        verify(fixture.bloomFilterManager, times(1)).put(10L);
         verify(fixture.values).set(
                 eq(RedisKeyConstants.eventMaterialMetadata(10L)),
                 anyString(),
                 eq(Duration.ofHours(1)));
+    }
+
+    @Test
+    void shouldKeepSafeBloomFalsePositiveButNotRedisValueAfterRollback() {
+        Fixture fixture = fixture();
+        beginTransactionSynchronization();
+
+        fixture.service.refreshAfterCommit(10L, metadata());
+
+        verify(fixture.bloomFilterManager).put(10L);
+        TransactionSynchronizationManager.getSynchronizations()
+                .forEach(synchronization -> synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+        verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
@@ -144,7 +158,12 @@ class EventMetadataCacheServiceTests {
         EventMetadataCacheProperties properties = properties();
         ObjectMapper objectMapper = new ObjectMapper();
         EventMetadataCacheServiceImpl service = new EventMetadataCacheServiceImpl(
-                redisTemplate, objectMapper, materialMapper, bloomFilterManager, properties);
+                redisTemplate,
+                objectMapper,
+                materialMapper,
+                bloomFilterManager,
+                properties,
+                new EventMetadataCacheLockManager(properties));
         return new Fixture(service, objectMapper, redisTemplate, values, materialMapper, bloomFilterManager);
     }
 
@@ -152,6 +171,8 @@ class EventMetadataCacheServiceTests {
         EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
         properties.setRedisTtl(Duration.ofHours(1));
         properties.setRedisTtlJitter(Duration.ZERO);
+        properties.getLock().setStripes(1_024);
+        properties.getLock().setReadWaitTimeout(Duration.ofMillis(100));
         return properties;
     }
 

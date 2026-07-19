@@ -69,6 +69,9 @@ app:
     redis-timeout-ms: 2000
   slot-cache:
     redis-ttl: 1d
+    lock:
+      stripes: 1024
+      read-wait-timeout: 100ms
     bloom:
       expected-insertions: 10000
       false-positive-probability: 0.01
@@ -91,6 +94,9 @@ app:
   event-metadata-cache:
     redis-ttl: 1h
     redis-ttl-jitter: 10m
+    lock:
+      stripes: 1024
+      read-wait-timeout: 100ms
     bloom:
       expected-insertions: 100000
       false-positive-probability: 0.01

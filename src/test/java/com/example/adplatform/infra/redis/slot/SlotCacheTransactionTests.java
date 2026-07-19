@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,28 +34,28 @@ class SlotCacheTransactionTests {
     }
 
     @Test
-    void shouldRefreshBloomFilterAndRedisOnlyAfterCommit() {
+    void shouldRegisterBloomImmediatelyAndRefreshRedisOnlyAfterCommit() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SlotCodeBloomFilterManager bloomFilterManager = mock(SlotCodeBloomFilterManager.class);
-        SlotCacheProperties properties = new SlotCacheProperties();
-        properties.setRedisTtl(Duration.ofDays(1));
+        SlotCacheProperties properties = properties();
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
                 redisTemplate,
                 mock(SlotMapper.class),
                 properties,
                 bloomFilterManager,
                 mock(SlotBloomFilterMetrics.class),
-                mock(SlotMysqlCircuitBreaker.class));
+                mock(SlotMysqlCircuitBreaker.class),
+                new SlotCacheLockManager(properties));
         SlotEntity slot = enabledSlot();
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
 
         service.refreshSlot(slot, null);
 
-        verify(bloomFilterManager, never()).put("HOME_BANNER");
+        verify(bloomFilterManager).put("HOME_BANNER");
         verify(valueOperations, never()).set(
                 RedisKeyConstants.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
 
@@ -62,24 +63,24 @@ class SlotCacheTransactionTests {
                 TransactionSynchronizationManager.getSynchronizations();
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(bloomFilterManager).put("HOME_BANNER");
+        verify(bloomFilterManager, times(1)).put("HOME_BANNER");
         verify(valueOperations).set(
                 RedisKeyConstants.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
     }
 
     @Test
-    void shouldNotRefreshCacheWhenTransactionDoesNotCommit() {
+    void shouldKeepSafeBloomFalsePositiveButNotWriteRedisWhenTransactionRollsBack() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         SlotCodeBloomFilterManager bloomFilterManager = mock(SlotCodeBloomFilterManager.class);
-        SlotCacheProperties properties = new SlotCacheProperties();
-        properties.setRedisTtl(Duration.ofDays(1));
+        SlotCacheProperties properties = properties();
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
                 redisTemplate,
                 mock(SlotMapper.class),
                 properties,
                 bloomFilterManager,
                 mock(SlotBloomFilterMetrics.class),
-                mock(SlotMysqlCircuitBreaker.class));
+                mock(SlotMysqlCircuitBreaker.class),
+                new SlotCacheLockManager(properties));
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
 
@@ -88,8 +89,30 @@ class SlotCacheTransactionTests {
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(synchronization -> synchronization.afterCompletion(
                         TransactionSynchronization.STATUS_ROLLED_BACK));
-        verify(bloomFilterManager, never()).put("HOME_BANNER");
+        verify(bloomFilterManager).put("HOME_BANNER");
         verify(redisTemplate, never()).opsForValue();
+    }
+
+    @Test
+    void shouldNotRegisterDisabledSlotInBloomFilter() {
+        SlotCodeBloomFilterManager bloomFilterManager = mock(SlotCodeBloomFilterManager.class);
+        SlotCacheProperties properties = properties();
+        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
+                mock(StringRedisTemplate.class),
+                mock(SlotMapper.class),
+                properties,
+                bloomFilterManager,
+                mock(SlotBloomFilterMetrics.class),
+                mock(SlotMysqlCircuitBreaker.class),
+                new SlotCacheLockManager(properties));
+        SlotEntity slot = enabledSlot();
+        slot.setStatus(CommonStatus.DISABLED);
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        TransactionSynchronizationManager.initSynchronization();
+
+        service.refreshSlot(slot, slot.getSlotCode());
+
+        verify(bloomFilterManager, never()).put(slot.getSlotCode());
     }
 
     private SlotEntity enabledSlot() {
@@ -98,5 +121,13 @@ class SlotCacheTransactionTests {
         slot.setSlotCode("HOME_BANNER");
         slot.setStatus(CommonStatus.ENABLED);
         return slot;
+    }
+
+    private SlotCacheProperties properties() {
+        SlotCacheProperties properties = new SlotCacheProperties();
+        properties.setRedisTtl(Duration.ofDays(1));
+        properties.getLock().setStripes(1_024);
+        properties.getLock().setReadWaitTimeout(Duration.ofMillis(100));
+        return properties;
     }
 }

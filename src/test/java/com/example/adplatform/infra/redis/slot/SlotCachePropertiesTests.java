@@ -23,6 +23,10 @@ class SlotCachePropertiesTests {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
 
+        SlotCacheProperties.Lock lock = properties.getLock();
+        lock.setStripes(1_024);
+        lock.setReadWaitTimeout(Duration.ofMillis(100));
+
         SlotCacheProperties.Bloom bloom = properties.getBloom();
         bloom.setExpectedInsertions(10_000);
         bloom.setFalsePositiveProbability(0.01D);

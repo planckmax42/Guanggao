@@ -8,7 +8,6 @@ import com.example.adplatform.infra.redis.RedisKeyConstants;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.Striped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,7 +19,6 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.locks.Lock;
 
 @Slf4j
 @Service
@@ -32,7 +30,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
     private final MaterialMapper materialMapper;
     private final MaterialIdBloomFilterManager bloomFilterManager;
     private final EventMetadataCacheProperties properties;
-    private final Striped<Lock> loadLocks = Striped.lazyWeakLock(1024);
+    private final EventMetadataCacheLockManager lockManager;
 
     @Override
     public EventMaterialMetadata get(Long materialId) {
@@ -40,19 +38,36 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             throw materialNotFound();
         }
 
+        if (bloomFilterManager.definitelyNotContains(materialId)) {
+            throw materialNotFound();
+        }
         EventMaterialMetadata cached = readRedis(materialId);
         if (cached != null) {
             return cached;
         }
-        if (bloomFilterManager.definitelyNotContains(materialId)) {
-            throw materialNotFound();
-        }
 
         // 三个 Consumer Group 可能同时首次遇到同一素材。按 materialId 合并回源，
         // 获得锁后二次检查 Redis，避免同一 JVM 打出三次相同 JOIN。
-        Lock loadLock = loadLocks.get(materialId);
-        loadLock.lock();
-        try {
+        EventMetadataCacheLockManager.LockHandle readLock =
+                lockManager.tryAcquireForRead(materialId).orElse(null);
+        if (readLock == null) {
+            if (Thread.currentThread().isInterrupted()) {
+                log.warn("事件元数据缓存回源锁等待被中断，materialId={}", materialId);
+                throw new BusinessException(
+                        ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                        "事件元数据查询被中断，请稍后重试");
+            }
+            cached = readRedis(materialId);
+            if (cached != null) {
+                return cached;
+            }
+            log.warn("事件元数据缓存回源锁等待超时，materialId={}", materialId);
+            throw new BusinessException(
+                    ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                    "事件元数据查询繁忙，请稍后重试");
+        }
+
+        try (readLock) {
             cached = readRedis(materialId);
             if (cached != null) {
                 return cached;
@@ -71,8 +86,6 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             EventMaterialMetadata metadata = toMetadata(row);
             cache(materialId, metadata);
             return metadata;
-        } finally {
-            loadLock.unlock();
         }
     }
 
@@ -81,7 +94,15 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
         if (materialId == null || metadata == null) {
             return;
         }
-        afterCommit(() -> cache(materialId, metadata));
+        // INSERT 成功获得 ID 后立即加入 Bloom，避免提交到 afterCommit 之间的假阴性误杀。
+        // 事务回滚只会留下可安全回源并在重建时清理的假阳性。
+        bloomFilterManager.put(materialId);
+        afterCommit(() -> {
+            try (EventMetadataCacheLockManager.LockHandle ignored =
+                         lockManager.acquireForWrite(List.of(materialId))) {
+                writeRedis(materialId, metadata);
+            }
+        });
     }
 
     @Override
@@ -90,7 +111,12 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             return;
         }
         List<Long> materialIds = List.copyOf(materialMapper.selectMaterialIdsByPlanId(planId));
-        afterCommit(() -> evict(materialIds));
+        afterCommit(() -> {
+            try (EventMetadataCacheLockManager.LockHandle ignored =
+                         lockManager.acquireForWrite(materialIds)) {
+                evict(materialIds);
+            }
+        });
     }
 
     @Override
@@ -137,6 +163,10 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
     private void cache(Long materialId, EventMaterialMetadata metadata) {
         // 先更新本地布隆：Redis 写失败时仍可回源 MySQL，不会误杀。
         bloomFilterManager.put(materialId);
+        writeRedis(materialId, metadata);
+    }
+
+    private void writeRedis(Long materialId, EventMaterialMetadata metadata) {
         try {
             String value = objectMapper.writeValueAsString(metadata);
             stringRedisTemplate.opsForValue().set(
