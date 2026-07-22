@@ -44,7 +44,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             throw materialNotFound();
         }
 
-        if (bloomFilterManager.definitelyNotContains(materialId)) {
+        if (bloomFilterManager.definitelyNotContains(materialId)) {//todo:看是否开启预热和动态重建机制
             throw materialNotFound();
         }
         EventMaterialMetadata cached = readRedis(materialId);
@@ -63,7 +63,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             EventMaterialMetadata metadata = loadAndCacheAsLeader(materialId);
             created.complete(metadata);
             return metadata;
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException ex) {//todo:多种异常机制
             created.completeExceptionally(ex);
             throw ex;
         } catch (Error ex) {
@@ -76,9 +76,9 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
 
     private EventMaterialMetadata loadAndCacheAsLeader(Long materialId) {
         EventMetadataCacheLockManager.LockHandle loadLock =
-                lockManager.tryAcquireForRead(materialId).orElse(null);
+                lockManager.tryAcquireForRead(materialId).orElse(null);//todo:获取失败了怎么处理
         if (loadLock == null) {
-            if (Thread.currentThread().isInterrupted()) {
+            if (Thread.currentThread().isInterrupted()) {//todo:多种异常处理
                 log.warn("事件元数据缓存回源锁等待被中断，materialId={}", materialId);
                 throw dependencyUnavailable("事件元数据查询被中断，请稍后重试");
             }
@@ -97,7 +97,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
                 return cached;
             }
             if (bloomFilterManager.definitelyNotContains(materialId)) {
-                throw materialNotFound();
+                throw materialNotFound();//todo:挡在mysql前面的redis和bloom，再次检查能否减少一次mysql查询
             }
 
             MaterialPlanJoinRow row = materialMapper.selectMaterialPlanById(materialId);
@@ -120,7 +120,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             return future.get(
                     properties.getSingleFlightWaitTimeout().toNanos(),
                     TimeUnit.NANOSECONDS);
-        } catch (InterruptedException ex) {
+        } catch (InterruptedException ex) {//todo:多种异常处理分析
             Thread.currentThread().interrupt();
             log.warn("等待事件元数据共享回源结果被中断，materialId={}", materialId);
             throw dependencyUnavailable("事件元数据查询被中断，请稍后重试");

@@ -4,8 +4,9 @@ import com.example.adplatform.infra.redis.RedisKeyConstants;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.service.DailyReportRedisService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -29,42 +30,9 @@ public class DailyReportRedisServiceImpl implements DailyReportRedisService {
      * 原子取出当前累计值，并从 Redis 中扣减这批快照值。
      * 这样刷库期间如果有新的事件写入，不会被后续清理误删。
      */
-    private static final DefaultRedisScript<List> POP_STATS_SCRIPT = new DefaultRedisScript<>("""
-            local statsKey = KEYS[1]
-            local dirtyKey = KEYS[2]
-            local fields = {ARGV[1], ARGV[2], ARGV[3], ARGV[4]}
-            local values = {}
-            local total = 0
-
-            for i = 1, 4 do
-                values[i] = tonumber(redis.call('HGET', statsKey, fields[i]) or '0')
-                total = total + math.abs(values[i])
-            end
-
-            if total == 0 then
-                redis.call('DEL', statsKey)
-                redis.call('SREM', dirtyKey, statsKey)
-                return values
-            end
-
-            for i = 1, 4 do
-                if values[i] ~= 0 then
-                    redis.call('HINCRBY', statsKey, fields[i], -values[i])
-                end
-            end
-
-            local remaining = 0
-            for i = 1, 4 do
-                remaining = remaining + math.abs(tonumber(redis.call('HGET', statsKey, fields[i]) or '0'))
-            end
-
-            if remaining == 0 then
-                redis.call('DEL', statsKey)
-                redis.call('SREM', dirtyKey, statsKey)
-            end
-
-            return values
-            """, List.class);
+    private static final RedisScript<List> POP_STATS_SCRIPT = RedisScript.of(
+            new ClassPathResource("redis/scripts/pop-daily-stats.lua"),
+            List.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final DailyReportMapper dailyReportMapper;

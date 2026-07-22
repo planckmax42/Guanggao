@@ -6,8 +6,9 @@ import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -23,41 +24,13 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
     private static final Duration STATS_TTL = Duration.ofDays(3);
     private static final Duration FREQUENCY_TTL = Duration.ofDays(2);
 
-    private static final DefaultRedisScript<Long> RECORD_EVENT_SCRIPT = new DefaultRedisScript<>("""
-            local claimed = redis.call('SET', KEYS[1], '1', 'NX', 'EX', ARGV[1])
-            if not claimed then
-                return 0
-            end
+    private static final RedisScript<Long> RECORD_EVENT_SCRIPT = RedisScript.of(
+            new ClassPathResource("redis/scripts/record-event.lua"),
+            Long.class);
 
-            redis.call('HINCRBY', KEYS[2], 'impression_count', ARGV[2])
-            redis.call('HINCRBY', KEYS[2], 'click_count', ARGV[3])
-            redis.call('HINCRBY', KEYS[2], 'conversion_count', ARGV[4])
-            redis.call('SADD', KEYS[3], KEYS[2])
-            redis.call('EXPIRE', KEYS[2], ARGV[5])
-            redis.call('EXPIRE', KEYS[3], ARGV[5])
-
-            if tonumber(ARGV[2]) > 0 then
-                redis.call('INCRBY', KEYS[4], ARGV[2])
-                redis.call('EXPIRE', KEYS[4], ARGV[6])
-            end
-            return 1
-            """, Long.class);
-
-    private static final DefaultRedisScript<Long> RECORD_COST_SCRIPT = new DefaultRedisScript<>("""
-            local claimed = redis.call('SET', KEYS[1], '1', 'NX', 'EX', ARGV[1])
-            if not claimed then
-                return 0
-            end
-
-            local amount = tonumber(ARGV[2])
-            if amount ~= 0 then
-                redis.call('HINCRBY', KEYS[2], 'cost_amount', amount)
-                redis.call('SADD', KEYS[3], KEYS[2])
-                redis.call('EXPIRE', KEYS[2], ARGV[3])
-                redis.call('EXPIRE', KEYS[3], ARGV[3])
-            end
-            return 1
-            """, Long.class);
+    private static final RedisScript<Long> RECORD_COST_SCRIPT = RedisScript.of(
+            new ClassPathResource("redis/scripts/record-cost.lua"),
+            Long.class);
 
     private final StringRedisTemplate stringRedisTemplate;
 

@@ -4,10 +4,11 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.infra.redis.RedisKeyConstants;
 import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -32,42 +33,10 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
     private static final Duration DAILY_BUDGET_TTL = Duration.ofDays(2);
     private static final Duration TOTAL_BUDGET_TTL = Duration.ofDays(30);
     private static final Duration EVENT_CHARGE_DECISION_TTL = Duration.ofDays(14);
-
-    private static final DefaultRedisScript<Long> TRY_CHARGE_SCRIPT = new DefaultRedisScript<>("""
-            local dailyKey = KEYS[1]
-            local totalKey = KEYS[2]
-            local eventKey = KEYS[3]
-            local amount = tonumber(ARGV[1])
-            local dailyBudget = tonumber(ARGV[2])
-            local totalBudget = tonumber(ARGV[3])
-            local dailyTtl = tonumber(ARGV[4])
-            local totalTtl = tonumber(ARGV[5])
-            local eventTtl = tonumber(ARGV[6])
-
-            local previousDecision = redis.call('GET', eventKey)
-            if previousDecision then
-                return tonumber(previousDecision)
-            end
-
-            local dailyCost = tonumber(redis.call('GET', dailyKey) or '0')
-            local totalCost = tonumber(redis.call('GET', totalKey) or '0')
-
-            if dailyCost + amount > dailyBudget then
-                redis.call('SET', eventKey, '0', 'EX', eventTtl)
-                return 0
-            end
-            if totalCost + amount > totalBudget then
-                redis.call('SET', eventKey, '0', 'EX', eventTtl)
-                return 0
-            end
-
-            redis.call('INCRBY', dailyKey, amount)
-            redis.call('INCRBY', totalKey, amount)
-            redis.call('EXPIRE', dailyKey, dailyTtl)
-            redis.call('EXPIRE', totalKey, totalTtl)
-            redis.call('SET', eventKey, '1', 'EX', eventTtl)
-            return 1
-            """, Long.class);
+    //todo:这里是不是太简单了，previousDecision的值只有 0/1/null，考虑关于扣费时间和召回时间，以及扣费期间计费遭到修改
+    private static final RedisScript<Long> TRY_CHARGE_SCRIPT = RedisScript.of(
+            new ClassPathResource("redis/scripts/try-charge.lua"),
+            Long.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ChargeRecordMapper chargeRecordMapper;
@@ -153,7 +122,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
             return false;
         }
         if (eventId == null || eventId.isBlank()) {
-            throw new IllegalArgumentException("eventId must not be blank");
+            throw new IllegalArgumentException("eventId不能为空");
         }
         if (planId == null || budgetDaily == null || budgetTotal == null
                 || budgetDaily <= 0 || budgetTotal <= 0) {
@@ -244,7 +213,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         } catch (RuntimeException ex) {
             return;
         }
-        rebuildBudget(planId, statDate);
+        rebuildBudget(planId, statDate);//todo:有无重试机制(在后续的lua脚本里面有的)
     }
 
     private void rebuildBudget(Long planId, LocalDate statDate) {

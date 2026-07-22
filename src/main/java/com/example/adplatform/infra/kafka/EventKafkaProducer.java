@@ -44,7 +44,7 @@ public class EventKafkaProducer implements EventPublisher {
             kafkaTemplate.send(eventTopic, message.eventId(), message)
                     .get(3, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
+            Thread.currentThread().interrupt();//todo:多种异常处理以及中断维持继续上报
             log.error("Kafka 发送等待被中断，eventId={}，topic={}", message.eventId(), eventTopic, ex);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "广告事件写入 Kafka 失败");
         } catch (Exception ex) {

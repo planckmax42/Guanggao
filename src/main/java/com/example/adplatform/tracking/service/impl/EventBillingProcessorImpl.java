@@ -39,7 +39,7 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
         }
 
         ChargeRecordEntity charge = chargeRecordMapper.selectByEventId(message.eventId());
-        if (charge == null) {
+        if (charge == null) {//防止重复扣费
             boolean charged = budgetRedisService.tryChargeOnce(
                     message.eventId(),
                     metadata.planId(),
