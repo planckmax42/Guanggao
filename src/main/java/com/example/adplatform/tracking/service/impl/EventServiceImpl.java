@@ -9,6 +9,8 @@ import com.example.adplatform.tracking.response.EventResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletionStage;
+
 @RequiredArgsConstructor
 @Service
 public class EventServiceImpl implements EventService {
@@ -17,14 +19,13 @@ public class EventServiceImpl implements EventService {
     private final EventConverter eventConverter;
 
     @Override
-    public EventResponse collect(EventRequest request) {
+    public CompletionStage<EventResponse> collect(EventRequest request) {
         EventType eventType = EventType.parse(request.eventType());
-        eventPublisher.publish(eventConverter.toMessage(request, eventType));
-
-        return new EventResponse(
-                request.eventId(),
-                eventType.name(),
-                false,
-                null);
+        return eventPublisher.publish(eventConverter.toMessage(request, eventType))
+                .thenApply(ignored -> new EventResponse(
+                        request.eventId(),
+                        eventType.name(),
+                        false,
+                        null));
     }
 }

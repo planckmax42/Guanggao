@@ -295,3 +295,119 @@ groups:
           severity: warning
           service: ad-platform
         isPaused: false
+
+      - uid: pipeline-event-producer-failures
+        title: 广告事件 Kafka 发送失败率过高
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 180
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: '100 * sum(rate(ad_event_producer_messages_total{result=~"retryable_failure|non_retryable_failure|circuit_open"}[1m])) / clamp_min(sum(rate(ad_event_producer_messages_total[1m])), 0.000001)'
+              instant: true
+              intervalMs: 1000
+              legendFormat: 'Failure %'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: '广告事件 Kafka 发送失败率已连续 1 分钟超过 5%。'
+          summary: '广告事件 Kafka 发送失败率过高'
+        labels:
+          severity: critical
+          service: ad-platform
+        isPaused: false
+
+      - uid: pipeline-event-producer-circuit-open
+        title: 广告事件 Kafka Producer 熔断
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ad-platform-prometheus
+              editorMode: code
+              expr: 'max(ad_event_producer_circuit_open)'
+              instant: true
+              intervalMs: 1000
+              legendFormat: 'Circuit open'
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          description: '广告事件 Kafka Producer 熔断器已连续 1 分钟保持开启。'
+          summary: '广告事件 Kafka Producer 持续熔断'
+        labels:
+          severity: critical
+          service: ad-platform
+        isPaused: false

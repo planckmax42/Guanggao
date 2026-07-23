@@ -39,16 +39,16 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
         long impressions = message.eventType() == EventType.IMPRESSION ? 1L : 0L;
         long clicks = message.eventType() == EventType.CLICK ? 1L : 0L;
         long conversions = message.eventType() == EventType.CONVERSION ? 1L : 0L;
-        LocalDate statDate = message.eventTime().toLocalDate();
-        String statsKey = statsKey(message, metadata, statDate);
+        LocalDate localDate = message.eventTime().toLocalDate();
+        String statsKey = statsKey(message, metadata, localDate);
         Long result = stringRedisTemplate.execute(
                 RECORD_EVENT_SCRIPT,
                 List.of(
-                        RedisKeyConstants.eventStatisticsProcessed(message.eventId()),
+                        RedisKeyConstants.eventStatisticsProcessed(message.eventId()),//事件去重第一步
                         statsKey,
-                        RedisKeyConstants.dailyStatsDirtySet(statDate),
+                        RedisKeyConstants.dailyStatsDirtySet(localDate),
                         RedisKeyConstants.viewerPlanFrequency(
-                                message.viewerId(), metadata.planId(), statDate)),
+                                message.viewerId(), metadata.planId(), localDate)),
                 String.valueOf(DEDUP_TTL.toSeconds()),
                 String.valueOf(impressions),
                 String.valueOf(clicks),

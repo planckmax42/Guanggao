@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.concurrent.CompletionStage;
+
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/tracking/events")
@@ -19,10 +21,11 @@ public class EventController {
     private final EventService eventService;
 
     /**
-     * 接收曝光、点击、转化事件，发布异步事件后立即返回；明细入库和统计累加由后台处理器完成。
+     * 接收曝光、点击、转化事件；Broker 确认写入后返回，明细入库和统计累加由后台处理器完成。
      */
     @PostMapping
-    public Result<EventResponse> collect(@Valid @RequestBody EventRequest request) {
-        return Result.success(eventService.collect(request));
+    public CompletionStage<Result<EventResponse>> collect(
+            @Valid @RequestBody EventRequest request) {
+        return eventService.collect(request).thenApply(Result::success);
     }
 }

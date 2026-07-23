@@ -17,7 +17,7 @@ public class EventMetadataBloomMaintenanceScheduler {
     private final EventMetadataCacheProperties properties;
     private volatile Instant lastExpansionTime = Instant.EPOCH;
 
-    @Scheduled(
+    @Scheduled(                                                                         //todo:由简单的定时策略改为按需更新
             fixedDelayString = "${app.event-metadata-cache.bloom.rebuild-delay-ms}",
             initialDelayString = "${app.event-metadata-cache.bloom.rebuild-initial-delay-ms}")
     public void rebuild() {

@@ -39,7 +39,7 @@ public class EventConsumerDispatcher {
             Consumer<EventMessage> processor) {
         StageMeters stageMeters = meters.get(stage);
         Timer.Sample sample = Timer.start();
-        try {
+        try {//todo：分析不同层面的异常报错，以及重试机制（重试次数多进入死信队列？）
             processor.accept(message);
             stageMeters.success().increment();
         } catch (BusinessException ex) {

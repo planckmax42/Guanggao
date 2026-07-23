@@ -19,7 +19,7 @@ import java.time.Duration;
 @Validated
 @Component
 @ConfigurationProperties(prefix = "app.event-metadata-cache")
-public class EventMetadataCacheProperties {
+public class EventMetadataCacheProperties {//todo：后续优化一下，把配置都留在yml文件里面
 
     @NotNull
     private Duration redisTtl;

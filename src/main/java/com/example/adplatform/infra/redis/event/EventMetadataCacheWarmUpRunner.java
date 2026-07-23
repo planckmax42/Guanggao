@@ -15,5 +15,5 @@ public class EventMetadataCacheWarmUpRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         cacheService.rebuildBloomFilter();
-    }
+    }//todo:后续换一下分包的位置
 }

@@ -17,7 +17,7 @@ public class MaterialIdBloomFilterManager {
     private final EventMetadataCacheProperties properties;
     private final AtomicReference<BloomFilter<Long>> activeFilter;
     private final AtomicLong currentExpectedInsertions;
-    private final AtomicLong maximumLoadedId = new AtomicLong();
+    private final AtomicLong maximumLoadedId = new AtomicLong();//todo：上界水位保证防误杀
     private final Object filterLock = new Object();
     private BloomFilter<Long> rebuildingFilter;
     private volatile boolean ready;
@@ -34,7 +34,7 @@ public class MaterialIdBloomFilterManager {
      * 会继续查 MySQL，避免多实例本地过滤器尚未同步时误杀新素材。
      */
     public boolean definitelyNotContains(Long materialId) {
-        return ready
+        return ready//todo:太多&&看看是不是有问题
                 && materialId != null
                 && materialId > 0
                 && materialId <= maximumLoadedId.get()

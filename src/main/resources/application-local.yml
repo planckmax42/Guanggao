@@ -112,6 +112,21 @@ app:
     flush-delay-ms: 10000
     flush-initial-delay-ms: 10000
   kafka:
+    # eventKafkaTemplate 专用配置；不会改变 Outbox Producer。
+    event-producer:
+      delivery-timeout: 10s
+      request-timeout: 3s
+      retry-backoff: 200ms
+      max-block: 1s
+      linger: 5ms
+      batch-size: 65536
+      compression-type: lz4
+      circuit-breaker:
+        sliding-window-size: 50
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50
+        open-state-wait-duration: 10s
+        permitted-calls-in-half-open-state: 5
     topics:
       event: event-topic
       config-change: ad-config-change
