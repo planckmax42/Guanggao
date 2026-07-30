@@ -22,7 +22,7 @@ public class EventServiceImpl implements EventService {
     public CompletionStage<EventResponse> collect(EventRequest request) {
         EventType eventType = EventType.parse(request.eventType());
         return eventPublisher.publish(eventConverter.toMessage(request, eventType))
-                .thenApply(ignored -> new EventResponse(
+                .thenApply(ignored -> new EventResponse(//仅回调轻量代码逻辑，若复杂处理逻辑则指定线程池执行
                         request.eventId(),
                         eventType.name(),
                         false,

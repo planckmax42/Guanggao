@@ -33,10 +33,10 @@ public class EventConsumerGroupOffsetInitializer implements ApplicationRunner {
             "event-billing-listener",
             "event-statistics-listener");
 
-    private final KafkaAdmin kafkaAdmin;
+    private final KafkaAdmin kafkaAdmin;//由spring 创建并自动注入
     private final KafkaListenerEndpointRegistry listenerRegistry;
 
-    @Value("${app.kafka.consumer-groups.legacy:tracking-consumer}")
+    @Value("${app.kafka.consumer-groups.legacy:tracking-consumer}")//旧消费者，在次实现了消费者迁移，考虑旧offset 防止重复消费
     private String legacyGroup;
 
     @Value("${app.kafka.consumer-groups.archive}")
@@ -50,15 +50,15 @@ public class EventConsumerGroupOffsetInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
-            Map<TopicPartition, OffsetAndMetadata> legacyOffsets = offsets(adminClient, legacyGroup);
-            for (String targetGroup : List.of(archiveGroup, billingGroup, statisticsGroup)) {
+        try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {//读取配置创建admin客户端
+            Map<TopicPartition, OffsetAndMetadata> legacyOffsets = offsets(adminClient, legacyGroup);//读取旧offset
+            for (String targetGroup : List.of(archiveGroup, billingGroup, statisticsGroup)) {//逐个写入新offset，若写入过则跳过，保持幂等性
                 initializeIfEmpty(adminClient, targetGroup, legacyOffsets);
             }
         } catch (Exception ex) {
             throw new IllegalStateException("初始化事件 Consumer Group offset 失败，已阻止 Listener 启动", ex);
         }
-        startEventListeners();
+        startEventListeners();//启动所有消费者
     }
 
     private void initializeIfEmpty(
@@ -75,7 +75,7 @@ public class EventConsumerGroupOffsetInitializer implements ApplicationRunner {
         }
         adminClient.alterConsumerGroupOffsets(targetGroup, legacyOffsets)
                 .all()
-                .get(10, TimeUnit.SECONDS);
+                .get(10, TimeUnit.SECONDS);//最多等待10s
         log.info("已从 {} 复制 {} 个分区 offset 到 {}",
                 legacyGroup, legacyOffsets.size(), targetGroup);
     }

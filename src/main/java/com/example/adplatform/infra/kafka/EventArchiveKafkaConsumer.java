@@ -18,7 +18,7 @@ public class EventArchiveKafkaConsumer {
             id = "event-archive-listener",
             topics = "${app.kafka.topics.event}",
             groupId = "${app.kafka.consumer-groups.archive}",
-            autoStartup = "false")
+            autoStartup = "false")//启动方式为手动，先手动配置offset后再手动启动，防止重复消费旧消息
     public void consume(EventMessage message) {
         dispatcher.dispatch(EventConsumerStage.ARCHIVE, message, eventArchiveProcessor::archive);
     }

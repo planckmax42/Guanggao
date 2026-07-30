@@ -18,15 +18,15 @@ import java.util.function.Consumer;
 @Component
 public class EventConsumerDispatcher {
 
-    private final Map<EventConsumerStage, StageMeters> meters = new EnumMap<>(EventConsumerStage.class);
+    private final Map<EventConsumerStage, StageMeters> meters = new EnumMap<>(EventConsumerStage.class);//枚举map存储各个消费者的指标
 
     public EventConsumerDispatcher(MeterRegistry meterRegistry) {
         for (EventConsumerStage stage : EventConsumerStage.values()) {
             meters.put(stage, new StageMeters(
-                    messageCounter(meterRegistry, stage, "success"),
-                    messageCounter(meterRegistry, stage, "business_error"),
-                    messageCounter(meterRegistry, stage, "failure"),
-                    Timer.builder("ad.event.consumer.processing")
+                    messageCounter(meterRegistry, stage, "success"),//消费成功计数
+                    messageCounter(meterRegistry, stage, "business_error"),//消费错误计数
+                    messageCounter(meterRegistry, stage, "failure"),//消费失败计数
+                    Timer.builder("ad.event.consumer.processing")//消息处理计时器
                             .description("广告事件各消费阶段的完整处理耗时")
                             .tag("stage", stage.metricTag())
                             .register(meterRegistry)));
@@ -37,8 +37,8 @@ public class EventConsumerDispatcher {
             EventConsumerStage stage,
             EventMessage message,
             Consumer<EventMessage> processor) {
-        StageMeters stageMeters = meters.get(stage);
-        Timer.Sample sample = Timer.start();
+        StageMeters stageMeters = meters.get(stage);//取出指标记录器
+        Timer.Sample sample = Timer.start();//计时开始
         try {//todo：分析不同层面的异常报错，以及重试机制（重试次数多进入死信队列？）
             processor.accept(message);
             stageMeters.success().increment();

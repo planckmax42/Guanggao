@@ -36,25 +36,24 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
     private final MaterialIdBloomFilterManager bloomFilterManager;
     private final EventMetadataCacheProperties properties;
     private final EventMetadataCacheLockManager lockManager;
-    private final ConcurrentHashMap<Long, CompletableFuture<EventMaterialMetadata>> inFlight = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, CompletableFuture<EventMaterialMetadata>> inFlight = new ConcurrentHashMap<>();//线程安全的哈希表
 
     @Override
     public EventMaterialMetadata get(Long materialId) {
         if (materialId == null || materialId <= 0) {
-            throw materialNotFound();
+            throw materialNotFound();//防御性校验
         }
 
         if (bloomFilterManager.definitelyNotContains(materialId)) {//todo:看是否开启预热和动态重建机制
-            throw materialNotFound();
+            throw materialNotFound();//布隆过滤器初筛
         }
-        EventMaterialMetadata cached = readRedis(materialId);
+        EventMaterialMetadata cached = readRedis(materialId);//redis取值
         if (cached != null) {
             return cached;
         }
 
-        // 同一 JVM 内的三个 Consumer Group 共享同一次回源结果。
-        CompletableFuture<EventMaterialMetadata> created = new CompletableFuture<>();
-        CompletableFuture<EventMaterialMetadata> existing = inFlight.putIfAbsent(materialId, created);
+        CompletableFuture<EventMaterialMetadata> created = new CompletableFuture<>();// 同一 JVM 内的三个 Consumer Group 共享同一次回源结果。
+        CompletableFuture<EventMaterialMetadata> existing = inFlight.putIfAbsent(materialId, created);//线程安全hashmap实现单航班
         if (existing != null) {
             return awaitSingleFlight(materialId, existing);
         }
@@ -205,7 +204,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataCacheService 
             return null;
         }
         try {
-            EventMaterialMetadata metadata = objectMapper.readValue(value, EventMaterialMetadata.class);
+            EventMaterialMetadata metadata = objectMapper.readValue(value, EventMaterialMetadata.class);//JSON反序列化object
             return metadata;
         } catch (JsonProcessingException | RuntimeException ex) {
             log.warn("事件素材元数据缓存格式无效，materialId={}，已删除并回源 MySQL", materialId);

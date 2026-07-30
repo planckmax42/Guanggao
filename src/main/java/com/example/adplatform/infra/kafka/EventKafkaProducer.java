@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -34,37 +35,48 @@ public class EventKafkaProducer implements EventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(EventKafkaProducer.class);
 
-    private final KafkaTemplate<String, EventMessage> kafkaTemplate;
-    private final EventKafkaCircuitBreaker circuitBreaker;
-    private final MeterRegistry meterRegistry;
-    private final Counter successCounter;
-    private final Counter retryableFailureCounter;
-    private final Counter nonRetryableFailureCounter;
-    private final Counter circuitOpenCounter;
-    private final Map<String, Timer> acknowledgementTimers;
+    private final KafkaTemplate<String, EventMessage> kafkaTemplate;//kafaka操作模板
+    private final EventKafkaCircuitBreaker circuitBreaker;//kafka熔断器
+    private final MeterRegistry meterRegistry;//指标信息总登记，后续暴露给普罗米修斯
+    private final Counter successCounter;//成功发送消息数计数器
+    private final Counter retryableFailureCounter;//RetriableException异常计数器
+    private final Counter nonRetryableFailureCounter;//非熔断异常与RetriableException异常计数器
+    private final Counter circuitOpenCounter;//熔断拒绝计数器
+    private final Map<String, Timer> acknowledgementTimers;//上述四个指标计时器，todo:具体这些指标在记录什么，要看调用处具体做了什么
 
     public EventKafkaProducer(
             @Qualifier("eventKafkaTemplate")
             KafkaTemplate<String, EventMessage> kafkaTemplate,
             EventKafkaCircuitBreaker circuitBreaker,
             MeterRegistry meterRegistry) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.circuitBreaker = circuitBreaker;
-        this.meterRegistry = meterRegistry;
-        this.successCounter = counter(meterRegistry, "success");
+        this.kafkaTemplate = kafkaTemplate;//kafka工具模板
+        this.circuitBreaker = circuitBreaker;//熔断器
+        this.meterRegistry = meterRegistry;//参数：普罗米休斯指标注册中心，项目引入依赖后Spring Boot自动创建对象并管理，用于注入
+        this.successCounter = counter(meterRegistry, "success");//四个计数器
         this.retryableFailureCounter = counter(meterRegistry, "retryable_failure");
         this.nonRetryableFailureCounter = counter(meterRegistry, "non_retryable_failure");
         this.circuitOpenCounter = counter(meterRegistry, "circuit_open");
-        this.acknowledgementTimers = Map.of(
+        this.acknowledgementTimers = Map.of(//map集合包裹的四个计时器，todo:为什么计时器不用map包裹
                 "success", acknowledgementTimer(meterRegistry, "success"),
-                "retryable_failure", acknowledgementTimer(
-                        meterRegistry, "retryable_failure"),
-                "non_retryable_failure", acknowledgementTimer(
-                        meterRegistry, "non_retryable_failure"),
-                "circuit_open", acknowledgementTimer(
-                        meterRegistry, "circuit_open"));
+                "retryable_failure", acknowledgementTimer(meterRegistry, "retryable_failure"),
+                "non_retryable_failure", acknowledgementTimer(meterRegistry, "non_retryable_failure"),
+                "circuit_open", acknowledgementTimer(meterRegistry, "circuit_open"));
     }
-
+    private Counter counter(MeterRegistry registry, String result) {
+        return Counter.builder("ad.event.producer.messages")//指定指标名称
+                .description("Event Kafka producer outcomes")//设置指标描述
+                .tag("result", result)//给指标设置标签，参数1：标签名称，参数2：标签值
+                .register(registry);
+    }
+    private Timer acknowledgementTimer(
+            MeterRegistry registry,
+            String result) {
+        return Timer.builder("ad.event.producer.ack")//指定指标名称
+                .description("Time from event publish to Kafka acknowledgement or final failure")//设置指标描述
+                .tag("result", result)//给指标设置标签，参数1：标签名称，参数2：标签值
+                .publishPercentileHistogram()//便于计算P95,P99
+                .register(registry);
+    }
     @Value("${app.kafka.topics.event}")
     private String eventTopic;
 
@@ -75,19 +87,18 @@ public class EventKafkaProducer implements EventPublisher {
      * @return Broker 确认后正常完成、发送失败后异常完成的异步结果
      */
     @Override
-    public CompletionStage<Void> publish(EventMessage message) {
+    public CompletionStage<Void> publish(EventMessage message) {//生产者消息发布函数
         Timer.Sample sample = Timer.start(meterRegistry);
-        CompletionStage<SendResult<String, EventMessage>> send;
+        CompletionStage<SendResult<String, EventMessage>> send;//对象返回的值可能是异常/消息发送结果（里面包含这个消息被发送到了哪个分区，哪个Topic,对应什么Offset）
         try {
-            send = circuitBreaker.execute(
+            send = circuitBreaker.execute(//在熔断器的保护下发布消息
                     () -> kafkaTemplate.send(eventTopic, message.eventId(), message));
-        } catch (CallNotPermittedException ex) {
-            sample.stop(acknowledgementTimers.get("circuit_open"));
-            circuitOpenCounter.increment();
-            log.warn("事件 Kafka Producer 已熔断，拒绝发送，eventId={}，topic={}",
-                    message.eventId(), eventTopic);
-            return failedFuture(dependencyUnavailable());
-        } catch (RuntimeException ex) {
+        } catch (CallNotPermittedException ex) {//捕捉熔断器拒绝异常
+            sample.stop(acknowledgementTimers.get("circuit_open"));//记录到计时器
+            circuitOpenCounter.increment();//记录到计数器
+            log.warn("事件 Kafka Producer 已熔断，拒绝发送，eventId={}，topic={}", message.eventId(), eventTopic);
+            return failedFuture(dependencyUnavailable());//抛出熔断异常，最终被全局异常捕获器捕获然后返回503
+        } catch (RuntimeException ex) {//捕获其他异常，在函数内拆包然后分别处理
             return failedFuture(handleSendFailure(message, ex, sample));
         }
 
@@ -145,23 +156,6 @@ public class EventKafkaProducer implements EventPublisher {
     }
 
     private CompletionStage<Void> failedFuture(Throwable error) {
-        return java.util.concurrent.CompletableFuture.failedFuture(error);
-    }
-
-    private Counter counter(MeterRegistry registry, String result) {
-        return Counter.builder("ad.event.producer.messages")
-                .description("Event Kafka producer outcomes")
-                .tag("result", result)
-                .register(registry);
-    }
-
-    private Timer acknowledgementTimer(
-            MeterRegistry registry,
-            String result) {
-        return Timer.builder("ad.event.producer.ack")
-                .description("Time from event publish to Kafka acknowledgement or final failure")
-                .tag("result", result)
-                .publishPercentileHistogram()
-                .register(registry);
+        return CompletableFuture.failedFuture(error);
     }
 }
