@@ -1,7 +1,6 @@
 package com.example.adplatform.infra.bloom.delivery.slot;
 
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 import lombok.Getter;
@@ -22,10 +21,10 @@ import java.util.function.Supplier;
  * 重建期间新增广告位会同时写入两份过滤器，构建成功后再原子替换 activeFilter。</p>
  */
 @Component
-public class SlotCodeBloomFilterManager {
+public class SlotBloomFilterManager {
 
     /** 布隆过滤器容量、误判率和扩容上限配置。 */
-    private final SlotCacheProperties properties;
+    private final SlotBloomFilterProperties properties;
 
     /** 当前为线上查询服务的布隆过滤器。 */
     private final AtomicReference<BloomFilter<CharSequence>> activeFilter;
@@ -53,11 +52,11 @@ public class SlotCodeBloomFilterManager {
      * <p>初始过滤器尚未加载 MySQL 数据，因此 {@code ready} 保持 {@code false}，
      * 不会用空过滤器拦截请求。</p>
      *
-     * @param properties 广告位缓存与布隆过滤器配置
+     * @param properties 广告位布隆过滤器配置
      */
-    public SlotCodeBloomFilterManager(SlotCacheProperties properties) {
+    public SlotBloomFilterManager(SlotBloomFilterProperties properties) {
         this.properties = properties;
-        long expectedInsertions = Math.max(1L, properties.getBloom().getExpectedInsertions());
+        long expectedInsertions = Math.max(1L, properties.getExpectedInsertions());
         this.currentExpectedInsertions = new AtomicLong(expectedInsertions);
         this.activeFilter = new AtomicReference<>(createBloomFilter(expectedInsertions));
     }
@@ -113,14 +112,14 @@ public class SlotCodeBloomFilterManager {
      */
     public Optional<List<SlotEntity>> expandAndRebuild(Supplier<List<SlotEntity>> slotLoader) {
         long currentCapacity = currentExpectedInsertions.get();
-        SlotCacheProperties.Bloom bloom = properties.getBloom();
-        if (bloom.getExpansionFactor() <= 1D) {
+        if (properties.getExpansionFactor() <= 1D) {
             throw new IllegalArgumentException("布隆过滤器扩容倍数必须大于 1");
         }
-        long maxCapacity = Math.max(currentCapacity, bloom.getMaxExpectedInsertions());
+        long maxCapacity = Math.max(currentCapacity, properties.getMaxExpectedInsertions());
         long expandedCapacity = Math.min(
                 maxCapacity,
-                Math.max(currentCapacity + 1L, (long) Math.ceil(currentCapacity * bloom.getExpansionFactor())));
+                Math.max(currentCapacity + 1L,
+                        (long) Math.ceil(currentCapacity * properties.getExpansionFactor())));
         if (expandedCapacity <= currentCapacity) {
             return Optional.empty();
         }
@@ -199,8 +198,7 @@ public class SlotCodeBloomFilterManager {
      * @throws IllegalArgumentException 配置误判率不在 {@code (0, 1)} 区间时抛出
      */
     private BloomFilter<CharSequence> createBloomFilter(long expectedInsertions) {
-        SlotCacheProperties.Bloom bloom = properties.getBloom();
-        double falsePositiveProbability = bloom.getFalsePositiveProbability();
+        double falsePositiveProbability = properties.getFalsePositiveProbability();
         if (falsePositiveProbability <= 0D || falsePositiveProbability >= 1D) {
             throw new IllegalArgumentException("布隆过滤器误判率必须大于 0 且小于 1");
         }

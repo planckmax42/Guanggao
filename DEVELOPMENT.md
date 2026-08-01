@@ -174,8 +174,10 @@ ad-platform
 │       ├── kafka
 │       │   ├── tracking
 │       │   ├── search
-│       │   └── shared
-│       ├── elasticsearch/delivery
+│       │   └── config
+│       ├── elasticsearch
+│       │   ├── delivery
+│       │   └── config
 │       ├── bloom
 │       │   ├── delivery
 │       │   └── tracking

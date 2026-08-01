@@ -1,6 +1,5 @@
 package com.example.adplatform.infra.resilience.delivery.slot;
 
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.Test;
@@ -43,15 +42,14 @@ class SlotMysqlCircuitBreakerTests {
     }
 
     private SlotMysqlCircuitBreaker createCircuitBreaker(Duration slowCallThreshold) {
-        SlotCacheProperties properties = new SlotCacheProperties();
-        SlotCacheProperties.MysqlCircuitBreaker config = properties.getMysqlCircuitBreaker();
-        config.setSlidingWindowSize(2);
-        config.setMinimumNumberOfCalls(2);
-        config.setFailureRateThreshold(50F);
-        config.setSlowCallRateThreshold(50F);
-        config.setSlowCallDurationThreshold(slowCallThreshold);
-        config.setOpenStateWaitDuration(Duration.ofSeconds(10));
-        config.setPermittedCallsInHalfOpenState(1);
+        SlotMysqlCircuitBreakerProperties properties = new SlotMysqlCircuitBreakerProperties();
+        properties.setSlidingWindowSize(2);
+        properties.setMinimumNumberOfCalls(2);
+        properties.setFailureRateThreshold(50F);
+        properties.setSlowCallRateThreshold(50F);
+        properties.setSlowCallDurationThreshold(slowCallThreshold);
+        properties.setOpenStateWaitDuration(Duration.ofSeconds(10));
+        properties.setPermittedCallsInHalfOpenState(1);
         return new SlotMysqlCircuitBreaker(properties);
     }
 

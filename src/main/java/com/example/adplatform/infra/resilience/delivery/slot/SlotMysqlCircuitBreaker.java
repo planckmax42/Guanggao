@@ -1,6 +1,5 @@
 package com.example.adplatform.infra.resilience.delivery.slot;
 
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +27,7 @@ public class SlotMysqlCircuitBreaker {
      * @param properties 包含滑动窗口、失败率、慢调用率和半开探测参数的配置
      * @throws IllegalArgumentException 熔断参数不符合 Resilience4j 约束时抛出
      */
-    public SlotMysqlCircuitBreaker(SlotCacheProperties properties) {
-        // 读取 app.slot-cache.mysql-circuit-breaker 下的项目配置。
-        SlotCacheProperties.MysqlCircuitBreaker config = properties.getMysqlCircuitBreaker();
-
+    public SlotMysqlCircuitBreaker(SlotMysqlCircuitBreakerProperties properties) {
         /*
          * 构建 Resilience4j 熔断规则。这些配置只负责统计调用和切换熔断状态，
          * 不会替代数据库驱动本身的连接超时或 SQL 执行超时配置。
@@ -40,19 +36,19 @@ public class SlotMysqlCircuitBreaker {
                 // 按最近 N 次调用统计，而不是按最近一段时间统计。
                 .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
                 // 滑动窗口最多保留的调用数，本项目默认为最近 20 次。
-                .slidingWindowSize(config.getSlidingWindowSize())
+                .slidingWindowSize(properties.getSlidingWindowSize())
                 // 至少收集这么多次调用后才计算失败率/慢调用率，避免样本太少就熔断。
-                .minimumNumberOfCalls(config.getMinimumNumberOfCalls())
+                .minimumNumberOfCalls(properties.getMinimumNumberOfCalls())
                 // 失败调用百分比达到该阈值时进入 OPEN，本项目默认为 50%。
-                .failureRateThreshold(config.getFailureRateThreshold())
+                .failureRateThreshold(properties.getFailureRateThreshold())
                 // 慢调用百分比达到该阈值时也进入 OPEN，本项目默认为 50%。
-                .slowCallRateThreshold(config.getSlowCallRateThreshold())
+                .slowCallRateThreshold(properties.getSlowCallRateThreshold())
                 // 单次调用超过该时长就记为慢调用，本项目默认为 200ms。
-                .slowCallDurationThreshold(config.getSlowCallDurationThreshold())
+                .slowCallDurationThreshold(properties.getSlowCallDurationThreshold())
                 // OPEN 状态维持的时间，期间请求会被直接拒绝；本项目默认为 10s。
-                .waitDurationInOpenState(config.getOpenStateWaitDuration())
+                .waitDurationInOpenState(properties.getOpenStateWaitDuration())
                 // 进入 HALF_OPEN 后允许执行的试探调用数，本项目默认为 3 次。
-                .permittedNumberOfCallsInHalfOpenState(config.getPermittedCallsInHalfOpenState())
+                .permittedNumberOfCallsInHalfOpenState(properties.getPermittedCallsInHalfOpenState())
                 // OPEN 等待时间结束后自动转为 HALF_OPEN，无需先来一次业务请求触发转换。
                 .automaticTransitionFromOpenToHalfOpenEnabled(true)
                 .build();

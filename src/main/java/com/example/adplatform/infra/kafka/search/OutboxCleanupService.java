@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.search;
 
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

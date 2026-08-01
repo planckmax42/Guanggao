@@ -1,7 +1,6 @@
 package com.example.adplatform.infra.bloom.delivery.slot;
 
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -15,11 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SlotCodeBloomFilterManagerTests {
+class SlotBloomFilterManagerTests {
 
     @Test
     void shouldRemoveDisabledCodeAfterRebuild() {
-        SlotCodeBloomFilterManager manager = createManager();
+        SlotBloomFilterManager manager = createManager();
         manager.rebuild(() -> slots("HOME_BANNER", "OLD_SLOT"));
 
         assertFalse(manager.definitelyNotContains("OLD_SLOT"));
@@ -32,7 +31,7 @@ class SlotCodeBloomFilterManagerTests {
 
     @Test
     void shouldWriteNewCodeToStandbyFilterDuringRebuild() throws Exception {
-        SlotCodeBloomFilterManager manager = createManager();
+        SlotBloomFilterManager manager = createManager();
         manager.rebuild(() -> slots("HOME_BANNER"));
         CountDownLatch rebuildStarted = new CountDownLatch(1);
         CountDownLatch continueRebuild = new CountDownLatch(1);
@@ -53,7 +52,7 @@ class SlotCodeBloomFilterManagerTests {
 
     @Test
     void shouldRejectConcurrentRebuild() throws Exception {
-        SlotCodeBloomFilterManager manager = createManager();
+        SlotBloomFilterManager manager = createManager();
         CountDownLatch rebuildStarted = new CountDownLatch(1);
         CountDownLatch continueRebuild = new CountDownLatch(1);
 
@@ -77,7 +76,7 @@ class SlotCodeBloomFilterManagerTests {
 
     @Test
     void shouldKeepActiveFilterWhenRebuildFails() {
-        SlotCodeBloomFilterManager manager = createManager();
+        SlotBloomFilterManager manager = createManager();
         manager.rebuild(() -> slots("HOME_BANNER"));
 
         assertThrows(IllegalStateException.class, () -> manager.rebuild(() -> {
@@ -90,12 +89,12 @@ class SlotCodeBloomFilterManagerTests {
 
     @Test
     void shouldDoubleCapacityAndRebuildWhenExpanding() {
-        SlotCacheProperties properties = new SlotCacheProperties();
-        properties.getBloom().setExpectedInsertions(100);
-        properties.getBloom().setFalsePositiveProbability(0.01D);
-        properties.getBloom().setExpansionFactor(2D);
-        properties.getBloom().setMaxExpectedInsertions(1_000L);
-        SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
+        SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
+        properties.setExpectedInsertions(100);
+        properties.setFalsePositiveProbability(0.01D);
+        properties.setExpansionFactor(2D);
+        properties.setMaxExpectedInsertions(1_000L);
+        SlotBloomFilterManager manager = new SlotBloomFilterManager(properties);
         manager.rebuild(() -> slots("HOME_BANNER", "OLD_SLOT"));
 
         manager.expandAndRebuild(() -> slots("HOME_BANNER", "NEW_SLOT"));
@@ -106,11 +105,11 @@ class SlotCodeBloomFilterManagerTests {
         assertTrue(manager.definitelyNotContains("OLD_SLOT"));
     }
 
-    private SlotCodeBloomFilterManager createManager() {
-        SlotCacheProperties properties = new SlotCacheProperties();
-        properties.getBloom().setExpectedInsertions(100);
-        properties.getBloom().setFalsePositiveProbability(0.000001D);
-        return new SlotCodeBloomFilterManager(properties);
+    private SlotBloomFilterManager createManager() {
+        SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
+        properties.setExpectedInsertions(100);
+        properties.setFalsePositiveProbability(0.000001D);
+        return new SlotBloomFilterManager(properties);
     }
 
     private List<SlotEntity> slots(String... slotCodes) {

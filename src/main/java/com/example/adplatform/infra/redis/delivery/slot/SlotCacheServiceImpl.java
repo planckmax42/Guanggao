@@ -9,9 +9,9 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotLookupPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterMetrics;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomMaintenance;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotCodeBloomFilterManager;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterRebuilder;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterManager;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
@@ -35,15 +35,15 @@ import java.util.Optional;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenancePort, SlotBloomMaintenance {
+public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenancePort, SlotBloomFilterRebuilder {
 
     private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final SlotMapper slotMapper;
     private final SlotCacheProperties properties;
-    private final SlotCodeBloomFilterManager bloomFilterManager;
-    private final SlotBloomFilterMetrics bloomFilterMetrics;
+    private final SlotBloomFilterManager bloomFilterManager;
+    private final SlotBloomFilterTracker bloomFilterMetrics;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
     private final SlotCacheLockManager lockManager;
 
@@ -232,7 +232,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
 
     /** {@inheritDoc} */
     @Override
-    public boolean rebuildBloomFilter() {
+    public boolean rebuild() {
         try {
             Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.rebuild(this::selectAllEnabledSlots);
             if (enabledSlots.isEmpty()) {
@@ -250,7 +250,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
 
     /** {@inheritDoc} */
     @Override
-    public boolean expandAndRebuildBloomFilter() {
+    public boolean expandAndRebuild() {
         try {
             Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.expandAndRebuild(this::selectAllEnabledSlots);
             if (enabledSlots.isEmpty()) {

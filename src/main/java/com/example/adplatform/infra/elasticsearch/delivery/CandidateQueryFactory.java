@@ -6,7 +6,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.json.JsonData;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.stereotype.Component;

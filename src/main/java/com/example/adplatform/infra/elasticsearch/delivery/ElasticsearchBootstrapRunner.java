@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.elasticsearch.delivery;
 
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;

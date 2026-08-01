@@ -1,7 +1,6 @@
 package com.example.adplatform.infra.bloom.delivery.slot;
 
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -12,25 +11,25 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SlotBloomFilterExpansionSchedulerTests {
+class SlotBloomFilterSchedulerTests {
 
     @Test
     void shouldExpandWhenActualAndExpectedRatesReachThreshold() {
-        SlotCacheProperties properties = createProperties();
-        SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
+        SlotBloomFilterProperties properties = createProperties();
+        SlotBloomFilterManager manager = new SlotBloomFilterManager(properties);
         List<SlotEntity> saturatedSlots = IntStream.range(0, 100)
                 .mapToObj(index -> slot("SLOT_" + index))
                 .toList();
         manager.rebuild(() -> saturatedSlots);
-        SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
+        SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
         metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
         RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() ->
                 manager.expandAndRebuild(() -> saturatedSlots));
-        SlotBloomFilterExpansionScheduler scheduler = new SlotBloomFilterExpansionScheduler(
+        SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
                 metrics, manager, properties, slotCacheService);
 
-        scheduler.checkAndExpand();
+        slotBloomFilterScheduler.checkAndExpand();
 
         assertEquals(1, slotCacheService.expansionCount);
         assertEquals(2L, manager.status().expectedInsertions());
@@ -38,30 +37,29 @@ class SlotBloomFilterExpansionSchedulerTests {
 
     @Test
     void shouldNotExpandBeforeEnoughSamplesAreCollected() {
-        SlotCacheProperties properties = createProperties();
-        properties.getBloom().setMinimumAbsentSamples(100L);
-        SlotCodeBloomFilterManager manager = new SlotCodeBloomFilterManager(properties);
+        SlotBloomFilterProperties properties = createProperties();
+        properties.setMinimumAbsentSamples(100L);
+        SlotBloomFilterManager manager = new SlotBloomFilterManager(properties);
         manager.rebuild(() -> List.of(slot("SLOT_1"), slot("SLOT_2"), slot("SLOT_3")));
-        SlotBloomFilterMetrics metrics = new SlotBloomFilterMetrics();
+        SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
         metrics.recordFalsePositive();
         RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() -> Optional.empty());
-        SlotBloomFilterExpansionScheduler scheduler = new SlotBloomFilterExpansionScheduler(
+        SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
                 metrics, manager, properties, slotCacheService);
 
-        scheduler.checkAndExpand();
+        slotBloomFilterScheduler.checkAndExpand();
 
         assertEquals(0, slotCacheService.expansionCount);
     }
 
-    private SlotCacheProperties createProperties() {
-        SlotCacheProperties properties = new SlotCacheProperties();
-        SlotCacheProperties.Bloom bloom = properties.getBloom();
-        bloom.setExpectedInsertions(1);
-        bloom.setFalsePositiveProbability(0.01D);
-        bloom.setMinimumAbsentSamples(2L);
-        bloom.setExpansionFactor(2D);
-        bloom.setExpansionCooldown(Duration.ZERO);
-        bloom.setMaxExpectedInsertions(100L);
+    private SlotBloomFilterProperties createProperties() {
+        SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
+        properties.setExpectedInsertions(1);
+        properties.setFalsePositiveProbability(0.01D);
+        properties.setMinimumAbsentSamples(2L);
+        properties.setExpansionFactor(2D);
+        properties.setExpansionCooldown(Duration.ZERO);
+        properties.setMaxExpectedInsertions(100L);
         return properties;
     }
 
@@ -71,7 +69,7 @@ class SlotBloomFilterExpansionSchedulerTests {
         return slot;
     }
 
-    private static class RecordingSlotCacheService implements SlotBloomMaintenance {
+    private static class RecordingSlotCacheService implements SlotBloomFilterRebuilder {
 
         private final Supplier<Optional<List<SlotEntity>>> expansionAction;
         private int expansionCount;
@@ -82,12 +80,12 @@ class SlotBloomFilterExpansionSchedulerTests {
         }
 
         @Override
-        public boolean rebuildBloomFilter() {
+        public boolean rebuild() {
             return false;
         }
 
         @Override
-        public boolean expandAndRebuildBloomFilter() {
+        public boolean expandAndRebuild() {
             expansionCount++;
             return expansionAction.get().isPresent();
         }

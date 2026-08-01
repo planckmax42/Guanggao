@@ -8,7 +8,7 @@ import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateDocumentFactory;
 import com.example.adplatform.search.candidate.response.CandidateRebuildResponse;
 import com.example.adplatform.search.port.CandidateIndexAdministrationPort;
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

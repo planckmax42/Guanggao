@@ -27,23 +27,6 @@ class SlotCachePropertiesTests {
         lock.setStripes(1_024);
         lock.setReadWaitTimeout(Duration.ofMillis(100));
 
-        SlotCacheProperties.Bloom bloom = properties.getBloom();
-        bloom.setExpectedInsertions(10_000);
-        bloom.setFalsePositiveProbability(0.01D);
-        bloom.setMinimumAbsentSamples(1_000L);
-        bloom.setExpansionFactor(2D);
-        bloom.setMaxExpectedInsertions(1_000_000L);
-        bloom.setExpansionCooldown(Duration.ofMinutes(10));
-
-        SlotCacheProperties.MysqlCircuitBreaker circuitBreaker = properties.getMysqlCircuitBreaker();
-        circuitBreaker.setSlidingWindowSize(20);
-        circuitBreaker.setMinimumNumberOfCalls(10);
-        circuitBreaker.setFailureRateThreshold(50F);
-        circuitBreaker.setSlowCallRateThreshold(50F);
-        circuitBreaker.setSlowCallDurationThreshold(Duration.ofMillis(200));
-        circuitBreaker.setOpenStateWaitDuration(Duration.ofSeconds(10));
-        circuitBreaker.setPermittedCallsInHalfOpenState(3);
-
         assertTrue(validator.validate(properties).isEmpty());
     }
 }

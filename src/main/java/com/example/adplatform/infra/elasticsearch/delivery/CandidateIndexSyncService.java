@@ -5,7 +5,7 @@ import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateDocumentFactory;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
 import com.example.adplatform.search.port.CandidateIndexSynchronizerPort;

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.elasticsearch.shared;
+package com.example.adplatform.infra.elasticsearch.config;
 
 import lombok.Getter;
 import lombok.Setter;

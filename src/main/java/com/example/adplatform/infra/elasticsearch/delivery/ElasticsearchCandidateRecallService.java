@@ -4,7 +4,7 @@ import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.port.CandidateSearchPort;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
-import com.example.adplatform.infra.elasticsearch.shared.AdElasticsearchProperties;
+import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.infra.resilience.delivery.search.CandidateElasticsearchCircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
