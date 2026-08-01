@@ -1,6 +1,6 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.tracking.converter.EventConverter;
 import com.example.adplatform.tracking.entity.EventEntity;
 import com.example.adplatform.tracking.entity.EventType;
@@ -20,7 +20,7 @@ class EventArchiveProcessorTests {
 
     @Test
     void shouldOnlyArchiveEvent() {
-        EventMetadataCacheService metadataCacheService = mock(EventMetadataCacheService.class);
+        EventMetadataReaderPort metadataCacheService = mock(EventMetadataReaderPort.class);
         EventConverter converter = mock(EventConverter.class);
         EventMapper eventMapper = mock(EventMapper.class);
         EventMessage message = new EventMessage(

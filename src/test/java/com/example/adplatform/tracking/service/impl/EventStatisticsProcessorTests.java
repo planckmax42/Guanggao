@@ -1,10 +1,10 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
-import com.example.adplatform.tracking.service.EventStatisticsStore;
+import com.example.adplatform.tracking.port.EventStatisticsStore;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -17,7 +17,7 @@ class EventStatisticsProcessorTests {
 
     @Test
     void shouldDelegateToIdempotentStatisticsStore() {
-        EventMetadataCacheService metadataCacheService = mock(EventMetadataCacheService.class);
+        EventMetadataReaderPort metadataCacheService = mock(EventMetadataReaderPort.class);
         EventStatisticsStore store = mock(EventStatisticsStore.class);
         EventMessage message = new EventMessage(
                 "event-1", "request-1", EventType.IMPRESSION, 10L, 20L, LocalDateTime.now());

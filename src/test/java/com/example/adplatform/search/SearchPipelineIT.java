@@ -1,8 +1,8 @@
 package com.example.adplatform.search;
 
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.search.candidate.service.CandidateIndexSyncService;
-import com.example.adplatform.search.candidate.service.DeliveryStopGuardService;
+import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexSyncService;
+import com.example.adplatform.infra.redis.delivery.stopguard.DeliveryStopGuardService;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
 import com.fasterxml.jackson.databind.JsonNode;

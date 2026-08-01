@@ -32,6 +32,13 @@ flowchart LR
 
 ES 正常返回空集时不会误回源 MySQL；只有 ES 请求异常、超时或熔断时才降级。
 
+## 代码分层
+
+`admin`、`delivery`、`tracking`、`report`、`search` 和 `health` 按业务域组织，并通过各自的
+`port` 接口访问外部组件。具体实现统一位于 `infra`，先按 Redis、Kafka、Elasticsearch、
+Bloom Filter、Resilience4j 分类，再按 `delivery`、`tracking`、`report`、`search` 等业务用途分包。
+业务代码不得直接依赖基础设施实现类或组件客户端。
+
 ## 环境与启动
 
 建议环境：Java 17+、MySQL 8、Redis 7、Kafka 4.3.1、Elasticsearch 8.13.4。

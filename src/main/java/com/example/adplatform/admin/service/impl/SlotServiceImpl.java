@@ -7,13 +7,13 @@ import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
 import com.example.adplatform.admin.service.SlotService;
 import com.example.adplatform.admin.response.SlotResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
-import com.example.adplatform.infra.redis.slot.SlotCacheService;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
@@ -38,7 +38,7 @@ public class SlotServiceImpl implements SlotService {
 
     private final SlotMapper slotMapper;
     private final SlotConverter slotConverter;
-    private final SlotCacheService slotCacheService;
+    private final SlotCacheMaintenancePort slotCacheService;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
 

@@ -4,20 +4,20 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.delivery.port.BudgetAvailabilityPort;
+import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
+import com.example.adplatform.delivery.port.FrequencyControlPort;
+import com.example.adplatform.delivery.port.SlotLookupPort;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.delivery.response.AdItemResponse;
-import com.example.adplatform.infra.redis.budget.BudgetRedisService;
-import com.example.adplatform.infra.redis.frequency.FrequencyRedisService;
-import com.example.adplatform.infra.redis.slot.SlotCacheService;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.query.PlanDailyMetricRow;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallResult;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
 import com.example.adplatform.search.candidate.service.CandidateTargetingMatcher;
-import com.example.adplatform.search.candidate.service.DeliveryStopGuardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -49,11 +49,11 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final int MAX_FREQUENCY_PER_USER_DAY = 5;
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
-    private final SlotCacheService slotCacheService;
+    private final SlotLookupPort slotCacheService;
     private final CandidateRecallService candidateRecallService;
-    private final DeliveryStopGuardService stopGuardService;
-    private final BudgetRedisService budgetRedisService;
-    private final FrequencyRedisService frequencyRedisService;
+    private final DeliveryStopGuardQueryPort stopGuardService;
+    private final BudgetAvailabilityPort budgetRedisService;
+    private final FrequencyControlPort frequencyRedisService;
     private final DailyReportMapper dailyReportMapper;
 
     @Override

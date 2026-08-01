@@ -1,7 +1,7 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.infra.redis.budget.BudgetRedisService;
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.BudgetChargePort;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
@@ -9,7 +9,7 @@ import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
-import com.example.adplatform.tracking.service.EventStatisticsStore;
+import com.example.adplatform.tracking.port.EventStatisticsStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,9 +25,9 @@ import static org.mockito.Mockito.when;
 
 class EventBillingProcessorTests {
 
-    private EventMetadataCacheService metadataCacheService;
+    private EventMetadataReaderPort metadataCacheService;
     private ChargeRecordMapper chargeRecordMapper;
-    private BudgetRedisService budgetRedisService;
+    private BudgetChargePort budgetRedisService;
     private EventStatisticsStore statisticsStore;
     private EventBillingProcessorImpl processor;
     private EventMessage message;
@@ -35,9 +35,9 @@ class EventBillingProcessorTests {
 
     @BeforeEach
     void setUp() {
-        metadataCacheService = mock(EventMetadataCacheService.class);
+        metadataCacheService = mock(EventMetadataReaderPort.class);
         chargeRecordMapper = mock(ChargeRecordMapper.class);
-        budgetRedisService = mock(BudgetRedisService.class);
+        budgetRedisService = mock(BudgetChargePort.class);
         statisticsStore = mock(EventStatisticsStore.class);
         processor = new EventBillingProcessorImpl(
                 metadataCacheService,

@@ -4,7 +4,7 @@ import com.example.adplatform.tracking.converter.EventConverter;
 import com.example.adplatform.tracking.entity.EventEntity;
 import com.example.adplatform.tracking.mapper.EventMapper;
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.tracking.service.EventArchiveProcessor;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EventArchiveProcessorImpl implements EventArchiveProcessor {
 
-    private final EventMetadataCacheService metadataCacheService;
+    private final EventMetadataReaderPort metadataCacheService;
     private final EventConverter eventConverter;
     private final EventMapper eventMapper;
 

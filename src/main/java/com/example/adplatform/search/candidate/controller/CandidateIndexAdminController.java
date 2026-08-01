@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.controller;
 
 import com.example.adplatform.common.response.Result;
-import com.example.adplatform.search.candidate.service.CandidateIndexManager;
+import com.example.adplatform.search.port.CandidateIndexAdministrationPort;
 import com.example.adplatform.search.candidate.response.CandidateRebuildResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/search/candidates")
 public class CandidateIndexAdminController {
 
-    private final CandidateIndexManager candidateIndexManager;
+    private final CandidateIndexAdministrationPort candidateIndexManager;
 
     /** 创建新物理索引并在写入完成后原子切换读写别名。 */
     @PostMapping("/rebuild")

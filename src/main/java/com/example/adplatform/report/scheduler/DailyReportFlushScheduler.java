@@ -1,6 +1,6 @@
 package com.example.adplatform.report.scheduler;
 
-import com.example.adplatform.report.service.DailyReportRedisService;
+import com.example.adplatform.report.port.DailyReportAccumulatorPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,7 +13,7 @@ import java.time.LocalDate;
 @Component
 public class DailyReportFlushScheduler {
 
-    private final DailyReportRedisService dailyReportRedisService;
+    private final DailyReportAccumulatorPort dailyReportRedisService;
 
     /**
      * 定时把 Redis 实时统计刷入 MySQL，报表接口继续读取 daily_report。

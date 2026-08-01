@@ -10,6 +10,7 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.admin.mapper.UserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
+import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.PlanResponse;
 import com.example.adplatform.common.enums.CommonStatus;
@@ -17,7 +18,6 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
@@ -45,7 +45,7 @@ public class PlanServiceImpl implements PlanService {
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final EventMetadataCacheService eventMetadataCacheService;
+    private final EventMetadataCacheMaintenancePort eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)

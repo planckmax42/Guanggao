@@ -1,8 +1,8 @@
 package com.example.adplatform.tracking.service.impl;
 
 import com.example.adplatform.admin.entity.BillingType;
-import com.example.adplatform.infra.redis.budget.BudgetRedisService;
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.BudgetChargePort;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.tracking.entity.ChargeRecordEntity;
 import com.example.adplatform.tracking.entity.ChargeStatus;
@@ -11,7 +11,7 @@ import com.example.adplatform.tracking.mapper.ChargeRecordMapper;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.service.EventBillingProcessor;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
-import com.example.adplatform.tracking.service.EventStatisticsStore;
+import com.example.adplatform.tracking.port.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -22,10 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EventBillingProcessorImpl implements EventBillingProcessor {
 
-    private final EventMetadataCacheService metadataCacheService;
+    private final EventMetadataReaderPort metadataCacheService;
     private final ChargeRecordMapper chargeRecordMapper;
     private final DailyReportMapper dailyReportMapper;
-    private final BudgetRedisService budgetRedisService;
+    private final BudgetChargePort budgetRedisService;
     private final EventStatisticsStore eventStatisticsStore;
 
     @Override

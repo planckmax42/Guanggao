@@ -1,8 +1,8 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.port.CandidateSearchPort;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.search.config.AdElasticsearchProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CandidateRecallServiceTests {
 
-    private AdElasticsearchProperties properties;
     private StubElasticsearchRecall elasticsearchRecall;
     private StubMysqlRecall mysqlRecall;
     private CandidateRecallService recallService;
@@ -21,11 +20,10 @@ class CandidateRecallServiceTests {
 
     @BeforeEach
     void setUp() {
-        properties = new AdElasticsearchProperties();
         elasticsearchRecall = new StubElasticsearchRecall();
         mysqlRecall = new StubMysqlRecall();
         recallService = new CandidateRecallService(
-                properties, elasticsearchRecall, mysqlRecall, new SimpleMeterRegistry());
+                elasticsearchRecall, mysqlRecall, new SimpleMeterRegistry());
         request = new AdDeliveryRequest(
                 1001L, "HOME_BANNER", "BEIJING", "IOS", 28, "FEMALE", List.of("fresh"), 3);
     }
@@ -56,7 +54,7 @@ class CandidateRecallServiceTests {
 
     @Test
     void shouldUseMysqlDirectlyWhenElasticsearchIsDisabled() {
-        properties.setEnabled(false);
+        elasticsearchRecall.enabled = false;
         mysqlRecall.result = List.of();
 
         CandidateRecallResult result = recallService.recall(request);
@@ -65,13 +63,15 @@ class CandidateRecallServiceTests {
         assertThat(elasticsearchRecall.calls).isZero();
     }
 
-    private static final class StubElasticsearchRecall extends ElasticsearchCandidateRecallService {
+    private static final class StubElasticsearchRecall implements CandidateSearchPort {
         private List<AdCandidateDocument> result = List.of();
         private RuntimeException failure;
         private int calls;
+        private boolean enabled = true;
 
-        private StubElasticsearchRecall() {
-            super(null, null, null);
+        @Override
+        public boolean isEnabled() {
+            return enabled;
         }
 
         @Override

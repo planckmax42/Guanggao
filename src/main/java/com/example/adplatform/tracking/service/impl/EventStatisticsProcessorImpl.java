@@ -1,10 +1,10 @@
 package com.example.adplatform.tracking.service.impl;
 
 import com.example.adplatform.tracking.message.EventMessage;
-import com.example.adplatform.infra.redis.event.EventMetadataCacheService;
+import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.service.EventStatisticsProcessor;
-import com.example.adplatform.tracking.service.EventStatisticsStore;
+import com.example.adplatform.tracking.port.EventStatisticsStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class EventStatisticsProcessorImpl implements EventStatisticsProcessor {
 
-    private final EventMetadataCacheService metadataCacheService;
+    private final EventMetadataReaderPort metadataCacheService;
     private final EventStatisticsStore eventStatisticsStore;
 
     @Override

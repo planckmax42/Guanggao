@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.event;
 
-import com.example.adplatform.search.candidate.service.DeliveryStopGuardService;
+import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -15,7 +15,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class ConfigStopGuardListener {
 
-    private final DeliveryStopGuardService stopGuardService;
+    private final DeliveryStopGuardWritePort stopGuardService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(ConfigStopGuardEvent event) {

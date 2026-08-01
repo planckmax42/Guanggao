@@ -138,36 +138,50 @@ ad-platform
 │   │   └── util
 │   ├── admin
 │   │   ├── controller
+│   │   ├── port
 │   │   ├── service
 │   │   ├── service/impl
 │   │   ├── mapper
 │   │   ├── entity
-│   │   ├── dto
-│   │   └── vo
+│   │   ├── request
+│   │   └── response
 │   ├── delivery
 │   │   ├── controller
+│   │   ├── port
 │   │   ├── service
-│   │   ├── strategy
-│   │   ├── dto
-│   │   └── vo
+│   │   ├── request
+│   │   └── response
 │   ├── tracking
 │   │   ├── controller
-│   │   ├── producer
-│   │   ├── dto
-│   │   └── event
-│   ├── consumer
-│   │   ├── listener
-│   │   └── service
+│   │   ├── port
+│   │   ├── service
+│   │   ├── message
+│   │   └── entity
 │   ├── report
 │   │   ├── controller
+│   │   ├── port
 │   │   ├── service
-│   │   ├── dto
-│   │   └── vo
+│   │   └── response
+│   ├── search
+│   │   ├── port
+│   │   ├── candidate
+│   │   └── outbox
 │   └── infra
 │       ├── redis
+│       │   ├── delivery
+│       │   ├── tracking
+│       │   └── report
 │       ├── kafka
-│       ├── elasticsearch
-│       └── ratelimit
+│       │   ├── tracking
+│       │   ├── search
+│       │   └── shared
+│       ├── elasticsearch/delivery
+│       ├── bloom
+│       │   ├── delivery
+│       │   └── tracking
+│       └── resilience
+│           ├── delivery
+│           └── tracking
 └── src/main/resources
     ├── application.yml
     ├── application-local.yml
@@ -706,10 +720,12 @@ SLF4J/Logback ERROR -> logs/ad-platform-error.log -> Grafana Alloy -> Loki -> Gr
 
 Redis Key 必须集中定义，不能散落硬编码。
 
-建议创建：
+按业务用途分别维护：
 
 ```text
-infra.redis.RedisKeyConstants
+infra.redis.delivery.DeliveryRedisKeys
+infra.redis.tracking.TrackingRedisKeys
+infra.redis.report.ReportRedisKeys
 ```
 
 Key 必须包含业务前缀：
