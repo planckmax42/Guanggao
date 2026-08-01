@@ -3,10 +3,8 @@ package com.example.adplatform.infra.warmup;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
-import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterManager;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
 import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
@@ -16,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -31,26 +28,14 @@ class WarmUpTasksTests {
     void shouldReuseBloomSnapshotWhenWarmingSlotRedis() {
         SlotEntity slot = new SlotEntity();
         slot.setSlotCode("HOME_BANNER");
-        SlotMapper slotMapper = mock(SlotMapper.class);
-        when(slotMapper.selectList(any())).thenReturn(List.of(slot));
-        SlotBloomFilterManager bloomFilterManager = mock(SlotBloomFilterManager.class);
-        when(bloomFilterManager.rebuild(any())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Supplier<List<SlotEntity>> loader = invocation.getArgument(0);
-            return Optional.of(loader.get());
-        });
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
+        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        when(bloomFilterService.rebuildWithSnapshot()).thenReturn(Optional.of(List.of(slot)));
         SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
-        SlotWarmUpTask task = new SlotWarmUpTask(
-                slotMapper,
-                bloomFilterManager,
-                tracker,
-                cacheMaintenancePort);
+        SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
 
         task.warmUp();
 
-        verify(slotMapper).selectList(any());
-        verify(tracker).reset();
+        verify(bloomFilterService).rebuildWithSnapshot();
         verify(cacheMaintenancePort).refreshSlotByCode("HOME_BANNER");
     }
 

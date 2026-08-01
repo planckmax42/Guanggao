@@ -1,55 +1,60 @@
 package com.example.adplatform.infra.bloom.delivery.slot;
 
 import com.example.adplatform.admin.entity.SlotEntity;
+import com.example.adplatform.admin.mapper.SlotMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SlotBloomFilterSchedulerTests {
 
     @Test
     void shouldExpandWhenActualAndExpectedRatesReachThreshold() {
         SlotBloomFilterProperties properties = createProperties();
-        SlotBloomFilterManager manager = new SlotBloomFilterManager(properties);
         List<SlotEntity> saturatedSlots = IntStream.range(0, 100)
                 .mapToObj(index -> slot("SLOT_" + index))
                 .toList();
-        manager.rebuild(() -> saturatedSlots);
+        SlotMapper slotMapper = mock(SlotMapper.class);
+        when(slotMapper.selectList(any())).thenReturn(saturatedSlots);
         SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
+        SlotBloomFilterService service =
+                new SlotBloomFilterServiceImpl(slotMapper, properties, metrics);
+        service.rebuild();
         metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
-        RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() ->
-                manager.expandAndRebuild(() -> saturatedSlots));
         SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
-                metrics, manager, properties, slotCacheService);
+                metrics, service, properties);
 
         slotBloomFilterScheduler.checkAndExpand();
 
-        assertEquals(1, slotCacheService.expansionCount);
-        assertEquals(2L, manager.status().expectedInsertions());
+        assertEquals(2L, service.status().expectedInsertions());
     }
 
     @Test
     void shouldNotExpandBeforeEnoughSamplesAreCollected() {
         SlotBloomFilterProperties properties = createProperties();
         properties.setMinimumAbsentSamples(100L);
-        SlotBloomFilterManager manager = new SlotBloomFilterManager(properties);
-        manager.rebuild(() -> List.of(slot("SLOT_1"), slot("SLOT_2"), slot("SLOT_3")));
+        SlotMapper slotMapper = mock(SlotMapper.class);
+        when(slotMapper.selectList(any())).thenReturn(List.of(
+                slot("SLOT_1"), slot("SLOT_2"), slot("SLOT_3")));
         SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
+        SlotBloomFilterService service =
+                new SlotBloomFilterServiceImpl(slotMapper, properties, metrics);
+        service.rebuild();
         metrics.recordFalsePositive();
-        RecordingSlotCacheService slotCacheService = new RecordingSlotCacheService(() -> Optional.empty());
         SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
-                metrics, manager, properties, slotCacheService);
+                metrics, service, properties);
 
         slotBloomFilterScheduler.checkAndExpand();
 
-        assertEquals(0, slotCacheService.expansionCount);
+        assertEquals(1L, service.status().expectedInsertions());
     }
 
     private SlotBloomFilterProperties createProperties() {
@@ -67,27 +72,5 @@ class SlotBloomFilterSchedulerTests {
         SlotEntity slot = new SlotEntity();
         slot.setSlotCode(slotCode);
         return slot;
-    }
-
-    private static class RecordingSlotCacheService implements SlotBloomFilterRebuilder {
-
-        private final Supplier<Optional<List<SlotEntity>>> expansionAction;
-        private int expansionCount;
-
-        private RecordingSlotCacheService(
-                Supplier<Optional<List<SlotEntity>>> expansionAction) {
-            this.expansionAction = expansionAction;
-        }
-
-        @Override
-        public boolean rebuild() {
-            return false;
-        }
-
-        @Override
-        public boolean expandAndRebuild() {
-            expansionCount++;
-            return expansionAction.get().isPresent();
-        }
     }
 }

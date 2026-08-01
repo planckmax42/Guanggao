@@ -17,9 +17,8 @@ import java.time.Instant;
 public class SlotBloomFilterScheduler {
 
     private final SlotBloomFilterTracker slotBloomFilterTracker;
-    private final SlotBloomFilterManager slotBloomFilterManager;
+    private final SlotBloomFilterService slotBloomFilterService;
     private final SlotBloomFilterProperties slotBloomFilterProperties;
-    private final SlotBloomFilterRebuilder slotBloomFilterRebuilder;
 
     private volatile Instant lastExpansionTime = Instant.EPOCH;
 
@@ -30,7 +29,7 @@ public class SlotBloomFilterScheduler {
             fixedDelayString = "${app.slot-cache.bloom.rebuild-delay}",
             initialDelayString = "${app.slot-cache.bloom.rebuild-initial-delay}")
     public void rebuild() {
-            slotBloomFilterRebuilder.rebuild();
+        slotBloomFilterService.rebuild();
     }
 
     /**
@@ -43,7 +42,7 @@ public class SlotBloomFilterScheduler {
             initialDelayString = "${app.slot-cache.bloom.expansion-check-initial-delay}")
     public void checkAndExpand() {
         SlotBloomFilterTracker.Snapshot snapshot = slotBloomFilterTracker.snapshot();
-        SlotBloomFilterManager.Status status = slotBloomFilterManager.status();
+        SlotBloomFilterService.Status status = slotBloomFilterService.status();
         if (!status.ready() || snapshot.confirmedAbsentCount() < slotBloomFilterProperties.getMinimumAbsentSamples()) {
             return;
         }
@@ -65,9 +64,9 @@ public class SlotBloomFilterScheduler {
         }
 
         long oldCapacity = status.expectedInsertions();
-        if (slotBloomFilterRebuilder.expandAndRebuild()) {
+        if (slotBloomFilterService.expandAndRebuild()) {
             lastExpansionTime = Instant.now();
-            SlotBloomFilterManager.Status expandedStatus = slotBloomFilterManager.status();
+            SlotBloomFilterService.Status expandedStatus = slotBloomFilterService.status();
             log.warn("广告位布隆过滤器因误判率升高完成扩容，容量 {} -> {}，扩容前实际误判率={}，理论误判率={}",
                     oldCapacity,
                     expandedStatus.expectedInsertions(),
