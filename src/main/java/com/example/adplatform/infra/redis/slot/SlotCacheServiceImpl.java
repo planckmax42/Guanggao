@@ -50,25 +50,25 @@ public class SlotCacheServiceImpl implements SlotCacheService {
         if (!StringUtils.hasText(slotCode)) {//防御性校验，防止绕过controller层传入非法参数
             return Optional.empty();
         }
-        if (bloomFilterManager.definitelyNotContains(slotCode)) {
-            bloomFilterMetrics.recordDefiniteMiss();
+        if (bloomFilterManager.definitelyNotContains(slotCode)) {//布隆过滤器初筛
+            bloomFilterMetrics.recordDefiniteMiss();//记录明确不存在数，用于后续计算误判率决定是否要扩容
             return Optional.empty();
         }
 
-        Optional<Long> cachedSlotId = getSlotIdFromRedis(slotCode);
+        Optional<Long> cachedSlotId = getSlotIdFromRedis(slotCode);//先走Redis
         if (cachedSlotId.isPresent()) {
             return cachedSlotId;
         }
 
-        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
-        if (readLock == null) {
-            if (Thread.currentThread().isInterrupted()) {
+        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);//嵌套类获取条带锁，todo:引入条带锁扩容机制，动态计算获取锁失败率决定是否扩容（目前想法）
+        if (readLock == null) {//获取条带锁失败处理逻辑，todo：目前太糙，以及上面那个null，或许增加补偿机制？
+            if (Thread.currentThread().isInterrupted()) {//失败原因为中断
                 log.warn("广告位缓存回源锁等待被中断，slotCode={}", slotCode);
                 throw new BusinessException(
                         ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                         "广告位查询被中断，请稍后重试");
             }
-            cachedSlotId = getSlotIdFromRedis(slotCode);
+            cachedSlotId = getSlotIdFromRedis(slotCode);//再走一次redis,是否在等待间隔其他线程回源成功
             if (cachedSlotId.isPresent()) {
                 return cachedSlotId;
             }
@@ -78,22 +78,22 @@ public class SlotCacheServiceImpl implements SlotCacheService {
                     "广告位查询繁忙，请稍后重试");
         }
 
-        try (readLock) {
+        try (readLock) {//继承AutoCloseable类实现离开try代码块自动释放锁
             cachedSlotId = getSlotIdFromRedis(slotCode);
-            if (cachedSlotId.isPresent()) {
+            if (cachedSlotId.isPresent()) {//真正进入mysql之前再次进行redis,最大程度上减少数据库压力
                 return cachedSlotId;
             }
-            if (bloomFilterManager.definitelyNotContains(slotCode)) {
+            if (bloomFilterManager.definitelyNotContains(slotCode)) {//再次查询布隆过滤器是为了防止再此期间布隆过滤器重建完成
                 bloomFilterMetrics.recordDefiniteMiss();
                 return Optional.empty();
             }
-            return loadEnabledSlotFromMysql(slotCode);
+            return loadEnabledSlotFromMysql(slotCode);//回源mysql
         }
     }
 
     private Optional<Long> loadEnabledSlotFromMysql(String slotCode) {
         SlotEntity slot;
-        try {
+        try {//在熔断器的保护下进入mysql查询
             slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
         } catch (CallNotPermittedException ex) {
             throw new BusinessException(
@@ -108,11 +108,11 @@ public class SlotCacheServiceImpl implements SlotCacheService {
 
         if (slot == null) {
             if (bloomFilterManager.isReady()) {
-                bloomFilterMetrics.recordFalsePositive();
+                bloomFilterMetrics.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
             }
             return Optional.empty();
         }
-        cacheSlot(slot);
+        cacheSlot(slot);//回源后缓存进redis和布隆过滤器
         return Optional.of(slot.getId());
     }
 

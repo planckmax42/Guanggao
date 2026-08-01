@@ -60,14 +60,13 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
 
-        // 先通过广告位缓存校验入口有效性，避免无效广告位请求继续访问 ES。
-        Long slotId = slotCacheService.getEnabledSlotIdByCode(request.slotCode())
+        Long slotId = slotCacheService.getEnabledSlotIdByCode(request.slotCode())// 先通过广告位缓存校验入口有效性，避免无效广告位请求继续访问 ES，其中包含条带锁，双布隆过滤器，熔断保护器等机制
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在"));
 
         // 第一阶段：ES 多维粗召回。只有异常/超时/熔断才回源，合法空结果不会查询 MySQL。
-        CandidateRecallResult recallResult = candidateRecallService.recall(request);
-        List<AdCandidateDocument> recalled = recallResult.candidates();
-        if (recalled.isEmpty()) {
+        CandidateRecallResult recallResult = candidateRecallService.recall(request);//粗召回，当ES不可以用或者熔断时降级进入mysql
+        List<AdCandidateDocument> recalled = recallResult.candidates();//去除包装类的源信息，得到候选列表
+        if (recalled.isEmpty()) {//候选为空直接返回
             return new AdDeliveryResponse(requestId, 0, 0, List.of());
         }
 
@@ -75,7 +74,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         Instant now = Instant.now();
 
         // 第二阶段（静态防御校验）：防止索引最终一致窗口或脏数据导致不合规候选进入排序。
-        List<AdCandidateDocument> staticallyValid = recalled.stream()
+        List<AdCandidateDocument> staticallyValid = recalled.stream()//一段鸡毛用没有的代码（手动鄙视）,todo:后续把这部分拦截普通停投的代码并入redis停投
                 .filter(candidate -> Objects.equals(slotId, candidate.getSlotId()))
                 .filter(candidate -> "ENABLED".equals(candidate.getMaterialStatus()))
                 .filter(candidate -> "APPROVED".equals(candidate.getAuditStatus()))
@@ -85,12 +84,18 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .filter(candidate -> CandidateTargetingMatcher.matches(candidate, request))
                 .toList();
 
-        // 紧急停投集合覆盖 ES 的短暂同步窗口；一次 pipeline 批量查询，避免逐候选访问 Redis。
-        Set<Long> stoppedPlans = stopGuardService.findStoppedPlans(
-                staticallyValid.stream().map(AdCandidateDocument::getPlanId).distinct().toList());
-        Set<Long> stoppedMaterials = stopGuardService.findStoppedMaterials(
-                staticallyValid.stream().map(AdCandidateDocument::getMaterialId).toList());
-        Set<Long> stoppedSlots = stopGuardService.findStoppedSlots(List.of(slotId));
+        // 紧急停投集合覆盖 ES 的短暂同步窗口；一次 pipeline 批量查询，避免逐候选访问 Redis，todo:把紧急停投的代码下放到所有的停止投放代码
+        Set<Long> stoppedPlans = stopGuardService.findStoppedPlans(//批量查找紧急停用的PlanId
+                staticallyValid
+                        .stream()
+                        .map(AdCandidateDocument::getPlanId)
+                        .distinct().toList());
+        Set<Long> stoppedMaterials = stopGuardService.findStoppedMaterials(//批量查找紧急停用的MaterialId
+                staticallyValid
+                        .stream()
+                        .map(AdCandidateDocument::getMaterialId)
+                        .toList());
+        Set<Long> stoppedSlots = stopGuardService.findStoppedSlots(List.of(slotId));//批量查找紧急停用的SlotId
         List<AdCandidateDocument> guarded = staticallyValid.stream()
                 .filter(candidate -> !stoppedPlans.contains(candidate.getPlanId()))
                 .filter(candidate -> !stoppedMaterials.contains(candidate.getMaterialId()))
@@ -101,18 +106,19 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         }
 
         // 预算和频控属于高频动态状态，不进入 ES，分别使用 Redis multiGet 批量过滤。
-        Map<Long, PlanEntity> planMap = guarded.stream()
-                .collect(Collectors.toMap(
+        Map<Long, PlanEntity> planMap = guarded.stream()//从文档中抽取plan部分
+                .collect(Collectors.toMap(//流式转换成map
                         AdCandidateDocument::getPlanId,
                         this::toPlanEntity,
-                        (first, ignored) -> first));
-        Set<Long> unavailablePlans = budgetRedisService.findUnavailablePlans(planMap.values(), today);
-        Set<Long> frequencyExceededPlans = frequencyRedisService.findExceededPlans(
+                        (first, ignored) -> first));//去重，保证key的唯一性
+        Set<Long> unavailablePlans = budgetRedisService.findUnavailablePlans(
+                planMap.values(), today);//传入Plan实体，返回预算不足列表
+        Set<Long> frequencyExceededPlans = frequencyRedisService.findExceededPlans(//传入viewerId,PlanId集合，得到超出频控列表
                 request.viewerId(), planMap.keySet(), today, MAX_FREQUENCY_PER_USER_DAY);
         List<AdCandidateDocument> dynamicallyValid = guarded.stream()
                 .filter(candidate -> !unavailablePlans.contains(candidate.getPlanId()))
                 .filter(candidate -> !frequencyExceededPlans.contains(candidate.getPlanId()))
-                .toList();
+                .toList();//根据频控和预算控制批量过滤，得到结果
         if (dynamicallyValid.isEmpty()) {
             return new AdDeliveryResponse(requestId, recalled.size(), 0, List.of());
         }
@@ -121,14 +127,14 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         List<Long> planIds = dynamicallyValid.stream()
                 .map(AdCandidateDocument::getPlanId)
                 .distinct()
-                .toList();
+                .toList();//去重后提取PlanId，用于批量查询record_daily表
         Map<Long, PlanDailyMetricRow> metricMap = dailyReportMapper.selectPlanDailyMetrics(today, planIds).stream()
-                .collect(Collectors.toMap(PlanDailyMetricRow::getPlanId, Function.identity()));
+                .collect(Collectors.toMap(PlanDailyMetricRow::getPlanId, Function.identity()));//查询daily计划当天的指标，转化成map
 
-        int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();
+        int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();//不传入时使用兜地默认值
         List<AdItemResponse> ads = dynamicallyValid.stream()
-                .map(candidate -> score(candidate, metricMap.get(candidate.getPlanId())))
-                .sorted(Comparator.comparingDouble(ScoredCandidate::score).reversed()
+                .map(candidate -> score(candidate, metricMap.get(candidate.getPlanId())))//转化成带打分的实体
+                .sorted(Comparator.comparingDouble(ScoredCandidate::score).reversed()//指定排序规则，优先按照分数高低，同分时根据其他Id等字段
                         .thenComparing(item -> item.candidate().getMaterialId(), Comparator.reverseOrder()))
                 .limit(limit)
                 .map(this::toAdItemResponse)
@@ -136,7 +142,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         return new AdDeliveryResponse(requestId, recalled.size(), ads.size(), ads);
     }
 
-    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricRow metric) {
+    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricRow metric) { //todo:后续接入XGboost算法
         long impressions = metric == null || metric.getImpressionCount() == null ? 0L : metric.getImpressionCount();
         long clicks = metric == null || metric.getClickCount() == null ? 0L : metric.getClickCount();
         // 冷启动候选使用 2% 先验 CTR，避免零曝光素材永远排不到前面。

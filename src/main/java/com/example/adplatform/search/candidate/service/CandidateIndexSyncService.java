@@ -40,7 +40,8 @@ public class CandidateIndexSyncService {
      * @param message 仅包含聚合定位信息的配置变更消息
      */
     public void synchronize(ConfigChangeMessage message) {
-        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(CandidateIndexManager.REBUILDING_KEY))) {
+
+        if (stringRedisTemplate.hasKey(CandidateIndexManager.REBUILDING_KEY)) {//如果正在重建中，则拒绝消费，抛出异常稍后重试，todo:后续加入补偿机制，过一段时间重试？
             throw new IllegalStateException("Candidate index is rebuilding");
         }
         IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
@@ -51,11 +52,11 @@ public class CandidateIndexSyncService {
         }
         // 增量消息可能连续到达。必须先 refresh，避免下一次 delete_by_query 搜到旧 Lucene
         // 段并以过期 seq_no 删除，从而产生 409；同时确保清除停投标记前新状态已可搜索。
-        operations.indexOps(index).refresh();
+        operations.indexOps(index).refresh();//手动刷新保证可见性
         stopGuardService.mark(message.aggregateType(), message.aggregateId(), false);
     }
 
-    private void synchronizeMaterial(Long materialId, IndexCoordinates index) {
+    private void synchronizeMaterial(Long materialId, IndexCoordinates index) {//先删后写入保证幂等性
         operations.delete(String.valueOf(materialId), index);
         CandidateSourceRow row = sourceMapper.selectEligibleByMaterialId(materialId);
         if (row != null) {
@@ -63,7 +64,7 @@ public class CandidateIndexSyncService {
         }
     }
 
-    private void synchronizePlan(Long planId, IndexCoordinates index) {
+    private void synchronizePlan(Long planId, IndexCoordinates index) {//这里产生了写放大，todo:考虑解决方案，或许可以改进ES中存储的内容，相同内容不重复存储，同时保持幂等性
         // 计划与素材是一对多关系，必须按 planId 清理后重新生成该计划的完整候选集合。
         deleteByField("planId", planId, index);
         saveAll(sourceMapper.selectEligibleByPlanId(planId), index);

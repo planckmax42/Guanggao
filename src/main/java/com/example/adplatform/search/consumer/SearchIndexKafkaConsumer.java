@@ -26,6 +26,6 @@ public class SearchIndexKafkaConsumer {
             groupId = "candidate-index-consumer",
             containerFactory = "searchKafkaListenerContainerFactory")
     public void consumeConfigChange(String payload) throws Exception {
-        candidateIndexSyncService.synchronize(objectMapper.readValue(payload, ConfigChangeMessage.class));
+        candidateIndexSyncService.synchronize(objectMapper.readValue(payload, ConfigChangeMessage.class));//ES增量写入消费者
     }
 }

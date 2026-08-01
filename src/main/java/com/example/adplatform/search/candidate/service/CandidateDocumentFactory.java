@@ -24,7 +24,7 @@ import java.util.function.UnaryOperator;
  */
 @Component
 @RequiredArgsConstructor
-public class CandidateDocumentFactory {
+public class CandidateDocumentFactory {//mysql查询结果到ES映射函数
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() { };
     private final ObjectMapper objectMapper;

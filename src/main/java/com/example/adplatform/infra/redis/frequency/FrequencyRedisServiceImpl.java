@@ -54,18 +54,18 @@ public class FrequencyRedisServiceImpl implements FrequencyRedisService {
             int maxFrequency) {
         if (viewerId == null || planIds == null || planIds.isEmpty() || maxFrequency <= 0) {
             return Set.of();
-        }
-        List<Long> uniquePlanIds = planIds.stream().distinct().toList();
+        }//不相信任何调用方，传入后执行一次参数校验
+        List<Long> uniquePlanIds = planIds.stream().distinct().toList();//再次去重PlanId
         List<String> keys = uniquePlanIds.stream()
                 .map(planId -> RedisKeyConstants.viewerPlanFrequency(viewerId, planId, statDate))
-                .toList();
+                .toList();//批量转换成key，便于后续打包查询，减少网络开销
         try {
             List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
             Set<Long> exceeded = new HashSet<>();
             for (int i = 0; i < uniquePlanIds.size(); i++) {
                 String value = values == null ? null : values.get(i);
                 if (value != null && Long.parseLong(value) >= maxFrequency) {
-                    exceeded.add(uniquePlanIds.get(i));
+                    exceeded.add(uniquePlanIds.get(i));//超频后加入不可用列表，todo:后续是否可以单独本地保存一个不可用列表，进一步减少网络开销
                 }
             }
             return exceeded;

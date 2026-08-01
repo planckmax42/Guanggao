@@ -28,7 +28,7 @@ public class BudgetWarmUpRunner implements ApplicationRunner {
      * @param args 应用启动参数，本任务不使用
      */
     @Override
-    public void run(ApplicationArguments args) {
+    public void run(ApplicationArguments args) {//开机预热Redis,给Online计划写入当日消耗和总消耗，用于后续预算控制
         List<PlanEntity> onlinePlans = planMapper.selectList(new LambdaQueryWrapper<PlanEntity>()
                 .eq(PlanEntity::getStatus, PlanStatus.ONLINE.name()));
         LocalDate today = LocalDate.now();

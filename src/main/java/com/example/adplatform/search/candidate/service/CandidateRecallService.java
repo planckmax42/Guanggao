@@ -38,7 +38,7 @@ public class CandidateRecallService {
         this.mysqlRecall = mysqlRecall;
         this.meterRegistry = meterRegistry;
         // 熔断器只保护 ES 依赖；打开期间请求直接走 MySQL，10 秒后以少量请求探测恢复。
-        this.circuitBreaker = CircuitBreaker.of("candidate-es-recall", CircuitBreakerConfig.custom()
+        this.circuitBreaker = CircuitBreaker.of("candidate-es-recall", CircuitBreakerConfig.custom()//此处熔断器配置直接在代码里面，todo：后续考虑像mysql熔断器一样配置成单独文件
                 .slidingWindowSize(20)
                 .minimumNumberOfCalls(10)
                 .failureRateThreshold(50)
@@ -56,15 +56,15 @@ public class CandidateRecallService {
     public CandidateRecallResult recall(AdDeliveryRequest request) {
         long startNanos = System.nanoTime();
         CandidateRecallResult result;
-        if (!properties.isEnabled()) {
-            result = new CandidateRecallResult(mysqlRecall.recall(request), "MYSQL_DISABLED");
-            record(result, startNanos);
+        if (!properties.isEnabled()) {//ES不可用时降级进入Mysql，todo:后续加入熔断器保护降级策略
+            result = new CandidateRecallResult(mysqlRecall.recall(request), "MYSQL_DISABLED");//回源数据库
+            record(result, startNanos);//记录指标
             return result;
         }
         try {
             // 空列表也是一次成功调用，不会进入 catch 和 MySQL 降级分支。
             result = new CandidateRecallResult(
-                    circuitBreaker.executeSupplier(() -> elasticsearchRecall.recall(request)),
+                    circuitBreaker.executeSupplier(() -> elasticsearchRecall.recall(request)),//在熔断器的保护下进入ES查询
                     "ELASTICSEARCH");
         } catch (RuntimeException ex) {
             log.warn("Elasticsearch candidate recall failed; falling back to MySQL, type={}, message={}",

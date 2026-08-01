@@ -26,8 +26,8 @@ public class ElasticsearchCandidateRecallService {
     /** 通过读别名执行静态候选粗召回。 */
     public List<AdCandidateDocument> recall(AdDeliveryRequest request) {
         return operations.search(
-                        queryFactory.build(request),
-                        AdCandidateDocument.class,
+                        queryFactory.build(request),//构建查询条件
+                        AdCandidateDocument.class,//指定结果要映射成的Java对象类型
                         IndexCoordinates.of(properties.getCandidate().getReadAlias()))
                 .stream()
                 .map(SearchHit::getContent)

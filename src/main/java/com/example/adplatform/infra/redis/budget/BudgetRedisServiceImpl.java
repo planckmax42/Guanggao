@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 /**
  * 基于 Redis 和扣费流水表实现的广告计划预算服务。
@@ -51,6 +53,29 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         return cost.dailyCost() < plan.getBudgetDaily() && cost.totalCost() < plan.getBudgetTotal();
     }
 
+    /**
+     * 读取指定计划的单日和总预算消耗，缓存缺失或异常时回源数据库。
+     *
+     * @param plan 广告计划
+     * @param statDate 统计日期
+     * @return 预算消耗快照
+     */
+    private BudgetCost getBudgetCost(PlanEntity plan, LocalDate statDate) {
+        try {
+            String dailyCost = stringRedisTemplate.opsForValue().get(dailyBudgetKey(statDate, plan.getId()));
+            String totalCost = stringRedisTemplate.opsForValue().get(totalBudgetKey(plan.getId()));//这里回源之前再次查询redis，意义不大，todo:后续删除，直接回源/数据库有可能在此时重建？
+            if (dailyCost != null && totalCost != null) {//todo:另外，牵扯到redis和数据库数据同步问题是不是都要考虑条带锁 布隆过滤器 防误杀 那一套？
+                return new BudgetCost(Long.parseLong(dailyCost), Long.parseLong(totalCost));
+            }
+        } catch (RuntimeException ex) {
+            log.warn("读取 Redis 预算缓存失败，planId={}，本次降级查询 charge_record：{}", plan.getId(), ex.getMessage());
+            return loadBudgetCostFromDatabase(plan.getId(), statDate);
+        }
+
+        BudgetCost cost = loadBudgetCostFromDatabase(plan.getId(), statDate);
+        rebuildBudget(plan, statDate);
+        return cost;
+    }
     /** {@inheritDoc} */
     @Override
     public Set<Long> findUnavailablePlans(Collection<PlanEntity> plans, LocalDate statDate) {
@@ -58,31 +83,31 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
             return Set.of();
         }
         List<PlanEntity> uniquePlans = plans.stream()
-                .filter(this::hasValidBudget)
-                .collect(java.util.stream.Collectors.toMap(
+                .filter(this::hasValidBudget)//筛选掉没有预算的计划，todo:没有预算就不校验？，后续加入补偿机制，或者强制有预算/默认值
+                .collect(Collectors.toMap(
                         PlanEntity::getId,
                         plan -> plan,
-                        (first, ignored) -> first,
-                        java.util.LinkedHashMap::new))
+                        (first, ignored) -> first,//再次去重，不信任任何调用方
+                        LinkedHashMap::new))//保持顺序
                 .values().stream().toList();
         Set<Long> unavailable = new HashSet<>();
         plans.stream().filter(plan -> !hasValidBudget(plan)).forEach(plan -> {
-            if (plan != null && plan.getId() != null) unavailable.add(plan.getId());
+            if (plan != null && plan.getId() != null) unavailable.add(plan.getId());//把无预算的加入不可用集合，与后续预算不足合并成并集
         });
         List<String> keys = new ArrayList<>(uniquePlans.size() * 2);
-        uniquePlans.forEach(plan -> {
+        uniquePlans.forEach(plan -> {//把有预算的PlanId取出来加入集合拼接成key用于后续批量进入Redis
             keys.add(dailyBudgetKey(statDate, plan.getId()));
             keys.add(totalBudgetKey(plan.getId()));
         });
         try {
-            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
+            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);//批量发送一次请求，减少网络开销
             for (int i = 0; i < uniquePlans.size(); i++) {
                 PlanEntity plan = uniquePlans.get(i);
-                String daily = values == null ? null : values.get(i * 2);
-                String total = values == null ? null : values.get(i * 2 + 1);
+                String daily = values == null ? null : values.get(i * 2);//得到当天消耗
+                String total = values == null ? null : values.get(i * 2 + 1);//得到累积消耗
                 if (daily == null || total == null) {
-                    if (!hasAvailableBudget(plan, statDate)) unavailable.add(plan.getId());
-                } else if (Long.parseLong(daily) >= plan.getBudgetDaily()
+                    if (!hasAvailableBudget(plan, statDate)) unavailable.add(plan.getId());//降级回源策略（todo:后续优化，考虑这些数据是否可以常驻内存，内存溢出怎么办?）
+                } else if (Long.parseLong(daily) >= plan.getBudgetDaily()//查询正常直接比较
                         || Long.parseLong(total) >= plan.getBudgetTotal()) {
                     unavailable.add(plan.getId());
                 }
@@ -92,7 +117,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
                 if (!hasAvailableBudget(plan, statDate)) unavailable.add(plan.getId());
             });
         }
-        return unavailable;
+        return unavailable;//最终返回不可用列表
     }
 
     /** {@inheritDoc} */
@@ -154,10 +179,10 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
 
     /** {@inheritDoc} */
     @Override
-    public void rebuildBudget(PlanEntity plan, LocalDate statDate) {
+    public void rebuildBudget(PlanEntity plan, LocalDate statDate) {//根据recordCharge表预热Redis，写入当日消耗和总消耗，todo:为什么不写入预算然后扣到负数阻止？
         if (plan == null || plan.getId() == null) {
             return;
-        }
+        }//非空校验无效直接返回
         BudgetCost cost = loadBudgetCostFromDatabase(plan.getId(), statDate);
         try {
             stringRedisTemplate.opsForValue().set(
@@ -173,41 +198,18 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
         }
     }
 
-    /**
-     * 读取指定计划的单日和总预算消耗，缓存缺失或异常时回源数据库。
-     *
-     * @param plan 广告计划
-     * @param statDate 统计日期
-     * @return 预算消耗快照
-     */
-    private BudgetCost getBudgetCost(PlanEntity plan, LocalDate statDate) {
-        try {
-            String dailyCost = stringRedisTemplate.opsForValue().get(dailyBudgetKey(statDate, plan.getId()));
-            String totalCost = stringRedisTemplate.opsForValue().get(totalBudgetKey(plan.getId()));
-            if (dailyCost != null && totalCost != null) {
-                return new BudgetCost(Long.parseLong(dailyCost), Long.parseLong(totalCost));
-            }
-        } catch (RuntimeException ex) {
-            log.warn("读取 Redis 预算缓存失败，planId={}，本次降级查询 charge_record：{}", plan.getId(), ex.getMessage());
-            return loadBudgetCostFromDatabase(plan.getId(), statDate);
-        }
-
-        BudgetCost cost = loadBudgetCostFromDatabase(plan.getId(), statDate);
-        rebuildBudget(plan, statDate);
-        return cost;
-    }
 
     /**
      * 在扣费前确保单日和总预算 Key 均已存在；缺失时从数据库重建。
      *
-     * @param plan 广告计划
+     * @param planId 广告计划
      * @param statDate 统计日期
      */
     private void ensureBudgetKeys(Long planId, LocalDate statDate) {
         try {
             Boolean hasDailyKey = stringRedisTemplate.hasKey(dailyBudgetKey(statDate, planId));
             Boolean hasTotalKey = stringRedisTemplate.hasKey(totalBudgetKey(planId));
-            if (Boolean.TRUE.equals(hasDailyKey) && Boolean.TRUE.equals(hasTotalKey)) {
+            if (Boolean.TRUE.equals(hasDailyKey) && Boolean.TRUE.equals(hasTotalKey)) {//todo:这是什么鬼？
                 return;
             }
         } catch (RuntimeException ex) {
@@ -235,7 +237,7 @@ public class BudgetRedisServiceImpl implements BudgetRedisService {
      * @param statDate 统计日期
      * @return 数据库中的预算消耗快照
      */
-    private BudgetCost loadBudgetCostFromDatabase(Long planId, LocalDate statDate) {
+    private BudgetCost loadBudgetCostFromDatabase(Long planId, LocalDate statDate) {//从chargeRecord表聚合读取当日消耗和总消耗
         return new BudgetCost(
                 chargeRecordMapper.sumSuccessAmountByPlanOnDate(planId, statDate),
                 chargeRecordMapper.sumSuccessAmountByPlan(planId));

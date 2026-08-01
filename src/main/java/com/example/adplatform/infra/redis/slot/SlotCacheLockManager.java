@@ -62,7 +62,7 @@ public class SlotCacheLockManager {
     }
 
     /** 反向释放一组已经获得的条带锁，可用于 try-with-resources。 */
-    public static final class LockHandle implements AutoCloseable {
+    public static final class LockHandle implements AutoCloseable {//继承AutoCloseable类实现离开try代码块自动释放锁
 
         private final List<ReentrantLock> locks;
         private boolean closed;

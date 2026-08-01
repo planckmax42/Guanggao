@@ -60,15 +60,15 @@ public class DeliveryStopGuardService {
     }
 
     private Set<Long> findMembers(String key, Collection<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
+        if (ids == null || ids.isEmpty()) {//传入参数为空直接返回
             return Set.of();
         }
         List<Object> results;
         try {
             // 一条 Redis pipeline 承载全部 SISMEMBER，返回顺序与 ids 遍历顺序一致。
-            results = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                ids.forEach(id -> connection.setCommands().sIsMember(
-                        key.getBytes(), id.toString().getBytes()));
+            results = stringRedisTemplate.executePipelined(//批量调用集合成员存在判断函数，减少网络开销
+                    (RedisCallback<Object>) connection -> {
+                ids.forEach(id -> connection.setCommands().sIsMember(key.getBytes(), id.toString().getBytes()));
                 return null;
             });
         } catch (RuntimeException ex) {
@@ -77,7 +77,7 @@ public class DeliveryStopGuardService {
         }
         Set<Long> stopped = new HashSet<>();
         int index = 0;
-        for (Long id : ids) {
+        for (Long id : ids) {//遍历集合得到停用Id
             if (index < results.size() && Boolean.TRUE.equals(results.get(index))) {
                 stopped.add(id);
             }

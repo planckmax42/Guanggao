@@ -51,8 +51,7 @@ public class CandidateQueryFactory {
         filters.add(tagsFilter(request.tags()));
 
         // 配置值再受硬上限约束，防止误配置把大结果集拉回应用内存。
-        int size = Math.min(properties.getCandidate().getRecallSize(),
-                properties.getCandidate().getMaxRecallSize());
+        int size = Math.min(properties.getCandidate().getRecallSize(), properties.getCandidate().getMaxRecallSize());
         Query candidateFilter = QueryBuilders.bool(boolBuilder -> boolBuilder.filter(filters));
         return NativeQuery.builder()
                 .withQuery(candidateFilter)

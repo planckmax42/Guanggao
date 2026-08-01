@@ -25,7 +25,7 @@ import java.time.Duration;
 @Validated
 @Component
 @ConfigurationProperties(prefix = "app.kafka.event-producer")
-public class EventKafkaProducerProperties {
+public class EventKafkaProducerProperties {//eventTopic Producer配置，这个是Java配置的默认值，无yml文件的情况下使用默认值，todo:这里是单独抽成了一个文件，后续可以看一个是抽成一个文件好还是像BudgetRedisServiceImpl一样分散起来
 
     @NotNull
     private Duration deliveryTimeout = Duration.ofSeconds(10);
