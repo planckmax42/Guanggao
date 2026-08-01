@@ -9,6 +9,7 @@ import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterManager;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.warmup.SlotWarmUpTask;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -131,8 +132,13 @@ class SlotCacheConcurrencyTests {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
         SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloom);
+        SlotWarmUpTask warmUpTask = new SlotWarmUpTask(
+                slotMapper,
+                bloom,
+                mock(SlotBloomFilterTracker.class),
+                service);
 
-        service.warmUp();
+        warmUpTask.warmUp();
 
         assertFalse(redis.containsKey(DeliveryRedisKeys.slotCodeToId("OLD_CODE")));
     }

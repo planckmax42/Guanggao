@@ -13,4 +13,11 @@ public interface SlotCacheMaintenancePort {
      * @param oldSlotCode 更新前的广告位编码
      */
     void refreshSlot(SlotEntity slot, String oldSlotCode);
+
+    /**
+     * 根据广告位编码重新查询权威数据并刷新 Redis 缓存。
+     *
+     * @param slotCode 待刷新的广告位编码
+     */
+    void refreshSlotByCode(String slotCode);
 }

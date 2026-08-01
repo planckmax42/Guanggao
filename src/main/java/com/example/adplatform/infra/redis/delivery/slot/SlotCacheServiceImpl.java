@@ -10,7 +10,6 @@ import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotLookupPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterRebuilder;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterManager;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -23,7 +22,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -35,7 +33,7 @@ import java.util.Optional;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenancePort, SlotBloomFilterRebuilder {
+public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenancePort {
 
     private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
 
@@ -176,6 +174,22 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         refreshSlotCache(slot, oldSlotCode);
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public void refreshSlotByCode(String slotCode) {
+        if (!StringUtils.hasText(slotCode)) {
+            return;
+        }
+        try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(slotCode)) {
+            SlotEntity current = selectEnabledSlotByCode(slotCode);
+            if (current == null) {
+                evictSlotCode(slotCode);
+                return;
+            }
+            writeSlotToRedis(current);
+        }
+    }
+
     /**
      * 在数据库事务提交后删除旧编码并写入当前广告位缓存。
      *
@@ -195,77 +209,6 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
     }
 
     /**
-     * {@inheritDoc}
-     * 启动时预热启用广告位缓存和广告位编码布隆过滤器。
-     */
-    public void warmUp() {
-        Optional<List<SlotEntity>> enabledSlots;
-        try {
-            enabledSlots = bloomFilterManager.rebuild(this::selectAllEnabledSlots);
-        } catch (RuntimeException ex) {
-            log.warn("启动预热查询启用广告位失败，布隆过滤器和 Redis 保持原状", ex);
-            return;
-        }
-        if (enabledSlots.isEmpty()) {
-            return;
-        }
-
-        int successCount = 0;
-        for (SlotEntity snapshot : enabledSlots.get()) {
-            try (SlotCacheLockManager.LockHandle ignored =
-                         lockManager.acquireForWrite(snapshot.getSlotCode())) {
-                SlotEntity current = selectEnabledSlotByCode(snapshot.getSlotCode());
-                if (current == null) {
-                    evictSlotCode(snapshot.getSlotCode());
-                    continue;
-                }
-                writeSlotToRedis(current);
-                successCount++;
-            } catch (RuntimeException ex) {
-                log.warn("广告位缓存预热写入 Redis 失败，已停止本次 Redis 预热：{}", ex.getMessage());
-                break;
-            }
-        }
-        bloomFilterMetrics.reset();
-        log.info("广告位 Redis 缓存预热完成，数量={}", successCount);
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public boolean rebuild() {
-        try {
-            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.rebuild(this::selectAllEnabledSlots);
-            if (enabledSlots.isEmpty()) {
-                return false;
-            }
-
-            bloomFilterMetrics.reset();
-            log.info("广告位布隆过滤器重建完成，启用广告位数量={}", enabledSlots.get().size());
-            return true;
-        } catch (RuntimeException ex) {
-            log.warn("查询启用广告位失败，保留当前布隆过滤器", ex);
-            return false;
-        }
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public boolean expandAndRebuild() {
-        try {
-            Optional<List<SlotEntity>> enabledSlots = bloomFilterManager.expandAndRebuild(this::selectAllEnabledSlots);
-            if (enabledSlots.isEmpty()) {
-                return false;
-            }
-
-            bloomFilterMetrics.reset();
-            return true;
-        } catch (RuntimeException ex) {
-            log.warn("广告位布隆过滤器扩容重建失败，继续使用当前过滤器", ex);
-            return false;
-        }
-    }
-
-    /**
      * 从 MySQL 查询指定编码且状态为启用的广告位。
      *
      * @param slotCode 对外广告位编码
@@ -274,16 +217,6 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
     private SlotEntity selectEnabledSlotByCode(String slotCode) {
         return slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getSlotCode, slotCode)
-                .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
-    }
-
-    /**
-     * 从 MySQL 全量查询当前启用的广告位。
-     *
-     * @return 启用广告位列表
-     */
-    private List<SlotEntity> selectAllEnabledSlots() {
-        return slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
     }
 
