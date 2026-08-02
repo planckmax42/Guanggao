@@ -22,7 +22,7 @@ import java.time.Duration;
 public class SlotBloomFilterProperties {
 
     @Min(1)
-    private int expectedInsertions;
+    private int initialCapacity;
 
     @DecimalMin(value = "0.0", inclusive = false)
     @DecimalMax(value = "1.0", inclusive = false)
@@ -35,7 +35,7 @@ public class SlotBloomFilterProperties {
     private double expansionFactor;
 
     @Min(1)
-    private long maxExpectedInsertions;
+    private long maxExpectedCapacity;
 
     @NotNull
     private Duration expansionCooldown;

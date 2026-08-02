@@ -85,7 +85,7 @@ REST API 幂等注册 `ad-platform-outbox` Connector。该本地编排面向 Lin
 检查 Connector：
 
 ```bash
-curl http://127.0.0.1:8083/connectors/ad-platform-outbox/status
+curl http://127.0.0.1:8083/connectors/ad-platform-outbox/slotBloomFilterSnapshot
 ```
 
 `connector.state` 和所有 `tasks[].state` 均应为 `RUNNING`。MySQL 必须启用 `log_bin=ON`、
@@ -145,7 +145,7 @@ POST /api/delivery/ads                         广告投放
 POST /api/tracking/events                      曝光/点击/转化事件上报
 POST /api/admin/search/candidates/rebuild      候选索引无停机重建
 GET  /actuator/metrics/ad.candidate.recall.duration
-GET  http://127.0.0.1:8083/connectors/ad-platform-outbox/status
+GET  http://127.0.0.1:8083/connectors/ad-platform-outbox/slotBloomFilterSnapshot
 ```
 
 投放示例：

@@ -33,11 +33,11 @@ class SlotBloomFilterPropertiesTests {
 
     private SlotBloomFilterProperties completeProperties() {
         SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
-        properties.setExpectedInsertions(10_000);
+        properties.setInitialCapacity(10_000);
         properties.setFalsePositiveProbability(0.01D);
         properties.setMinimumAbsentSamples(1_000L);
         properties.setExpansionFactor(2D);
-        properties.setMaxExpectedInsertions(1_000_000L);
+        properties.setMaxExpectedCapacity(1_000_000L);
         properties.setExpansionCooldown(Duration.ofMinutes(10));
         properties.setRebuildDelay(Duration.ofMinutes(5));
         properties.setRebuildInitialDelay(Duration.ofMinutes(5));

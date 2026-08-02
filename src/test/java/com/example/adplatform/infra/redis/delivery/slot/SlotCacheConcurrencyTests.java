@@ -126,12 +126,11 @@ class SlotCacheConcurrencyTests {
     void shouldRevalidateWarmupSnapshotBeforeWritingRedis() {
         Map<String, String> redis = new ConcurrentHashMap<>();
         redis.put(DeliveryRedisKeys.slotCodeToId("OLD_CODE"), "1");
-        SlotEntity staleSnapshot = slot(1L, "OLD_CODE", CommonStatus.ENABLED);
         SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
         SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
-        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of(staleSnapshot)));
+        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of("OLD_CODE")));
         SlotWarmUpTask warmUpTask = new SlotWarmUpTask(bloomFilterService, service);
 
         warmUpTask.warmUp();

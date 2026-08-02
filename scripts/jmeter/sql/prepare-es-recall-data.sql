@@ -30,12 +30,12 @@ DELETE FROM slot WHERE id BETWEEN 900001 AND 900003;
 DELETE FROM `user` WHERE id = 900000;
 
 INSERT INTO `user`
-    (id, name, industry, contact_name, contact_email, status, created_at, updated_at)
+    (id, name, industry, contact_name, contact_email, slotBloomFilterSnapshot, created_at, updated_at)
 VALUES
     (900000, 'ES召回压测广告主', '性能测试', '压测管理员', 'es-load-test@example.com', 1, NOW(), NOW());
 
 INSERT INTO slot
-    (id, slot_code, name, width, height, scene, status, created_at, updated_at)
+    (id, slot_code, name, width, height, scene, slotBloomFilterSnapshot, created_at, updated_at)
 VALUES
     (900001, 'ES_LOAD_HOME', 'ES压测首页广告位', 1080, 300, 'LOAD_TEST', 1, NOW(), NOW()),
     (900002, 'ES_LOAD_FEED', 'ES压测信息流广告位', 720, 360, 'LOAD_TEST', 1, NOW(), NOW()),
@@ -43,7 +43,7 @@ VALUES
 
 INSERT INTO plan
     (id, user_id, name, budget_total, budget_daily, bid_price, billing_type,
-     start_time, end_time, status, created_at, updated_at)
+     start_time, end_time, slotBloomFilterSnapshot, created_at, updated_at)
 SELECT
     900000 + n,
     900000,
@@ -61,7 +61,7 @@ FROM tmp_es_candidate_seq;
 
 INSERT INTO material
     (id, plan_id, slot_id, title, description, image_url, landing_page_url,
-     audit_status, status, created_at, updated_at)
+     audit_status, slotBloomFilterSnapshot, created_at, updated_at)
 SELECT
     900000 + n,
     900000 + n,
@@ -115,7 +115,7 @@ SELECT
     COUNT(DISTINCT slot_id) AS load_test_slots
 FROM material
 WHERE id BETWEEN 900001 AND 900000 + @candidate_count
-  AND status = 1
+  AND slotBloomFilterSnapshot = 1
   AND audit_status = 'APPROVED';
 
 DROP TEMPORARY TABLE tmp_es_candidate_seq;

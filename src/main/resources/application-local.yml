@@ -73,13 +73,13 @@ app:
       stripes: 1024
       read-wait-timeout: 100ms
     bloom:
-      expected-insertions: 10000
+      initial-capacity: 10000
       false-positive-probability: 0.01
       rebuild-delay: 5m
       rebuild-initial-delay: 5m
       minimum-absent-samples: 1000
       expansion-factor: 2.0
-      max-expected-insertions: 1000000
+      max-expected-capacity: 1000000
       expansion-cooldown: 10m
       expansion-check-delay: 30s
       expansion-check-initial-delay: 30s

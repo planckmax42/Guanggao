@@ -1,7 +1,5 @@
 package com.example.adplatform.infra.bloom.delivery.slot;
 
-import com.example.adplatform.admin.entity.SlotEntity;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -21,34 +19,34 @@ public interface SlotBloomFilterService {
      *
      * @param slotCode 广告位编码
      */
-    void put(String slotCode);
+    void addSlotBloomFilter(String slotCode);
 
     /**
      * 查询全部启用广告位并重建过滤器，同时返回本次数据快照。
      *
      * @return 重建快照；正在重建或发生异常时返回 empty
      */
-    Optional<List<SlotEntity>> regularRebuild();
+    Optional<List<String>> regularRebuild();
 
     /**
      * 扩容并全量重建过滤器。
      *
      * @return 扩容重建成功时返回 {@code true}
      */
-    boolean expandAndRebuild();
+    boolean expandRebuild();
 
     /**
      * 获取过滤器运行状态。
      *
      * @return 状态快照
      */
-    Status status();
+    SlotBloomFilterSnapshot GetSlotBloomFilterSnapshot();
 
     /** 布隆过滤器运行状态快照。 */
-    record Status(
-            long expectedInsertions,
+    record SlotBloomFilterSnapshot(
+            long currentCapacity,
             long approximateElementCount,
-            double expectedFalsePositiveProbability,
-            boolean ready) {
+            double expectedFpp,
+            boolean bloomFilterReady) {
     }
 }

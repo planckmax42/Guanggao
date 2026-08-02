@@ -108,7 +108,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         }
 
         if (slot == null) {
-            if (bloomFilterService.status().ready()) {
+            if (bloomFilterService.GetSlotBloomFilterSnapshot().bloomFilterReady()) {
                 bloomFilterMetrics.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
             }
             return Optional.empty();
@@ -128,7 +128,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
             return;
         }
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
-            bloomFilterService.put(slot.getSlotCode());
+            bloomFilterService.addSlotBloomFilter(slot.getSlotCode());
         }
         writeSlotToRedis(slot);
     }
@@ -158,7 +158,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
     public void refreshSlot(SlotEntity slot, String oldSlotCode) {
         if (slot != null && Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             // 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            bloomFilterService.put(slot.getSlotCode());
+            bloomFilterService.addSlotBloomFilter(slot.getSlotCode());
         }
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {

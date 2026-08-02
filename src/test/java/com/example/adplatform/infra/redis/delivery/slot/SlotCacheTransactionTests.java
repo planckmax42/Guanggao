@@ -55,7 +55,7 @@ class SlotCacheTransactionTests {
 
         service.refreshSlot(slot, null);
 
-        verify(bloomFilterService).put("HOME_BANNER");
+        verify(bloomFilterService).addSlotBloomFilter("HOME_BANNER");
         verify(valueOperations, never()).set(
                 DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
 
@@ -63,7 +63,7 @@ class SlotCacheTransactionTests {
                 TransactionSynchronizationManager.getSynchronizations();
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(bloomFilterService, times(1)).put("HOME_BANNER");
+        verify(bloomFilterService, times(1)).addSlotBloomFilter("HOME_BANNER");
         verify(valueOperations).set(
                 DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
     }
@@ -89,7 +89,7 @@ class SlotCacheTransactionTests {
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(synchronization -> synchronization.afterCompletion(
                         TransactionSynchronization.STATUS_ROLLED_BACK));
-        verify(bloomFilterService).put("HOME_BANNER");
+        verify(bloomFilterService).addSlotBloomFilter("HOME_BANNER");
         verify(redisTemplate, never()).opsForValue();
     }
 
@@ -112,7 +112,7 @@ class SlotCacheTransactionTests {
 
         service.refreshSlot(slot, slot.getSlotCode());
 
-        verify(bloomFilterService, never()).put(slot.getSlotCode());
+        verify(bloomFilterService, never()).addSlotBloomFilter(slot.getSlotCode());
     }
 
     private SlotEntity enabledSlot() {

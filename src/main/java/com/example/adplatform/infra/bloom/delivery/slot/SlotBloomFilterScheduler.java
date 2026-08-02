@@ -42,19 +42,21 @@ public class SlotBloomFilterScheduler {
             initialDelayString = "${app.slot-cache.bloom.expansion-check-initial-delay}")
     public void checkAndExpand() {
         SlotBloomFilterTracker.Snapshot snapshot = slotBloomFilterTracker.snapshot();
-        SlotBloomFilterService.Status status = slotBloomFilterService.status();
-        if (!status.ready() || snapshot.confirmedAbsentCount() < slotBloomFilterProperties.getMinimumAbsentSamples()) {
+        SlotBloomFilterService.SlotBloomFilterSnapshot slotBloomFilterSnapshot =
+                slotBloomFilterService.GetSlotBloomFilterSnapshot();
+        if (!slotBloomFilterSnapshot.bloomFilterReady()
+                || snapshot.confirmedAbsentCount() < slotBloomFilterProperties.getMinimumAbsentSamples()) {
             return;
         }
 
         double targetRate = slotBloomFilterProperties.getFalsePositiveProbability();
         if (snapshot.actualFalsePositiveRate() < targetRate
-                || status.expectedFalsePositiveProbability() < targetRate) {
+                || slotBloomFilterSnapshot.expectedFpp() < targetRate) {
             return;
         }
-        if (status.expectedInsertions() >= slotBloomFilterProperties.getMaxExpectedInsertions()) {
+        if (slotBloomFilterSnapshot.currentCapacity() >= slotBloomFilterProperties.getMaxExpectedCapacity()) {
             log.warn("广告位布隆过滤器已达到自动扩容上限，当前容量={}，实际误判率={}",
-                    status.expectedInsertions(), snapshot.actualFalsePositiveRate());
+                    slotBloomFilterSnapshot.currentCapacity(), snapshot.actualFalsePositiveRate());
             return;
         }
 
@@ -63,15 +65,16 @@ public class SlotBloomFilterScheduler {
             return;
         }
 
-        long oldCapacity = status.expectedInsertions();
-        if (slotBloomFilterService.expandAndRebuild()) {
+        long oldCapacity = slotBloomFilterSnapshot.currentCapacity();
+        if (slotBloomFilterService.expandRebuild()) {
             lastExpansionTime = Instant.now();
-            SlotBloomFilterService.Status expandedStatus = slotBloomFilterService.status();
+            SlotBloomFilterService.SlotBloomFilterSnapshot expandedSlotBloomFilterSnapshot =
+                    slotBloomFilterService.GetSlotBloomFilterSnapshot();
             log.warn("广告位布隆过滤器因误判率升高完成扩容，容量 {} -> {}，扩容前实际误判率={}，理论误判率={}",
                     oldCapacity,
-                    expandedStatus.expectedInsertions(),
+                    expandedSlotBloomFilterSnapshot.currentCapacity(),
                     snapshot.actualFalsePositiveRate(),
-                    status.expectedFalsePositiveProbability());
+                    slotBloomFilterSnapshot.expectedFpp());
         }
     }
 }

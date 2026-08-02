@@ -1,7 +1,6 @@
 package com.example.adplatform.infra.warmup;
 
 import com.example.adplatform.admin.entity.PlanEntity;
-import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
@@ -26,10 +25,8 @@ class WarmUpTasksTests {
 
     @Test
     void shouldReuseBloomSnapshotWhenWarmingSlotRedis() {
-        SlotEntity slot = new SlotEntity();
-        slot.setSlotCode("HOME_BANNER");
         SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
-        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of(slot)));
+        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of("HOME_BANNER")));
         SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
         SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
 
