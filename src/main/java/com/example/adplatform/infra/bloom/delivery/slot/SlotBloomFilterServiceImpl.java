@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 广告位布隆过滤器实现。
@@ -31,7 +32,8 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
     private volatile boolean bloomFilterReady;
     private long currentCapacity;
     private final AtomicInteger capacityExhausted = new AtomicInteger(0);
-    private final Object bloomFilterLock = new Object();
+    private final ReentrantLock rebuildLock = new ReentrantLock();
+    private final Object updateLock = new Object();
 
     SlotBloomFilterServiceImpl(
             SlotMapper slotMapper,
@@ -63,7 +65,7 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
         if (!StringUtils.hasText(slotCode)) {
             return;
         }
-        synchronized (bloomFilterLock) {
+        synchronized (updateLock) {
             currentBloomFilter.get().put(slotCode);
             if (standbyBloomFilter != null) {
                 standbyBloomFilter.put(slotCode);
@@ -92,39 +94,41 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
     }
 
     private Optional<List<String>> rebuildExecutor(RebuildMode rebuildMode) {
-        List<String> enabledSlotCodes;
-        try {
-            BloomFilter<CharSequence> standbyBloomFilter;
-            long targetCapacity;
-            synchronized (bloomFilterLock) {//隔离重建启动和addSlotBloomFilter
-                if (this.standbyBloomFilter != null) {//防止并发重建，目前重建触发逻辑仅存在于调度器中，此处是为了预防并发重建问题
-                    return Optional.empty();}
-                targetCapacity = calculateTargetCapacity(rebuildMode, currentCapacity);
-                if (rebuildMode == RebuildMode.EXPAND_REBUILD && targetCapacity <= currentCapacity) {
-                    return Optional.empty();}
-                standbyBloomFilter = createBloomFilter(targetCapacity);
-                this.standbyBloomFilter = standbyBloomFilter;
-            }
-            try {
-                enabledSlotCodes = slotMapper.selectEnabledSlotCodes();
-                enabledSlotCodes.stream()
-                        .filter(StringUtils::hasText)
-                        .forEach(standbyBloomFilter::put);
-                publishStandbyFilter(standbyBloomFilter, targetCapacity);
-            } finally {
-                synchronized (bloomFilterLock) {
-                    if (this.standbyBloomFilter == standbyBloomFilter) {
-                        this.standbyBloomFilter = null;
-                    }
-                }
-            }
-        } catch (RuntimeException ex) {
-            log.warn("广告位布隆过滤器{}失败，保留当前过滤器", rebuildMode, ex);
+        if (!rebuildLock.tryLock()) {
             return Optional.empty();
         }
-        slotBloomFilterTracker.reset();
-        log.info("广告位布隆过滤器{}完成，启用广告位数量={}", rebuildMode, enabledSlotCodes.size());
-        return Optional.of(enabledSlotCodes);
+        try {
+            List<String> enabledSlotCodes;
+            try {
+                BloomFilter<CharSequence> standbyBloomFilter;
+                long targetCapacity;
+                synchronized (updateLock) {
+                    targetCapacity = calculateTargetCapacity(rebuildMode, currentCapacity);
+                    if (rebuildMode == RebuildMode.EXPAND_REBUILD && targetCapacity <= currentCapacity) {
+                        return Optional.empty();
+                    }
+                    standbyBloomFilter = createBloomFilter(targetCapacity);
+                    this.standbyBloomFilter = standbyBloomFilter;
+                }
+                try {
+                    enabledSlotCodes = slotMapper.selectEnabledSlotCodes();
+                    enabledSlotCodes.stream()
+                            .filter(StringUtils::hasText)
+                            .forEach(standbyBloomFilter::put);
+                    publishStandbyFilter(standbyBloomFilter, targetCapacity);
+                } finally {
+                    clearStandbyFilter();
+                }
+            } catch (RuntimeException ex) {
+                log.warn("广告位布隆过滤器{}失败，保留当前过滤器", rebuildMode, ex);
+                return Optional.empty();
+            }
+            slotBloomFilterTracker.reset();
+            log.info("广告位布隆过滤器{}完成，启用广告位数量={}", rebuildMode, enabledSlotCodes.size());
+            return Optional.of(enabledSlotCodes);
+        } finally {
+            rebuildLock.unlock();
+        }
     }
 
     private long calculateTargetCapacity(RebuildMode mode, long currentCapacity) {
@@ -139,12 +143,18 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
     private void publishStandbyFilter(
             BloomFilter<CharSequence> standbyBloomFilter,
             long targetCapacity) {
-        synchronized (bloomFilterLock) {//隔离发布操作和addSlotBloomFilter操作
+        synchronized (updateLock) {//隔离发布操作和addSlotBloomFilter操作
             currentBloomFilter.set(standbyBloomFilter);
             currentCapacity = targetCapacity;
             if(currentCapacity == slotBloomFilterProperties.getMaxExpectedCapacity()) capacityExhausted.set(1);
             this.standbyBloomFilter = null;
             bloomFilterReady = true;
+        }
+    }
+
+    private void clearStandbyFilter() {
+        synchronized (updateLock) {
+            standbyBloomFilter = null;
         }
     }
 
