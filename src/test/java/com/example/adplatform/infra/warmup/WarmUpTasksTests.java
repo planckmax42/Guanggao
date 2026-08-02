@@ -29,13 +29,13 @@ class WarmUpTasksTests {
         SlotEntity slot = new SlotEntity();
         slot.setSlotCode("HOME_BANNER");
         SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
-        when(bloomFilterService.rebuildWithSnapshot()).thenReturn(Optional.of(List.of(slot)));
+        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of(slot)));
         SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
         SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
 
         task.warmUp();
 
-        verify(bloomFilterService).rebuildWithSnapshot();
+        verify(bloomFilterService).regularRebuild();
         verify(cacheMaintenancePort).refreshSlotByCode("HOME_BANNER");
     }
 

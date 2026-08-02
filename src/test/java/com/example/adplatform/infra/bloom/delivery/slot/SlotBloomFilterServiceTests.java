@@ -36,11 +36,11 @@ class SlotBloomFilterServiceTests {
         SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
         SlotBloomFilterService service = createService(slotMapper, tracker);
 
-        Optional<List<SlotEntity>> firstSnapshot = service.rebuildWithSnapshot();
+        Optional<List<SlotEntity>> firstSnapshot = service.regularRebuild();
         assertEquals(2, firstSnapshot.orElseThrow().size());
         assertFalse(service.definitelyNotContains("OLD_SLOT"));
 
-        assertTrue(service.rebuild());
+        assertTrue(service.regularRebuild().isPresent());
 
         assertTrue(service.definitelyNotContains("OLD_SLOT"));
         assertFalse(service.definitelyNotContains("HOME_BANNER"));
@@ -61,16 +61,16 @@ class SlotBloomFilterServiceTests {
                     return slots("HOME_BANNER");
                 });
         SlotBloomFilterService service = createService(slotMapper, mock(SlotBloomFilterTracker.class));
-        service.rebuild();
+        service.regularRebuild();
 
-        CompletableFuture<Boolean> rebuildFuture =
-                CompletableFuture.supplyAsync(service::rebuild);
+        CompletableFuture<Optional<List<SlotEntity>>> rebuildFuture =
+                CompletableFuture.supplyAsync(service::regularRebuild);
 
         assertTrue(rebuildStarted.await(1, TimeUnit.SECONDS));
         service.put("NEW_SLOT");
         continueRebuild.countDown();
 
-        assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS));
+        assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS).isPresent());
         assertFalse(service.definitelyNotContains("NEW_SLOT"));
     }
 
@@ -87,14 +87,14 @@ class SlotBloomFilterServiceTests {
         SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
         SlotBloomFilterService service = createService(slotMapper, tracker);
 
-        CompletableFuture<Boolean> rebuildFuture =
-                CompletableFuture.supplyAsync(service::rebuild);
+        CompletableFuture<Optional<List<SlotEntity>>> rebuildFuture =
+                CompletableFuture.supplyAsync(service::regularRebuild);
 
         assertTrue(rebuildStarted.await(1, TimeUnit.SECONDS));
-        assertFalse(service.rebuild());
+        assertTrue(service.regularRebuild().isEmpty());
         continueRebuild.countDown();
 
-        assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS));
+        assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS).isPresent());
         verify(slotMapper).selectList(any());
         verify(tracker).reset();
     }
@@ -105,12 +105,15 @@ class SlotBloomFilterServiceTests {
         when(slotMapper.selectList(any())).thenReturn(slots("HOME_BANNER"));
         SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
         SlotBloomFilterService service = createService(slotMapper, tracker);
-        assertTrue(service.rebuild());
+        assertTrue(service.regularRebuild().isPresent());
+        SlotBloomFilterService.Status statusBeforeFailure = service.status();
         doThrow(new IllegalStateException("mysql unavailable"))
                 .when(slotMapper).selectList(any());
 
-        assertFalse(service.rebuild());
+        assertTrue(service.regularRebuild().isEmpty());
 
+        assertEquals(statusBeforeFailure.expectedInsertions(), service.status().expectedInsertions());
+        assertEquals(statusBeforeFailure.ready(), service.status().ready());
         assertFalse(service.definitelyNotContains("HOME_BANNER"));
         assertTrue(service.definitelyNotContains("UNKNOWN_SLOT"));
         verify(tracker).reset();
@@ -127,7 +130,7 @@ class SlotBloomFilterServiceTests {
         properties.setExpectedInsertions(100);
         SlotBloomFilterService service =
                 new SlotBloomFilterServiceImpl(slotMapper, properties, tracker);
-        service.rebuild();
+        service.regularRebuild();
 
         assertTrue(service.expandAndRebuild());
 
@@ -138,13 +141,32 @@ class SlotBloomFilterServiceTests {
     }
 
     @Test
+    void shouldNotQueryMysqlOrResetMetricsAtExpansionLimit() {
+        SlotMapper slotMapper = mock(SlotMapper.class);
+        when(slotMapper.selectList(any())).thenReturn(slots("HOME_BANNER"));
+        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
+        SlotBloomFilterProperties properties = properties();
+        properties.setExpectedInsertions(100);
+        properties.setMaxExpectedInsertions(100L);
+        SlotBloomFilterService service =
+                new SlotBloomFilterServiceImpl(slotMapper, properties, tracker);
+        assertTrue(service.regularRebuild().isPresent());
+
+        assertFalse(service.expandAndRebuild());
+
+        assertEquals(100L, service.status().expectedInsertions());
+        verify(slotMapper).selectList(any());
+        verify(tracker).reset();
+    }
+
+    @Test
     void shouldPublishEmptySnapshotAsSuccessfulReadyFilter() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectList(any())).thenReturn(List.of());
         SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
         SlotBloomFilterService service = createService(slotMapper, tracker);
 
-        Optional<List<SlotEntity>> result = service.rebuildWithSnapshot();
+        Optional<List<SlotEntity>> result = service.regularRebuild();
 
         assertTrue(result.isPresent());
         assertTrue(result.orElseThrow().isEmpty());
@@ -154,7 +176,7 @@ class SlotBloomFilterServiceTests {
     }
 
     @Test
-    void shouldImplementRebuilderContract() {
+    void shouldExposeOnlyServiceContract() {
         SlotBloomFilterService service = createService(
                 mock(SlotMapper.class),
                 mock(SlotBloomFilterTracker.class));
@@ -167,7 +189,6 @@ class SlotBloomFilterServiceTests {
         assertEquals(Set.of(
                 "definitelyNotContains",
                 "put",
-                "rebuildWithSnapshot",
                 "rebuild",
                 "expandAndRebuild",
                 "status"), publicMethods);

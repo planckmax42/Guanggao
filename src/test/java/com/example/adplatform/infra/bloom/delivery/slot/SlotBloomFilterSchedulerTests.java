@@ -26,7 +26,7 @@ class SlotBloomFilterSchedulerTests {
         SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
         SlotBloomFilterService service =
                 new SlotBloomFilterServiceImpl(slotMapper, properties, metrics);
-        service.rebuild();
+        service.regularRebuild();
         metrics.recordDefiniteMiss();
         metrics.recordFalsePositive();
         SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
@@ -47,7 +47,7 @@ class SlotBloomFilterSchedulerTests {
         SlotBloomFilterTracker metrics = new SlotBloomFilterTracker();
         SlotBloomFilterService service =
                 new SlotBloomFilterServiceImpl(slotMapper, properties, metrics);
-        service.rebuild();
+        service.regularRebuild();
         metrics.recordFalsePositive();
         SlotBloomFilterScheduler slotBloomFilterScheduler = new SlotBloomFilterScheduler(
                 metrics, service, properties);

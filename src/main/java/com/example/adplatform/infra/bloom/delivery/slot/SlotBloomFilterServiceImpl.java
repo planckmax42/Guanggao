@@ -14,9 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 /**
  * 广告位布隆过滤器默认实现。
@@ -29,34 +27,33 @@ import java.util.function.Supplier;
 public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
 
     private final SlotMapper slotMapper;
-    private final SlotBloomFilterProperties properties;
-    private final SlotBloomFilterTracker tracker;
-    private final AtomicReference<BloomFilter<CharSequence>> activeFilter;
-    private final AtomicLong currentExpectedInsertions;
+    private final SlotBloomFilterProperties slotBloomFilterProperties;
+    private final SlotBloomFilterTracker slotBloomFilterTracker;
+    private final AtomicReference<FilterState> activeState;
+    private RebuildContext rebuildingContext;
     private final Object filterLock = new Object();
-
-    /** 只能在 {@link #filterLock} 保护下访问，同时表示当前是否正在重建。 */
-    private BloomFilter<CharSequence> rebuildingFilter;
-
-    /** 过滤器成功加载过 MySQL 权威数据后才允许拦截请求。 */
-    private volatile boolean ready;
 
     SlotBloomFilterServiceImpl(
             SlotMapper slotMapper,
-            SlotBloomFilterProperties properties,
-            SlotBloomFilterTracker tracker) {
+            SlotBloomFilterProperties slotBloomFilterProperties,
+            SlotBloomFilterTracker slotBloomFilterTracker) {
         this.slotMapper = slotMapper;
-        this.properties = properties;
-        this.tracker = tracker;
-        long expectedInsertions = properties.getExpectedInsertions();
-        this.currentExpectedInsertions = new AtomicLong(expectedInsertions);
-        this.activeFilter = new AtomicReference<>(createBloomFilter(expectedInsertions));
+        this.slotBloomFilterProperties = slotBloomFilterProperties;
+        this.slotBloomFilterTracker = slotBloomFilterTracker;
+        long expectedInsertions = slotBloomFilterProperties.getExpectedInsertions();
+        this.activeState = new AtomicReference<>(new FilterState(
+                createBloomFilter(expectedInsertions),
+                expectedInsertions,
+                false));
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean definitelyNotContains(String slotCode) {
-        return ready && StringUtils.hasText(slotCode) && !activeFilter.get().mightContain(slotCode);
+        FilterState state = activeState.get();
+        return state.ready()
+                && StringUtils.hasText(slotCode)
+                && !state.filter().mightContain(slotCode);
     }
 
     /** {@inheritDoc} */
@@ -66,124 +63,120 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
             return;
         }
         synchronized (filterLock) {
-            activeFilter.get().put(slotCode);
-            if (rebuildingFilter != null) {
-                rebuildingFilter.put(slotCode);
+            activeState.get().filter().put(slotCode);
+            if (rebuildingContext != null) {
+                rebuildingContext.standbyFilter().put(slotCode);
             }
         }
     }
 
     /** {@inheritDoc} */
     @Override
-    public Optional<List<SlotEntity>> rebuildWithSnapshot() {
-        return executeRebuild(
-                "重建",
-                () -> rebuildWithCapacity(currentExpectedInsertions.get()));
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public boolean rebuild() {
-        return rebuildWithSnapshot().isPresent();
+    public Optional<List<SlotEntity>> regularRebuild() {
+        return rebuildExecutor(RebuildMode.REGULAR);
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean expandAndRebuild() {
-        return executeRebuild("扩容重建", this::expandAndRebuildInternal).isPresent();
+        return rebuildExecutor(RebuildMode.EXPANSION).isPresent();
     }
 
     /** {@inheritDoc} */
     @Override
     public Status status() {
-        BloomFilter<CharSequence> filter = activeFilter.get();
+        FilterState state = activeState.get();
         return new Status(
-                currentExpectedInsertions.get(),
-                approximateElementCount(filter),
-                filter.expectedFpp(),
-                ready);
+                state.expectedInsertions(),
+                approximateElementCount(state.filter()),
+                state.filter().expectedFpp(),
+                state.ready());
     }
 
-    private Optional<List<SlotEntity>> executeRebuild(
-            String operation,
-            Supplier<Optional<List<SlotEntity>>> rebuildAction) {
-        Optional<List<SlotEntity>> enabledSlots;
+    private Optional<List<SlotEntity>> rebuildExecutor(RebuildMode mode) {
+        RebuildContext context = null;
+        List<SlotEntity> enabledSlots;
         try {
-            enabledSlots = rebuildAction.get();
-        } catch (RuntimeException ex) {
-            log.warn("广告位布隆过滤器{}失败，保留当前过滤器", operation, ex);
-            return Optional.empty();
-        }
-
-        enabledSlots.ifPresent(slots -> {
-            tracker.reset();
-            log.info("广告位布隆过滤器{}完成，启用广告位数量={}", operation, slots.size());
-        });
-        return enabledSlots;
-    }
-
-    private Optional<List<SlotEntity>> expandAndRebuildInternal() {
-        long currentCapacity = currentExpectedInsertions.get();
-        if (properties.getExpansionFactor() <= 1D) {
-            throw new IllegalArgumentException("布隆过滤器扩容倍数必须大于 1");
-        }
-        long maxCapacity = Math.max(currentCapacity, properties.getMaxExpectedInsertions());
-        long expandedCapacity = Math.min(
-                maxCapacity,
-                Math.max(currentCapacity + 1L,
-                        (long) Math.ceil(currentCapacity * properties.getExpansionFactor())));
-        if (expandedCapacity <= currentCapacity) {
-            return Optional.empty();
-        }
-        return rebuildWithCapacity(expandedCapacity);
-    }
-
-    private Optional<List<SlotEntity>> rebuildWithCapacity(long expectedInsertions) {
-        BloomFilter<CharSequence> standbyFilter;
-        synchronized (filterLock) {
-            if (rebuildingFilter != null) {
-                return Optional.empty();
+            synchronized (filterLock) {
+                if (rebuildingContext != null) {
+                    return Optional.empty();
+                }
+                FilterState currentState = activeState.get();
+                long targetCapacity = calculateTargetCapacity(mode, currentState.expectedInsertions());
+                if (mode == RebuildMode.EXPANSION
+                        && targetCapacity <= currentState.expectedInsertions()) {
+                    return Optional.empty();
+                }
+                context = new RebuildContext(
+                        createBloomFilter(targetCapacity),
+                        targetCapacity);
+                rebuildingContext = context;
             }
-            standbyFilter = createBloomFilter(expectedInsertions);
-            rebuildingFilter = standbyFilter;
-        }
-
-        try {
-            // 先发布备用过滤器再查询 MySQL，保证查询期间新增编码也会被 put() 写入新过滤器。
-            List<SlotEntity> enabledSlots = Objects.requireNonNull(
-                    selectAllEnabledSlots(),
+            enabledSlots = Objects.requireNonNull(
+                    slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
+                            .eq(SlotEntity::getStatus, CommonStatus.ENABLED)),
                     "SlotMapper不能返回null");
             enabledSlots.stream()
                     .map(SlotEntity::getSlotCode)
                     .filter(StringUtils::hasText)
-                    .forEach(standbyFilter::put);
-
-            synchronized (filterLock) {
-                activeFilter.set(standbyFilter);
-                currentExpectedInsertions.set(expectedInsertions);
-                rebuildingFilter = null;
-                ready = true;
-            }
-            return Optional.of(enabledSlots);
+                    .forEach(context.standbyFilter()::put);
+            publishStandbyFilter(context);
+        } catch (RuntimeException ex) {
+            log.warn("广告位布隆过滤器{}失败，保留当前过滤器", mode.operation(), ex);
+            return Optional.empty();
         } finally {
-            synchronized (filterLock) {
-                if (rebuildingFilter == standbyFilter) {
-                    rebuildingFilter = null;
-                }
+            cancel(context);
+        }
+        slotBloomFilterTracker.reset();
+        log.info("广告位布隆过滤器{}完成，启用广告位数量={}", mode.operation(), enabledSlots.size());
+        return Optional.of(enabledSlots);
+    }
+
+    private void publishStandbyFilter(RebuildContext context) {
+        synchronized (filterLock) {
+            if (rebuildingContext != context) {
+                throw new IllegalStateException("广告位布隆过滤器重建上下文已失效");
+            }
+            activeState.set(new FilterState(
+                    context.standbyFilter(),
+                    context.expectedInsertions(),
+                    true));
+            rebuildingContext = null;
+        }
+    }
+
+    private void cancel(RebuildContext context) {
+        if (context == null) {
+            return;
+        }
+        synchronized (filterLock) {
+            if (rebuildingContext == context) {
+                rebuildingContext = null;
             }
         }
     }
 
-    private List<SlotEntity> selectAllEnabledSlots() {
-        return slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
+    private long calculateTargetCapacity(RebuildMode mode, long currentCapacity) {
+        return switch (mode) {
+            case REGULAR -> currentCapacity;
+            case EXPANSION -> {
+                long maxCapacity = Math.max(
+                        currentCapacity,
+                        slotBloomFilterProperties.getMaxExpectedInsertions());
+                yield Math.min(
+                        maxCapacity,
+                        Math.max(currentCapacity + 1L,
+                                (long) Math.ceil(currentCapacity
+                                        * slotBloomFilterProperties.getExpansionFactor())));
+            }
+        };
     }
 
     private BloomFilter<CharSequence> createBloomFilter(long expectedInsertions) {
         return BloomFilter.create(
                 Funnels.stringFunnel(StandardCharsets.UTF_8),
                 expectedInsertions,
-                properties.getFalsePositiveProbability());
+                slotBloomFilterProperties.getFalsePositiveProbability());
     }
 
     private long approximateElementCount(BloomFilter<CharSequence> filter) {
@@ -191,6 +184,32 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
             return filter.approximateElementCount();
         } catch (ArithmeticException ex) {
             return Long.MAX_VALUE;
+        }
+    }
+
+    private record FilterState(
+            BloomFilter<CharSequence> filter,
+            long expectedInsertions,
+            boolean ready) {
+    }
+
+    private record RebuildContext(
+            BloomFilter<CharSequence> standbyFilter,
+            long expectedInsertions) {
+    }
+
+    private enum RebuildMode {
+        REGULAR("重建"),
+        EXPANSION("扩容重建");
+
+        private final String operation;
+
+        RebuildMode(String operation) {
+            this.operation = operation;
+        }
+
+        private String operation() {
+            return operation;
         }
     }
 }

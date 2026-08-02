@@ -131,7 +131,7 @@ class SlotCacheConcurrencyTests {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
         SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
-        when(bloomFilterService.rebuildWithSnapshot()).thenReturn(Optional.of(List.of(staleSnapshot)));
+        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of(staleSnapshot)));
         SlotWarmUpTask warmUpTask = new SlotWarmUpTask(bloomFilterService, service);
 
         warmUpTask.warmUp();

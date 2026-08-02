@@ -29,7 +29,7 @@ public class SlotBloomFilterScheduler {
             fixedDelayString = "${app.slot-cache.bloom.rebuild-delay}",
             initialDelayString = "${app.slot-cache.bloom.rebuild-initial-delay}")
     public void rebuild() {
-        slotBloomFilterService.rebuild();
+        slotBloomFilterService.regularRebuild();
     }
 
     /**

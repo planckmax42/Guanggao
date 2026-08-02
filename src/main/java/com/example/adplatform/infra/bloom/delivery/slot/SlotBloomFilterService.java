@@ -28,14 +28,7 @@ public interface SlotBloomFilterService {
      *
      * @return 重建快照；正在重建或发生异常时返回 empty
      */
-    Optional<List<SlotEntity>> rebuildWithSnapshot();
-
-    /**
-     * 全量重建过滤器。
-     *
-     * @return 重建成功时返回 {@code true}
-     */
-    boolean rebuild();
+    Optional<List<SlotEntity>> regularRebuild();
 
     /**
      * 扩容并全量重建过滤器。

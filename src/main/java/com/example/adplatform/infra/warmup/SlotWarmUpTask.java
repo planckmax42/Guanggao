@@ -22,7 +22,7 @@ public class SlotWarmUpTask {
     /** 重建布隆过滤器后，复用本次查询快照预热 Redis。 */
     public void warmUp() {
         Optional<List<SlotEntity>> enabledSlots =
-                bloomFilterService.rebuildWithSnapshot();
+                bloomFilterService.regularRebuild();
         if (enabledSlots.isEmpty()) {
             return;
         }
