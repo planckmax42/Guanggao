@@ -105,13 +105,13 @@ class SlotBloomFilterServiceTests {
         SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
         SlotBloomFilterService service = createService(slotMapper, tracker);
         assertTrue(service.regularRebuild().isPresent());
-        SlotBloomFilterService.SlotBloomFilterSnapshot slotBloomFilterSnapshotBeforeFailure = service.GetSlotBloomFilterSnapshot();
+        SlotBloomFilterService.BloomFilterSnapshot bloomFilterSnapshotBeforeFailure = service.GetBloomFilterSnapshot();
         doThrow(new IllegalStateException("mysql unavailable"))
                 .when(slotMapper).selectEnabledSlotCodes();
 
         assertTrue(service.regularRebuild().isEmpty());
 
-        assertEquals(slotBloomFilterSnapshotBeforeFailure.currentCapacity(), service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(bloomFilterSnapshotBeforeFailure.currentCapacity(), service.GetBloomFilterSnapshot().currentCapacity());
         assertFalse(service.definitelyNotContains("HOME_BANNER"));
         assertTrue(service.definitelyNotContains("UNKNOWN_SLOT"));
         verify(tracker).reset();
@@ -133,7 +133,7 @@ class SlotBloomFilterServiceTests {
 
         assertTrue(service.expandRebuild());
 
-        assertEquals(200L, service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(200L, service.GetBloomFilterSnapshot().currentCapacity());
         assertFalse(service.definitelyNotContains("NEW_SLOT"));
         assertTrue(service.definitelyNotContains("OLD_SLOT"));
         verify(tracker, times(2)).reset();
@@ -154,7 +154,7 @@ class SlotBloomFilterServiceTests {
 
         assertFalse(service.expandRebuild());
 
-        assertEquals(100L, service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(100L, service.GetBloomFilterSnapshot().currentCapacity());
         verify(slotMapper).selectEnabledSlotCodes();
         verify(tracker).reset();
     }

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis.tracking.metadata;
+package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
@@ -6,8 +6,7 @@ import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.redis.tracking.TrackingRedisKeys;
-import com.example.adplatform.infra.bloom.tracking.material.MaterialIdBloomFilterManager;
-import com.example.adplatform.infra.bloom.tracking.material.MaterialBloomMaintenance;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,14 +31,14 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, EventMetadataCacheMaintenancePort, MaterialBloomMaintenance {
+public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort, EventMetadataCacheMaintenancePort {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final MaterialMapper materialMapper;
-    private final MaterialIdBloomFilterManager bloomFilterManager;
-    private final EventMetadataCacheProperties properties;
-    private final EventMetadataCacheLockManager lockManager;
+    private final MaterialIdMetadataBloomFilterServiceImpl materialIdMetadataBloomFilterService;
+    private final MaterialMetadataRedisProperties properties;
+    private final MaterialMetadataRedisLock lockManager;
     private final ConcurrentHashMap<Long, CompletableFuture<EventMaterialMetadata>> inFlight = new ConcurrentHashMap<>();//线程安全的哈希表
 
     @Override
@@ -48,7 +47,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
             throw materialNotFound();//防御性校验
         }
 
-        if (bloomFilterManager.definitelyNotContains(materialId)) {//todo:看是否开启预热和动态重建机制
+        if (materialIdMetadataBloomFilterService.definitelyNotContains(materialId)) {//todo:看是否开启预热和动态重建机制
             throw materialNotFound();//布隆过滤器初筛
         }
         EventMaterialMetadata cached = readRedis(materialId);//redis取值
@@ -78,7 +77,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
     }
 
     private EventMaterialMetadata loadAndCacheAsLeader(Long materialId) {
-        EventMetadataCacheLockManager.LockHandle loadLock =
+        MaterialMetadataRedisLock.LockHandle loadLock =
                 lockManager.tryAcquireForRead(materialId).orElse(null);//todo:获取失败了怎么处理
         if (loadLock == null) {
             if (Thread.currentThread().isInterrupted()) {//todo:多种异常处理
@@ -99,7 +98,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
             if (cached != null) {
                 return cached;
             }
-            if (bloomFilterManager.definitelyNotContains(materialId)) {
+            if (materialIdMetadataBloomFilterService.definitelyNotContains(materialId)) {
                 throw materialNotFound();//todo:挡在mysql前面的redis和bloom，再次检查能否减少一次mysql查询
             }
 
@@ -153,9 +152,9 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
         }
         // INSERT 成功获得 ID 后立即加入 Bloom，避免提交到 afterCommit 之间的假阴性误杀。
         // 事务回滚只会留下可安全回源并在重建时清理的假阳性。
-        bloomFilterManager.put(materialId);
+        materialIdMetadataBloomFilterService.addBloomFilter(materialId);
         afterCommit(() -> {
-            try (EventMetadataCacheLockManager.LockHandle ignored =
+            try (MaterialMetadataRedisLock.LockHandle ignored =
                          lockManager.acquireForWrite(List.of(materialId))) {
                 writeRedis(materialId, metadata);
             }
@@ -169,31 +168,11 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
         }
         List<Long> materialIds = List.copyOf(materialMapper.selectMaterialIdsByPlanId(planId));
         afterCommit(() -> {
-            try (EventMetadataCacheLockManager.LockHandle ignored =
+            try (MaterialMetadataRedisLock.LockHandle ignored =
                          lockManager.acquireForWrite(materialIds)) {
                 evict(materialIds);
             }
         });
-    }
-
-    @Override
-    public boolean rebuildBloomFilter() {
-        try {
-            return bloomFilterManager.rebuild(materialMapper::selectAllMaterialIds).isPresent();
-        } catch (RuntimeException ex) {
-            log.warn("事件元数据 materialId 布隆过滤器重建失败，保留旧过滤器", ex);
-            return false;
-        }
-    }
-
-    @Override
-    public boolean expandAndRebuildBloomFilter() {
-        try {
-            return bloomFilterManager.expandAndRebuild(materialMapper::selectAllMaterialIds).isPresent();
-        } catch (RuntimeException ex) {
-            log.warn("事件元数据 materialId 布隆过滤器扩容失败", ex);
-            return false;
-        }
     }
 
     private EventMaterialMetadata readRedis(Long materialId) {
@@ -219,7 +198,7 @@ public class EventMetadataCacheServiceImpl implements EventMetadataReaderPort, E
 
     private void cache(Long materialId, EventMaterialMetadata metadata) {
         // 先更新本地布隆：Redis 写失败时仍可回源 MySQL，不会误杀。
-        bloomFilterManager.put(materialId);
+        materialIdMetadataBloomFilterService.addBloomFilter(materialId);
         writeRedis(materialId, metadata);
     }
 

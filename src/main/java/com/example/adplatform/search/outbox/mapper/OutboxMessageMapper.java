@@ -15,7 +15,7 @@ public interface OutboxMessageMapper {
     /** 写入初始状态为 PENDING、可立即发布的消息。 */
     @Insert("""
             INSERT INTO outbox_message
-                (event_id, topic, message_key, message_type, payload, slotBloomFilterSnapshot, retry_count, next_retry_at)
+                (event_id, topic, message_key, message_type, payload, bloomFilterSnapshot, retry_count, next_retry_at)
             VALUES
                 (#{eventId}, #{topic}, #{messageKey}, #{messageType}, CAST(#{payload} AS JSON),
                  'PENDING', 0, NOW())
@@ -27,10 +27,10 @@ public interface OutboxMessageMapper {
      */
     @Select("""
             SELECT id, event_id AS eventId, topic, message_key AS messageKey,
-                   message_type AS messageType, payload, slotBloomFilterSnapshot, retry_count AS retryCount,
+                   message_type AS messageType, payload, bloomFilterSnapshot, retry_count AS retryCount,
                    next_retry_at AS nextRetryAt, created_at AS createdAt, sent_at AS sentAt
             FROM outbox_message
-            WHERE slotBloomFilterSnapshot = 'PENDING' AND next_retry_at <= NOW()
+            WHERE bloomFilterSnapshot = 'PENDING' AND next_retry_at <= NOW()
             ORDER BY id
             LIMIT #{limit}
             FOR UPDATE SKIP LOCKED
@@ -40,7 +40,7 @@ public interface OutboxMessageMapper {
     /** Kafka 确认后标记发送完成。 */
     @Update("""
             UPDATE outbox_message
-            SET slotBloomFilterSnapshot = 'SENT', sent_at = NOW()
+            SET bloomFilterSnapshot = 'SENT', sent_at = NOW()
             WHERE id = #{id}
             """)
     int markSent(@Param("id") Long id);
@@ -57,7 +57,7 @@ public interface OutboxMessageMapper {
     /** 只删除超过保留期的已发送历史。 */
     @Delete("""
             DELETE FROM outbox_message
-            WHERE slotBloomFilterSnapshot = 'SENT'
+            WHERE bloomFilterSnapshot = 'SENT'
               AND sent_at < DATE_SUB(NOW(), INTERVAL #{retentionDays} DAY)
             """)
     int deleteSentBefore(@Param("retentionDays") int retentionDays);

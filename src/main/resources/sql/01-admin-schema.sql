@@ -6,11 +6,11 @@ CREATE TABLE IF NOT EXISTS `user` (
     industry VARCHAR(64) NOT NULL,
     contact_name VARCHAR(64) NOT NULL,
     contact_email VARCHAR(128) NOT NULL,
-    slotBloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
+    bloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_user_name (name),
-    KEY idx_user_status (slotBloomFilterSnapshot)
+    KEY idx_user_status (bloomFilterSnapshot)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS slot (
@@ -20,11 +20,11 @@ CREATE TABLE IF NOT EXISTS slot (
     width INT NOT NULL,
     height INT NOT NULL,
     scene VARCHAR(64) NOT NULL,
-    slotBloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
+    bloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_slot_code (slot_code),
-    KEY idx_slot_status (slotBloomFilterSnapshot)
+    KEY idx_slot_status (bloomFilterSnapshot)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS plan (
@@ -36,11 +36,11 @@ CREATE TABLE IF NOT EXISTS plan (
     bid_price BIGINT NOT NULL,
     start_time DATETIME NOT NULL,
     end_time DATETIME NOT NULL,
-    slotBloomFilterSnapshot VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    bloomFilterSnapshot VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_plan_user_status (user_id, slotBloomFilterSnapshot),
-    KEY idx_plan_time_status (start_time, end_time, slotBloomFilterSnapshot)
+    KEY idx_plan_user_status (user_id, bloomFilterSnapshot),
+    KEY idx_plan_time_status (start_time, end_time, bloomFilterSnapshot)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS material (
@@ -51,10 +51,10 @@ CREATE TABLE IF NOT EXISTS material (
     image_url VARCHAR(512) NOT NULL,
     landing_page_url VARCHAR(512) NOT NULL,
     audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    slotBloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
+    bloomFilterSnapshot TINYINT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_material_plan_status (plan_id, slotBloomFilterSnapshot),
+    KEY idx_material_plan_status (plan_id, bloomFilterSnapshot),
     KEY idx_material_audit_status (audit_status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 

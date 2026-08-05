@@ -1,6 +1,6 @@
-package com.example.adplatform.infra.redis.tracking.metadata;
+package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.material.MaterialIdBloomFilterManager;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
@@ -157,7 +157,7 @@ class EventMetadataCacheConcurrencyTests {
                 materialMapper,
                 Duration.ofMillis(30));
 
-        try (EventMetadataCacheLockManager.LockHandle ignored =
+        try (MaterialMetadataRedisLock.LockHandle ignored =
                      fixture.lockManager().acquireForWrite(List.of(10L))) {
             CompletableFuture<Throwable> attempt = CompletableFuture.supplyAsync(() -> {
                 try {
@@ -184,7 +184,7 @@ class EventMetadataCacheConcurrencyTests {
                 materialMapper,
                 Duration.ofSeconds(1));
 
-        try (EventMetadataCacheLockManager.LockHandle ignored =
+        try (MaterialMetadataRedisLock.LockHandle ignored =
                      fixture.lockManager().acquireForWrite(List.of(10L))) {
             CompletableFuture<InterruptedResult> attempt = new CompletableFuture<>();
             Thread thread = new Thread(() -> {
@@ -218,12 +218,12 @@ class EventMetadataCacheConcurrencyTests {
             MaterialMapper materialMapper,
             Duration readWaitTimeout,
             Duration singleFlightWaitTimeout) {
-        EventMetadataCacheProperties properties = properties(readWaitTimeout);
+        MaterialMetadataRedisProperties properties = properties(readWaitTimeout);
         properties.setSingleFlightWaitTimeout(singleFlightWaitTimeout);
-        MaterialIdBloomFilterManager bloomFilterManager = mock(MaterialIdBloomFilterManager.class);
+        MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager = mock(MaterialIdMetadataBloomFilterServiceImpl.class);
         when(bloomFilterManager.definitelyNotContains(any())).thenReturn(false);
-        EventMetadataCacheLockManager lockManager = new EventMetadataCacheLockManager(properties);
-        EventMetadataCacheServiceImpl service = new EventMetadataCacheServiceImpl(
+        MaterialMetadataRedisLock lockManager = new MaterialMetadataRedisLock(properties);
+        MaterialMetadataRedisServiceImpl service = new MaterialMetadataRedisServiceImpl(
                 redisTemplate,
                 new ObjectMapper(),
                 materialMapper,
@@ -233,8 +233,8 @@ class EventMetadataCacheConcurrencyTests {
         return new Fixture(service, lockManager);
     }
 
-    private EventMetadataCacheProperties properties(Duration readWaitTimeout) {
-        EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
+    private MaterialMetadataRedisProperties properties(Duration readWaitTimeout) {
+        MaterialMetadataRedisProperties properties = new MaterialMetadataRedisProperties();
         properties.setRedisTtl(Duration.ofHours(1));
         properties.setRedisTtlJitter(Duration.ZERO);
         properties.setSingleFlightWaitTimeout(Duration.ofSeconds(1));
@@ -289,8 +289,8 @@ class EventMetadataCacheConcurrencyTests {
     }
 
     private record Fixture(
-            EventMetadataCacheServiceImpl service,
-            EventMetadataCacheLockManager lockManager) {
+            MaterialMetadataRedisServiceImpl service,
+            MaterialMetadataRedisLock lockManager) {
     }
 
     private record InterruptedResult(Throwable failure, boolean interrupted) {

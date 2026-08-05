@@ -108,7 +108,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         }
 
         if (slot == null) {
-            if (bloomFilterService.GetSlotBloomFilterSnapshot().bloomFilterReady()) {
+            if (bloomFilterService.GetBloomFilterSnapshot().bloomFilterReady()) {
                 bloomFilterMetrics.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
             }
             return Optional.empty();

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis.tracking.metadata;
+package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
 import org.springframework.stereotype.Component;
 
@@ -14,13 +14,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /** 使用固定数量的本地条带锁协调事件元数据回填与提交后失效。 */
 @Component
-public class EventMetadataCacheLockManager {
+public class MaterialMetadataRedisLock {
 
     private final ReentrantLock[] stripes;
     private final Duration readWaitTimeout;
 
-    public EventMetadataCacheLockManager(EventMetadataCacheProperties properties) {
-        EventMetadataCacheProperties.Lock config = properties.getLock();
+    public MaterialMetadataRedisLock(MaterialMetadataRedisProperties properties) {
+        MaterialMetadataRedisProperties.Lock config = properties.getLock();
         int stripeCount = Math.max(1, config.getStripes());
         this.stripes = new ReentrantLock[stripeCount];
         Arrays.setAll(this.stripes, ignored -> new ReentrantLock());

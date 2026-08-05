@@ -27,13 +27,13 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
     private final SlotMapper slotMapper;
     private final SlotBloomFilterProperties slotBloomFilterProperties;
     private final SlotBloomFilterTracker slotBloomFilterTracker;
-    private final AtomicReference<BloomFilter<CharSequence>> currentBloomFilter;
+    private final AtomicReference<BloomFilter<CharSequence>> currentBloomFilter;//todo:我感觉这里一个violate保证可见性就可以了 毕竟已经有锁保证只有一个去更新了 或者像普通变量一样对待 毕竟平时也没考虑过可见性
     private BloomFilter<CharSequence> standbyBloomFilter;
-    private volatile boolean bloomFilterReady;
     private long currentCapacity;
     private final AtomicInteger capacityExhausted = new AtomicInteger(0);
     private final ReentrantLock rebuildLock = new ReentrantLock();
     private final Object updateLock = new Object();
+    private volatile boolean bloomFilterReady;
 
     SlotBloomFilterServiceImpl(
             SlotMapper slotMapper,
@@ -74,6 +74,16 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
     }
 
     @Override
+    public BloomFilterSnapshot GetBloomFilterSnapshot() {
+        BloomFilter<CharSequence> currentBloomFilter = this.currentBloomFilter.get();
+        return new BloomFilterSnapshot(
+                currentCapacity,
+                approximateElementCount(currentBloomFilter),
+                currentBloomFilter.expectedFpp(),
+                bloomFilterReady);
+    }
+
+    @Override
     public Optional<List<String>> regularRebuild() {
         return rebuildExecutor(RebuildMode.REGULAR_REBUILD);
     }
@@ -83,16 +93,6 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
         return rebuildExecutor(RebuildMode.EXPAND_REBUILD).isPresent();
     }
 
-    @Override
-    public SlotBloomFilterSnapshot GetSlotBloomFilterSnapshot() {
-        BloomFilter<CharSequence> currentBloomFilter = this.currentBloomFilter.get();
-        return new SlotBloomFilterSnapshot(
-                currentCapacity,
-                approximateElementCount(currentBloomFilter),
-                currentBloomFilter.expectedFpp(),
-                bloomFilterReady);
-    }
-
     private Optional<List<String>> rebuildExecutor(RebuildMode rebuildMode) {
         if (!rebuildLock.tryLock()) {
             return Optional.empty();
@@ -100,7 +100,6 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
         try {
             List<String> enabledSlotCodes;
             try {
-                BloomFilter<CharSequence> standbyBloomFilter;
                 long targetCapacity;
                 synchronized (updateLock) {
                     targetCapacity = calculateTargetCapacity(rebuildMode, currentCapacity);
@@ -108,16 +107,17 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
                         return Optional.empty();
                     }
                     standbyBloomFilter = createBloomFilter(targetCapacity);
-                    this.standbyBloomFilter = standbyBloomFilter;
                 }
                 try {
                     enabledSlotCodes = slotMapper.selectEnabledSlotCodes();
                     enabledSlotCodes.stream()
                             .filter(StringUtils::hasText)
                             .forEach(standbyBloomFilter::put);
-                    publishStandbyFilter(standbyBloomFilter, targetCapacity);
+                    publishStandbyFilter(targetCapacity);
                 } finally {
-                    clearStandbyFilter();
+                    synchronized (updateLock) {
+                        standbyBloomFilter = null;//保险操作，防止异常中断未发布
+                    }
                 }
             } catch (RuntimeException ex) {
                 log.warn("广告位布隆过滤器{}失败，保留当前过滤器", rebuildMode, ex);
@@ -140,21 +140,13 @@ public class SlotBloomFilterServiceImpl implements SlotBloomFilterService {
         };
     }
 
-    private void publishStandbyFilter(
-            BloomFilter<CharSequence> standbyBloomFilter,
-            long targetCapacity) {
+    private void publishStandbyFilter(long targetCapacity) {
         synchronized (updateLock) {//隔离发布操作和addSlotBloomFilter操作
             currentBloomFilter.set(standbyBloomFilter);
             currentCapacity = targetCapacity;
             if(currentCapacity == slotBloomFilterProperties.getMaxExpectedCapacity()) capacityExhausted.set(1);
-            this.standbyBloomFilter = null;
-            bloomFilterReady = true;
-        }
-    }
-
-    private void clearStandbyFilter() {
-        synchronized (updateLock) {
             standbyBloomFilter = null;
+            bloomFilterReady = true;
         }
     }
 

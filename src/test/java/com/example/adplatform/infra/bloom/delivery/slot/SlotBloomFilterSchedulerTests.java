@@ -34,7 +34,7 @@ class SlotBloomFilterSchedulerTests {
 
         slotBloomFilterScheduler.checkAndExpand();
 
-        assertEquals(2L, service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(2L, service.GetBloomFilterSnapshot().currentCapacity());
     }
 
     @Test
@@ -55,7 +55,7 @@ class SlotBloomFilterSchedulerTests {
 
         slotBloomFilterScheduler.checkAndExpand();
 
-        assertEquals(1L, service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(1L, service.GetBloomFilterSnapshot().currentCapacity());
     }
 
     @Test
@@ -79,7 +79,7 @@ class SlotBloomFilterSchedulerTests {
 
         slotBloomFilterScheduler.checkAndExpand();
 
-        assertEquals(2L, service.GetSlotBloomFilterSnapshot().currentCapacity());
+        assertEquals(2L, service.GetBloomFilterSnapshot().currentCapacity());
         assertEquals(
                 1D,
                 meterRegistry.get("slot.bloom.capacity.exhausted").gauge().value());

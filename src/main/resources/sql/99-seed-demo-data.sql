@@ -21,7 +21,7 @@ ALTER TABLE daily_report AUTO_INCREMENT = 1;
 SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT INTO `user`
-    (id, name, industry, contact_name, contact_email, slotBloomFilterSnapshot, created_at, updated_at)
+    (id, name, industry, contact_name, contact_email, bloomFilterSnapshot, created_at, updated_at)
 VALUES
     (1, '鲜果优选', '生鲜电商', '张经理', 'fresh@example.com', 1, NOW(), NOW()),
     (2, '编程学院', '在线教育', '李经理', 'learn@example.com', 1, NOW(), NOW()),
@@ -29,7 +29,7 @@ VALUES
     (4, '停用测试广告主', '测试行业', '赵经理', 'disabled@example.com', 0, NOW(), NOW());
 
 INSERT INTO slot
-    (id, slot_code, name, width, height, scene, slotBloomFilterSnapshot, created_at, updated_at)
+    (id, slot_code, name, width, height, scene, bloomFilterSnapshot, created_at, updated_at)
 VALUES
     (1, 'HOME_BANNER', '首页顶部横幅广告位', 1080, 300, 'APP_HOME', 1, NOW(), NOW()),
     (2, 'FEED_CARD', '信息流卡片广告位', 720, 360, 'APP_FEED', 1, NOW(), NOW()),
@@ -39,7 +39,7 @@ VALUES
 -- 金额字段统一按“分”存储：
 -- budget_total=1000000 表示总预算 10000 元，bid_price=150 表示出价 1.5 元。
 INSERT INTO plan
-    (id, user_id, name, budget_total, budget_daily, bid_price, billing_type, start_time, end_time, slotBloomFilterSnapshot, created_at, updated_at)
+    (id, user_id, name, budget_total, budget_daily, bid_price, billing_type, start_time, end_time, bloomFilterSnapshot, created_at, updated_at)
 VALUES
     (1, 1, '鲜果优选-华东拉新计划', 1000000, 200000, 150, 'CPM', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY), 'ONLINE', NOW(), NOW()),
     (2, 2, '编程学院-Java课程转化计划', 800000, 120000, 260, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 20 DAY), 'ONLINE', NOW(), NOW()),
@@ -50,7 +50,7 @@ VALUES
     (7, 1, '鲜果优选-全场景复购计划', 700000, 150000, 180, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 25 DAY), 'ONLINE', NOW(), NOW());
 
 INSERT INTO material
-    (id, plan_id, slot_id, title, description, image_url, landing_page_url, audit_status, slotBloomFilterSnapshot, created_at, updated_at)
+    (id, plan_id, slot_id, title, description, image_url, landing_page_url, audit_status, bloomFilterSnapshot, created_at, updated_at)
 VALUES
     (1, 1, 1, '鲜果优选新人专享', '新人首单满 99 减 30，当日达生鲜送到家', 'https://cdn.example.com/ad/fresh-home-banner.jpg', 'https://www.example.com/fresh/new-user', 'APPROVED', 1, NOW(), NOW()),
     (2, 1, 2, '周末家庭生鲜补给', '水果、牛奶、蔬菜组合购，家庭用户专属优惠', 'https://cdn.example.com/ad/fresh-feed-card.jpg', 'https://www.example.com/fresh/family', 'APPROVED', 1, NOW(), NOW()),

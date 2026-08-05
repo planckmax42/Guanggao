@@ -40,10 +40,10 @@ public interface SlotBloomFilterService {
      *
      * @return 状态快照
      */
-    SlotBloomFilterSnapshot GetSlotBloomFilterSnapshot();
+    BloomFilterSnapshot GetBloomFilterSnapshot();
 
     /** 布隆过滤器运行状态快照。 */
-    record SlotBloomFilterSnapshot(
+    record BloomFilterSnapshot(
             long currentCapacity,
             long approximateElementCount,
             double expectedFpp,

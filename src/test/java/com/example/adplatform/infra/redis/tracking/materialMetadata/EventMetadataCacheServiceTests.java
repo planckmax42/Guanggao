@@ -1,6 +1,6 @@
-package com.example.adplatform.infra.redis.tracking.metadata;
+package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.material.MaterialIdBloomFilterManager;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
@@ -63,7 +63,7 @@ class EventMetadataCacheServiceTests {
 
         assertThat(actual).isEqualTo(metadata());
         verify(fixture.materialMapper).selectMaterialPlanById(10L);
-        verify(fixture.bloomFilterManager).put(10L);
+        verify(fixture.bloomFilterManager).addBloomFilter(10L);
         verify(fixture.values).set(
                 eq(TrackingRedisKeys.eventMaterialMetadata(10L)),
                 any(String.class),
@@ -102,10 +102,10 @@ class EventMetadataCacheServiceTests {
 
         fixture.service.refreshAfterCommit(10L, metadata());
 
-        verify(fixture.bloomFilterManager).put(10L);
+        verify(fixture.bloomFilterManager).addBloomFilter(10L);
         verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
         commitSynchronizations();
-        verify(fixture.bloomFilterManager, times(1)).put(10L);
+        verify(fixture.bloomFilterManager, times(1)).addBloomFilter(10L);
         verify(fixture.values).set(
                 eq(TrackingRedisKeys.eventMaterialMetadata(10L)),
                 anyString(),
@@ -119,7 +119,7 @@ class EventMetadataCacheServiceTests {
 
         fixture.service.refreshAfterCommit(10L, metadata());
 
-        verify(fixture.bloomFilterManager).put(10L);
+        verify(fixture.bloomFilterManager).addBloomFilter(10L);
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(synchronization -> synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
         verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
@@ -156,21 +156,21 @@ class EventMetadataCacheServiceTests {
         ValueOperations<String, String> values = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
         MaterialMapper materialMapper = mock(MaterialMapper.class);
-        MaterialIdBloomFilterManager bloomFilterManager = mock(MaterialIdBloomFilterManager.class);
-        EventMetadataCacheProperties properties = properties();
+        MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager = mock(MaterialIdMetadataBloomFilterServiceImpl.class);
+        MaterialMetadataRedisProperties properties = properties();
         ObjectMapper objectMapper = new ObjectMapper();
-        EventMetadataCacheServiceImpl service = new EventMetadataCacheServiceImpl(
+        MaterialMetadataRedisServiceImpl service = new MaterialMetadataRedisServiceImpl(
                 redisTemplate,
                 objectMapper,
                 materialMapper,
                 bloomFilterManager,
                 properties,
-                new EventMetadataCacheLockManager(properties));
+                new MaterialMetadataRedisLock(properties));
         return new Fixture(service, objectMapper, redisTemplate, values, materialMapper, bloomFilterManager);
     }
 
-    private EventMetadataCacheProperties properties() {
-        EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
+    private MaterialMetadataRedisProperties properties() {
+        MaterialMetadataRedisProperties properties = new MaterialMetadataRedisProperties();
         properties.setRedisTtl(Duration.ofHours(1));
         properties.setRedisTtlJitter(Duration.ZERO);
         properties.setSingleFlightWaitTimeout(Duration.ofMillis(500));
@@ -197,11 +197,11 @@ class EventMetadataCacheServiceTests {
     }
 
     private record Fixture(
-            EventMetadataCacheServiceImpl service,
+            MaterialMetadataRedisServiceImpl service,
             ObjectMapper objectMapper,
             StringRedisTemplate redisTemplate,
             ValueOperations<String, String> values,
             MaterialMapper materialMapper,
-            MaterialIdBloomFilterManager bloomFilterManager) {
+            MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager) {
     }
 }

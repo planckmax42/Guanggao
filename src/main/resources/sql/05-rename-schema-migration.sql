@@ -347,7 +347,7 @@ SET @index_exists := (
     SELECT COUNT(*) FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND INDEX_NAME = 'idx_plan_user_status'
 );
-SET @sql := IF(@index_exists = 0, 'ALTER TABLE plan ADD INDEX idx_plan_user_status (user_id, slotBloomFilterSnapshot)', 'SELECT 1');
+SET @sql := IF(@index_exists = 0, 'ALTER TABLE plan ADD INDEX idx_plan_user_status (user_id, bloomFilterSnapshot)', 'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -365,7 +365,7 @@ SET @index_exists := (
     SELECT COUNT(*) FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'material' AND INDEX_NAME = 'idx_material_plan_status'
 );
-SET @sql := IF(@index_exists = 0, 'ALTER TABLE material ADD INDEX idx_material_plan_status (plan_id, slotBloomFilterSnapshot)', 'SELECT 1');
+SET @sql := IF(@index_exists = 0, 'ALTER TABLE material ADD INDEX idx_material_plan_status (plan_id, bloomFilterSnapshot)', 'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

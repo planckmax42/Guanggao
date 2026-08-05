@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.infra.redis.tracking.metadata.EventMetadataCacheServiceImpl;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomFilterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class EventMetadataWarmUpTask {
 
-    private final EventMetadataCacheServiceImpl cacheService;
+    private final MaterialMetadataBloomFilterService bloomFilterService;
 
     public void warmUp() {
-        cacheService.rebuildBloomFilter();
+        bloomFilterService.regularRebuild();
     }
 }

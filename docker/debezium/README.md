@@ -30,7 +30,7 @@ Binlog 事件时间，业务时间仍由 payload 和业务表保存。
 
 4. 执行 `docker compose -f docker-compose.elasticsearch.yml up -d`。该编排不会创建 Kafka 容器，
    Debezium Connect 通过 host 网络连接 `127.0.0.1:9092`。
-5. 查询 `http://127.0.0.1:8083/connectors/ad-platform-outbox/slotBloomFilterSnapshot`。
+5. 查询 `http://127.0.0.1:8083/connectors/ad-platform-outbox/bloomFilterSnapshot`。
 
 Connector 使用 `snapshot.mode=no_data`，首次注册不会重放表中已有的历史 Outbox，只从注册时的
 Binlog 位置继续读取。Kafka Connect offset 和 schema history 保存在 Kafka 内部 Topic 中。

@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.redis.tracking.metadata;
+package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,15 +12,15 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class EventMetadataCacheLockManagerTests {
+class MaterialMetadataRedisLockTests {
 
     @Test
     void shouldTimeOutReadLockWhileWriterOwnsStripe() throws Exception {
-        EventMetadataCacheLockManager manager = manager(1_024, Duration.ofMillis(30));
+        MaterialMetadataRedisLock manager = manager(1_024, Duration.ofMillis(30));
 
-        try (EventMetadataCacheLockManager.LockHandle ignored =
+        try (MaterialMetadataRedisLock.LockHandle ignored =
                      manager.acquireForWrite(List.of(10L))) {
-            CompletableFuture<Optional<EventMetadataCacheLockManager.LockHandle>> attempt =
+            CompletableFuture<Optional<MaterialMetadataRedisLock.LockHandle>> attempt =
                     CompletableFuture.supplyAsync(() -> manager.tryAcquireForRead(10L));
 
             assertTrue(attempt.get(1, TimeUnit.SECONDS).isEmpty());
@@ -29,16 +29,16 @@ class EventMetadataCacheLockManagerTests {
 
     @Test
     void shouldRestoreInterruptStatusWhenReadWaitIsInterrupted() throws Exception {
-        EventMetadataCacheLockManager manager = manager(1_024, Duration.ofSeconds(1));
+        MaterialMetadataRedisLock manager = manager(1_024, Duration.ofSeconds(1));
 
-        try (EventMetadataCacheLockManager.LockHandle ignored =
+        try (MaterialMetadataRedisLock.LockHandle ignored =
                      manager.acquireForWrite(List.of(10L))) {
             CompletableFuture<Boolean> interrupted = new CompletableFuture<>();
             Thread thread = new Thread(() -> {
                 Thread.currentThread().interrupt();
-                Optional<EventMetadataCacheLockManager.LockHandle> handle =
+                Optional<MaterialMetadataRedisLock.LockHandle> handle =
                         manager.tryAcquireForRead(10L);
-                handle.ifPresent(EventMetadataCacheLockManager.LockHandle::close);
+                handle.ifPresent(MaterialMetadataRedisLock.LockHandle::close);
                 interrupted.complete(Thread.currentThread().isInterrupted());
             });
             thread.start();
@@ -50,7 +50,7 @@ class EventMetadataCacheLockManagerTests {
 
     @Test
     void shouldAcquireOverlappingBatchesInAnyInputOrderWithoutDeadlock() throws Exception {
-        EventMetadataCacheLockManager manager = manager(2, Duration.ofMillis(100));
+        MaterialMetadataRedisLock manager = manager(2, Duration.ofMillis(100));
         CyclicBarrier start = new CyclicBarrier(2);
 
         CompletableFuture<Void> ascending = CompletableFuture.runAsync(
@@ -62,13 +62,13 @@ class EventMetadataCacheLockManagerTests {
     }
 
     private void repeatedlyAcquire(
-            EventMetadataCacheLockManager manager,
+            MaterialMetadataRedisLock manager,
             CyclicBarrier start,
             List<Long> materialIds) {
         try {
             start.await(1, TimeUnit.SECONDS);
             for (int index = 0; index < 100; index++) {
-                try (EventMetadataCacheLockManager.LockHandle ignored =
+                try (MaterialMetadataRedisLock.LockHandle ignored =
                              manager.acquireForWrite(materialIds)) {
                     Thread.yield();
                 }
@@ -78,10 +78,10 @@ class EventMetadataCacheLockManagerTests {
         }
     }
 
-    private EventMetadataCacheLockManager manager(int stripes, Duration timeout) {
-        EventMetadataCacheProperties properties = new EventMetadataCacheProperties();
+    private MaterialMetadataRedisLock manager(int stripes, Duration timeout) {
+        MaterialMetadataRedisProperties properties = new MaterialMetadataRedisProperties();
         properties.getLock().setStripes(stripes);
         properties.getLock().setReadWaitTimeout(timeout);
-        return new EventMetadataCacheLockManager(properties);
+        return new MaterialMetadataRedisLock(properties);
     }
 }

@@ -4,10 +4,10 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
 import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomFilterService;
 import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
-import com.example.adplatform.infra.redis.tracking.metadata.EventMetadataCacheServiceImpl;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -52,11 +52,12 @@ class WarmUpTasksTests {
 
     @Test
     void shouldRebuildEventMetadataBloomFilter() {
-        EventMetadataCacheServiceImpl cacheService = mock(EventMetadataCacheServiceImpl.class);
+        MaterialMetadataBloomFilterService bloomFilterService =
+                mock(MaterialMetadataBloomFilterService.class);
 
-        new EventMetadataWarmUpTask(cacheService).warmUp();
+        new EventMetadataWarmUpTask(bloomFilterService).warmUp();
 
-        verify(cacheService).rebuildBloomFilter();
+        verify(bloomFilterService).regularRebuild();
     }
 
     @Test

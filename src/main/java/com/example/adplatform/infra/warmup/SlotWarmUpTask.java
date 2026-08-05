@@ -20,12 +20,10 @@ public class SlotWarmUpTask {
 
     /** 重建布隆过滤器后，复用本次查询快照预热 Redis。 */
     public void warmUp() {
-        Optional<List<String>> enabledSlotCodes =
-                bloomFilterService.regularRebuild();
+        Optional<List<String>> enabledSlotCodes = bloomFilterService.regularRebuild();
         if (enabledSlotCodes.isEmpty()) {
             return;
         }
-
         int processedCount = 0;
         for (String slotCode : enabledSlotCodes.get()) {
             try {
