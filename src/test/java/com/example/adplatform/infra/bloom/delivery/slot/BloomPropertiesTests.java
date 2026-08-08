@@ -9,13 +9,13 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SlotBloomFilterPropertiesTests {
+class BloomPropertiesTests {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
     void shouldRejectMissingRequiredConfiguration() {
-        assertFalse(validator.validate(new SlotBloomFilterProperties()).isEmpty());
+        assertFalse(validator.validate(new BloomProperties()).isEmpty());
     }
 
     @Test
@@ -25,19 +25,30 @@ class SlotBloomFilterPropertiesTests {
 
     @Test
     void shouldRejectNonPositiveSchedulerDelay() {
-        SlotBloomFilterProperties properties = completeProperties();
+        BloomProperties properties = completeProperties();
         properties.setRebuildDelay(Duration.ZERO);
 
         assertFalse(validator.validate(properties).isEmpty());
     }
 
-    private SlotBloomFilterProperties completeProperties() {
-        SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
+    @Test
+    void shouldRejectMaxCapacityLessThanInitialCapacity() {
+        BloomProperties properties = completeProperties();
+        properties.setInitialCapacity(10_000);
+        properties.setMaxCapacity(9_999L);
+
+        assertTrue(validator.validate(properties).stream()
+                .anyMatch(violation -> violation.getMessage().equals(
+                        "maxCapacity must be greater than or equal to initialCapacity")));
+    }
+
+    private BloomProperties completeProperties() {
+        BloomProperties properties = new BloomProperties();
         properties.setInitialCapacity(10_000);
         properties.setFalsePositiveProbability(0.01D);
         properties.setMinimumAbsentSamples(1_000L);
         properties.setExpansionFactor(2D);
-        properties.setMaxExpectedCapacity(1_000_000L);
+        properties.setMaxCapacity(1_000_000L);
         properties.setExpansionCooldown(Duration.ofMinutes(10));
         properties.setRebuildDelay(Duration.ofMinutes(5));
         properties.setRebuildInitialDelay(Duration.ofMinutes(5));

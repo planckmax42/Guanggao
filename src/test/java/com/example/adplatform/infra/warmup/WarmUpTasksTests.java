@@ -3,8 +3,8 @@ package com.example.adplatform.infra.warmup;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomFilterService;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
 import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
@@ -25,7 +25,7 @@ class WarmUpTasksTests {
 
     @Test
     void shouldReuseBloomSnapshotWhenWarmingSlotRedis() {
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
         when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of("HOME_BANNER")));
         SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
         SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
@@ -52,8 +52,8 @@ class WarmUpTasksTests {
 
     @Test
     void shouldRebuildEventMetadataBloomFilter() {
-        MaterialMetadataBloomFilterService bloomFilterService =
-                mock(MaterialMetadataBloomFilterService.class);
+        MaterialMetadataBloomService bloomFilterService =
+                mock(MaterialMetadataBloomService.class);
 
         new EventMetadataWarmUpTask(bloomFilterService).warmUp();
 

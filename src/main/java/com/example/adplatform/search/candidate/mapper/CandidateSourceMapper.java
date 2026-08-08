@@ -19,8 +19,8 @@ public interface CandidateSourceMapper {
             m.id AS materialId, m.plan_id AS planId, p.user_id AS userId,
             m.slot_id AS slotId, s.slot_code AS slotCode,
             m.title, m.description, m.image_url AS imageUrl,
-            m.landing_page_url AS landingPageUrl, m.bloomFilterSnapshot AS materialStatus,
-            m.audit_status AS auditStatus, p.bloomFilterSnapshot AS planStatus,
+            m.landing_page_url AS landingPageUrl, m.bloomSnapshot AS materialStatus,
+            m.audit_status AS auditStatus, p.bloomSnapshot AS planStatus,
             p.budget_total AS budgetTotal, p.budget_daily AS budgetDaily,
             p.bid_price AS bidPrice, p.billing_type AS billingType,
             p.start_time AS startTime, p.end_time AS endTime,
@@ -38,8 +38,8 @@ public interface CandidateSourceMapper {
 
     /** 进入候选索引的最低静态资格，不包含投放时间和动态预算。 */
     String ELIGIBLE = """
-            m.bloomFilterSnapshot = 1 AND m.audit_status = 'APPROVED'
-            AND p.bloomFilterSnapshot = 'ONLINE' AND s.bloomFilterSnapshot = 1
+            m.bloomSnapshot = 1 AND m.audit_status = 'APPROVED'
+            AND p.bloomSnapshot = 'ONLINE' AND s.bloomSnapshot = 1
             """;
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " ORDER BY m.id")

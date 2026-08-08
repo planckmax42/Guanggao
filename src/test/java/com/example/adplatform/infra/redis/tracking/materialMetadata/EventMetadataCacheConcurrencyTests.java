@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
@@ -220,7 +220,7 @@ class EventMetadataCacheConcurrencyTests {
             Duration singleFlightWaitTimeout) {
         MaterialMetadataRedisProperties properties = properties(readWaitTimeout);
         properties.setSingleFlightWaitTimeout(singleFlightWaitTimeout);
-        MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager = mock(MaterialIdMetadataBloomFilterServiceImpl.class);
+        MaterialMetadataBloomService bloomFilterManager = mock(MaterialMetadataBloomService.class);
         when(bloomFilterManager.definitelyNotContains(any())).thenReturn(false);
         MaterialMetadataRedisLock lockManager = new MaterialMetadataRedisLock(properties);
         MaterialMetadataRedisServiceImpl service = new MaterialMetadataRedisServiceImpl(

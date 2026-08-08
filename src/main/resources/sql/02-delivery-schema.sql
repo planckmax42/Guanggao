@@ -25,7 +25,7 @@ SET @index_exists := (
 );
 SET @add_index_sql := IF(
     @index_exists = 0,
-    'CREATE INDEX idx_material_slot_status_audit ON material (slot_id, bloomFilterSnapshot, audit_status)',
+    'CREATE INDEX idx_material_slot_status_audit ON material (slot_id, bloomSnapshot, audit_status)',
     'SELECT 1'
 );
 PREPARE add_index_stmt FROM @add_index_sql;

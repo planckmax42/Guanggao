@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
@@ -156,7 +156,7 @@ class EventMetadataCacheServiceTests {
         ValueOperations<String, String> values = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
         MaterialMapper materialMapper = mock(MaterialMapper.class);
-        MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager = mock(MaterialIdMetadataBloomFilterServiceImpl.class);
+        MaterialMetadataBloomService bloomFilterManager = mock(MaterialMetadataBloomService.class);
         MaterialMetadataRedisProperties properties = properties();
         ObjectMapper objectMapper = new ObjectMapper();
         MaterialMetadataRedisServiceImpl service = new MaterialMetadataRedisServiceImpl(
@@ -202,6 +202,6 @@ class EventMetadataCacheServiceTests {
             StringRedisTemplate redisTemplate,
             ValueOperations<String, String> values,
             MaterialMapper materialMapper,
-            MaterialIdMetadataBloomFilterServiceImpl bloomFilterManager) {
+            MaterialMetadataBloomService bloomFilterManager) {
     }
 }

@@ -13,18 +13,16 @@ import java.time.Duration;
 @Getter
 @Setter
 @Component
-public  class MaterialMetadataBloomFilterProperties {
+public  class BloomProperties {
     @Min(1)
-    private long expectedInsertions;
+    private long initialCapacity;
     @DecimalMin(value = "0.0", inclusive = false)
     @DecimalMax(value = "1.0", inclusive = false)
     private double falsePositiveProbability;
     @DecimalMin(value = "1.0", inclusive = false)
     private double expansionFactor;
     @Min(1)
-    private long maxExpectedInsertions;
-    @NotNull
-    private Duration expansionCooldown;
+    private long maxCapacity;
     private long rebuildDelayMs;
     private long rebuildInitialDelayMs;
     private long expansionCheckDelayMs;

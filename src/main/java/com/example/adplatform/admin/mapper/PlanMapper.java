@@ -22,7 +22,7 @@ public interface PlanMapper extends BaseMapper<PlanEntity> {
                 p.billing_type AS billingType,
                 p.start_time AS startTime,
                 p.end_time AS endTime,
-                p.bloomFilterSnapshot AS planStatus,
+                p.bloomSnapshot AS planStatus,
                 p.created_at AS planCreatedAt,
                 p.updated_at AS planUpdatedAt,
                 r.id AS ruleId,

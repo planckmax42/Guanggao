@@ -6,8 +6,7 @@ import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import com.example.adplatform.infra.warmup.SlotWarmUpTask;
 import org.junit.jupiter.api.Test;
@@ -126,7 +125,7 @@ class SlotCacheConcurrencyTests {
     void shouldRevalidateWarmupSnapshotBeforeWritingRedis() {
         Map<String, String> redis = new ConcurrentHashMap<>();
         redis.put(DeliveryRedisKeys.slotCodeToId("OLD_CODE"), "1");
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
         SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
@@ -145,14 +144,13 @@ class SlotCacheConcurrencyTests {
     private SlotCacheServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
-            SlotBloomFilterService bloomFilterService) {
+            SlotBloomService bloomFilterService) {
         SlotCacheProperties properties = properties(Duration.ofMillis(100));
         return new SlotCacheServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
                 bloomFilterService,
-                mock(SlotBloomFilterTracker.class),
                 mock(SlotMysqlCircuitBreaker.class),
                 new SlotCacheLockManager(properties));
     }
@@ -162,8 +160,8 @@ class SlotCacheConcurrencyTests {
             SlotMapper slotMapper,
             Duration readWaitTimeout) {
         SlotCacheProperties properties = properties(readWaitTimeout);
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
-        when(bloomFilterService.definitelyNotContains(anyString())).thenReturn(false);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
+        when(bloomFilterService.definiteNotContain(anyString())).thenReturn(false);
         SlotMysqlCircuitBreaker circuitBreaker = mock(SlotMysqlCircuitBreaker.class);
         when(circuitBreaker.execute(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
@@ -173,7 +171,6 @@ class SlotCacheConcurrencyTests {
                 slotMapper,
                 properties,
                 bloomFilterService,
-                mock(SlotBloomFilterTracker.class),
                 circuitBreaker,
                 lockManager);
         return new Fixture(service, lockManager);

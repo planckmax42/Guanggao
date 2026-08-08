@@ -24,7 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class SlotBloomFilterServiceTests {
+class SlotBloomServiceTests {
 
     @Test
     void shouldLoadMysqlSnapshotAndRemoveDisabledCodeAfterRebuild() {
@@ -32,19 +32,17 @@ class SlotBloomFilterServiceTests {
         when(slotMapper.selectEnabledSlotCodes())
                 .thenReturn(slots("HOME_BANNER", "OLD_SLOT"))
                 .thenReturn(slots("HOME_BANNER"));
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterService service = createService(slotMapper, tracker);
+        SlotBloomService service = createService(slotMapper);
 
         Optional<List<String>> firstSnapshot = service.regularRebuild();
         assertEquals(2, firstSnapshot.orElseThrow().size());
-        assertFalse(service.definitelyNotContains("OLD_SLOT"));
+        assertFalse(service.definiteNotContain("OLD_SLOT"));
 
         assertTrue(service.regularRebuild().isPresent());
 
-        assertTrue(service.definitelyNotContains("OLD_SLOT"));
-        assertFalse(service.definitelyNotContains("HOME_BANNER"));
+        assertTrue(service.definiteNotContain("OLD_SLOT"));
+        assertFalse(service.definiteNotContain("HOME_BANNER"));
         verify(slotMapper, times(2)).selectEnabledSlotCodes();
-        verify(tracker, times(2)).reset();
     }
 
     @Test
@@ -59,7 +57,7 @@ class SlotBloomFilterServiceTests {
                     await(continueRebuild);
                     return slots("HOME_BANNER");
                 });
-        SlotBloomFilterService service = createService(slotMapper, mock(SlotBloomFilterTracker.class));
+        SlotBloomService service = createService(slotMapper);
         service.regularRebuild();
 
         CompletableFuture<Optional<List<String>>> rebuildFuture =
@@ -70,7 +68,7 @@ class SlotBloomFilterServiceTests {
         continueRebuild.countDown();
 
         assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS).isPresent());
-        assertFalse(service.definitelyNotContains("NEW_SLOT"));
+        assertFalse(service.definiteNotContain("NEW_SLOT"));
     }
 
     @Test
@@ -83,8 +81,7 @@ class SlotBloomFilterServiceTests {
             await(continueRebuild);
             return slots("HOME_BANNER");
         });
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterService service = createService(slotMapper, tracker);
+        SlotBloomService service = createService(slotMapper);
 
         CompletableFuture<Optional<List<String>>> rebuildFuture =
                 CompletableFuture.supplyAsync(service::regularRebuild);
@@ -95,26 +92,29 @@ class SlotBloomFilterServiceTests {
 
         assertTrue(rebuildFuture.get(1, TimeUnit.SECONDS).isPresent());
         verify(slotMapper).selectEnabledSlotCodes();
-        verify(tracker).reset();
     }
 
     @Test
-    void shouldKeepActiveFilterAndMetricsWhenMysqlQueryFails() {
+    void shouldKeepActiveFilterAndCountersWhenMysqlQueryFails() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectEnabledSlotCodes()).thenReturn(slots("HOME_BANNER"));
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterService service = createService(slotMapper, tracker);
+        SlotBloomService service = createService(slotMapper);
         assertTrue(service.regularRebuild().isPresent());
-        SlotBloomFilterService.BloomFilterSnapshot bloomFilterSnapshotBeforeFailure = service.GetBloomFilterSnapshot();
+        service.recordDefiniteNotContain();
+        service.recordFalsePositive();
+        BloomSnapshot bloomSnapshotBeforeFailure = service.getBloomFilterSnapshot();
         doThrow(new IllegalStateException("mysql unavailable"))
                 .when(slotMapper).selectEnabledSlotCodes();
 
         assertTrue(service.regularRebuild().isEmpty());
 
-        assertEquals(bloomFilterSnapshotBeforeFailure.currentCapacity(), service.GetBloomFilterSnapshot().currentCapacity());
-        assertFalse(service.definitelyNotContains("HOME_BANNER"));
-        assertTrue(service.definitelyNotContains("UNKNOWN_SLOT"));
-        verify(tracker).reset();
+        assertEquals(bloomSnapshotBeforeFailure.currentCapacity(), service.getBloomFilterSnapshot().currentCapacity());
+        assertEquals(bloomSnapshotBeforeFailure.totalCount(), service.getBloomFilterSnapshot().totalCount());
+        assertEquals(
+                bloomSnapshotBeforeFailure.actualFalsePositiveRate(),
+                service.getBloomFilterSnapshot().actualFalsePositiveRate());
+        assertFalse(service.definiteNotContain("HOME_BANNER"));
+        assertTrue(service.definiteNotContain("UNKNOWN_SLOT"));
     }
 
     @Test
@@ -123,89 +123,103 @@ class SlotBloomFilterServiceTests {
         when(slotMapper.selectEnabledSlotCodes())
                 .thenReturn(slots("HOME_BANNER", "OLD_SLOT"))
                 .thenReturn(slots("HOME_BANNER", "NEW_SLOT"));
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterProperties properties = properties();
+        BloomProperties properties = properties();
         properties.setInitialCapacity(100);
-        SlotBloomFilterService service =
-                new SlotBloomFilterServiceImpl(
-                        slotMapper, properties, tracker, new SimpleMeterRegistry());
+        SlotBloomService service =
+                new BloomServiceImpl(
+                        slotMapper, properties, new SimpleMeterRegistry());
         service.regularRebuild();
+        service.recordDefiniteNotContain();
+        service.recordFalsePositive();
 
-        assertTrue(service.expandRebuild());
+        assertEquals(200L, service.expandRebuild());
 
-        assertEquals(200L, service.GetBloomFilterSnapshot().currentCapacity());
-        assertFalse(service.definitelyNotContains("NEW_SLOT"));
-        assertTrue(service.definitelyNotContains("OLD_SLOT"));
-        verify(tracker, times(2)).reset();
+        assertEquals(200L, service.getBloomFilterSnapshot().currentCapacity());
+        assertEquals(0L, service.getBloomFilterSnapshot().totalCount());
+        assertFalse(service.definiteNotContain("NEW_SLOT"));
+        assertTrue(service.definiteNotContain("OLD_SLOT"));
     }
 
     @Test
     void shouldNotQueryMysqlOrResetMetricsAtExpansionLimit() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectEnabledSlotCodes()).thenReturn(slots("HOME_BANNER"));
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterProperties properties = properties();
+        BloomProperties properties = properties();
         properties.setInitialCapacity(100);
-        properties.setMaxExpectedCapacity(100L);
-        SlotBloomFilterService service =
-                new SlotBloomFilterServiceImpl(
-                        slotMapper, properties, tracker, new SimpleMeterRegistry());
+        properties.setMaxCapacity(100L);
+        SlotBloomService service =
+                new BloomServiceImpl(
+                        slotMapper, properties, new SimpleMeterRegistry());
         assertTrue(service.regularRebuild().isPresent());
+        service.recordDefiniteNotContain();
+        service.recordFalsePositive();
 
-        assertFalse(service.expandRebuild());
+        assertEquals(100L, service.expandRebuild());
 
-        assertEquals(100L, service.GetBloomFilterSnapshot().currentCapacity());
+        assertEquals(100L, service.getBloomFilterSnapshot().currentCapacity());
+        assertEquals(2L, service.getBloomFilterSnapshot().totalCount());
         verify(slotMapper).selectEnabledSlotCodes();
-        verify(tracker).reset();
     }
 
     @Test
     void shouldPublishEmptySnapshotAsSuccessfulFilter() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectEnabledSlotCodes()).thenReturn(List.of());
-        SlotBloomFilterTracker tracker = mock(SlotBloomFilterTracker.class);
-        SlotBloomFilterService service = createService(slotMapper, tracker);
+        SlotBloomService service = createService(slotMapper);
 
         Optional<List<String>> result = service.regularRebuild();
 
         assertTrue(result.isPresent());
         assertTrue(result.orElseThrow().isEmpty());
-        assertTrue(service.definitelyNotContains("UNKNOWN_SLOT"));
-        verify(tracker).reset();
+        assertTrue(service.definiteNotContain("UNKNOWN_SLOT"));
+    }
+
+    @Test
+    void shouldCalculateActualFalsePositiveRateFromAbsentRequests() {
+        SlotBloomService service = createService(mock(SlotMapper.class));
+        for (int index = 0; index < 990; index++) {
+            service.recordDefiniteNotContain();
+        }
+        for (int index = 0; index < 10; index++) {
+            service.recordFalsePositive();
+        }
+
+        BloomSnapshot snapshot = service.getBloomFilterSnapshot();
+
+        assertEquals(1_000L, snapshot.totalCount());
+        assertEquals(0.01D, snapshot.actualFalsePositiveRate(), 0.000001D);
     }
 
     @Test
     void shouldExposeOnlyServiceContract() {
-        SlotBloomFilterService service = createService(
-                mock(SlotMapper.class),
-                mock(SlotBloomFilterTracker.class));
+        SlotBloomService service = createService(mock(SlotMapper.class));
 
-        assertInstanceOf(SlotBloomFilterServiceImpl.class, service);
-        Set<String> publicMethods = Arrays.stream(SlotBloomFilterService.class.getDeclaredMethods())
+        assertInstanceOf(BloomServiceImpl.class, service);
+        Set<String> publicMethods = Arrays.stream(SlotBloomService.class.getDeclaredMethods())
                 .filter(method -> Modifier.isPublic(method.getModifiers()))
                 .map(method -> method.getName())
                 .collect(Collectors.toSet());
         assertEquals(Set.of(
-                "definitelyNotContains",
+                "definiteNotContain",
                 "addSlotBloomFilter",
+                "recordDefiniteNotContain",
+                "recordFalsePositive",
                 "regularRebuild",
                 "expandRebuild",
-                "GetSlotBloomFilterSnapshot"), publicMethods);
+                "getBloomFilterSnapshot"), publicMethods);
     }
 
-    private SlotBloomFilterService createService(
-            SlotMapper slotMapper,
-            SlotBloomFilterTracker tracker) {
-        return new SlotBloomFilterServiceImpl(
-                slotMapper, properties(), tracker, new SimpleMeterRegistry());
+    private SlotBloomService createService(SlotMapper slotMapper) {
+        return new BloomServiceImpl(
+                slotMapper, properties(), new SimpleMeterRegistry());
     }
 
-    private SlotBloomFilterProperties properties() {
-        SlotBloomFilterProperties properties = new SlotBloomFilterProperties();
+    private BloomProperties properties() {
+        BloomProperties properties = new BloomProperties();
         properties.setInitialCapacity(100);
         properties.setFalsePositiveProbability(0.000001D);
         properties.setExpansionFactor(2D);
-        properties.setMaxExpectedCapacity(1_000L);
+        properties.setMaxCapacity(1_000L);
         return properties;
     }
 

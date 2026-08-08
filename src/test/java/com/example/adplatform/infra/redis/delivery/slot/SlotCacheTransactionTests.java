@@ -4,8 +4,7 @@ import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterTracker;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomFilterService;
+import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -39,14 +38,13 @@ class SlotCacheTransactionTests {
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
         SlotCacheProperties properties = properties();
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
                 redisTemplate,
                 mock(SlotMapper.class),
                 properties,
                 bloomFilterService,
-                mock(SlotBloomFilterTracker.class),
                 mock(SlotMysqlCircuitBreaker.class),
                 new SlotCacheLockManager(properties));
         SlotEntity slot = enabledSlot();
@@ -71,14 +69,13 @@ class SlotCacheTransactionTests {
     @Test
     void shouldKeepSafeBloomFalsePositiveButNotWriteRedisWhenTransactionRollsBack() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
         SlotCacheProperties properties = properties();
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
                 redisTemplate,
                 mock(SlotMapper.class),
                 properties,
                 bloomFilterService,
-                mock(SlotBloomFilterTracker.class),
                 mock(SlotMysqlCircuitBreaker.class),
                 new SlotCacheLockManager(properties));
         TransactionSynchronizationManager.setActualTransactionActive(true);
@@ -95,14 +92,13 @@ class SlotCacheTransactionTests {
 
     @Test
     void shouldNotRegisterDisabledSlotInBloomFilter() {
-        SlotBloomFilterService bloomFilterService = mock(SlotBloomFilterService.class);
+        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
         SlotCacheProperties properties = properties();
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
                 mock(StringRedisTemplate.class),
                 mock(SlotMapper.class),
                 properties,
                 bloomFilterService,
-                mock(SlotBloomFilterTracker.class),
                 mock(SlotMysqlCircuitBreaker.class),
                 new SlotCacheLockManager(properties));
         SlotEntity slot = enabledSlot();

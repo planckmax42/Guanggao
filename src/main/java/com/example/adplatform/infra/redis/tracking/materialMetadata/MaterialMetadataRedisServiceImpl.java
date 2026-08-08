@@ -5,8 +5,8 @@ import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.infra.redis.tracking.TrackingRedisKeys;
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialIdMetadataBloomFilterServiceImpl;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,7 +36,7 @@ public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final MaterialMapper materialMapper;
-    private final MaterialIdMetadataBloomFilterServiceImpl materialIdMetadataBloomFilterService;
+    private final MaterialMetadataBloomService materialIdMetadataBloomFilterService;
     private final MaterialMetadataRedisProperties properties;
     private final MaterialMetadataRedisLock lockManager;
     private final ConcurrentHashMap<Long, CompletableFuture<EventMaterialMetadata>> inFlight = new ConcurrentHashMap<>();//线程安全的哈希表
