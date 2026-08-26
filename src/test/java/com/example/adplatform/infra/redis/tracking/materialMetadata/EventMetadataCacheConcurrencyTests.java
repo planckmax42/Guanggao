@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;

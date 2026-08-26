@@ -27,13 +27,6 @@ class MaterialMetadataRedisPropertiesTests {
         properties.getLock().setStripes(1_024);
         properties.getLock().setReadWaitTimeout(Duration.ofMillis(100));
 
-        MaterialMetadataRedisProperties.Bloom bloom = properties.getBloom();
-        bloom.setExpectedInsertions(100_000L);
-        bloom.setFalsePositiveProbability(0.01D);
-        bloom.setExpansionFactor(2D);
-        bloom.setMaxExpectedInsertions(5_000_000L);
-        bloom.setExpansionCooldown(Duration.ofMinutes(10));
-
         assertTrue(validator.validate(properties).isEmpty());
     }
 }

@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.tracking;
 
-import com.example.adplatform.infra.kafka.search.SearchKafkaConfig;
+import com.example.adplatform.infra.kafka.admin.SearchKafkaConfig;
 import com.example.adplatform.tracking.message.EventMessage;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.jupiter.api.Test;

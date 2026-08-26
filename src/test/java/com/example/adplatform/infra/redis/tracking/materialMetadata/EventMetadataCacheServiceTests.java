@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
-
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.BloomSnapshot;
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
@@ -93,6 +93,22 @@ class EventMetadataCacheServiceTests {
                 .hasMessage("广告素材不存在");
         verify(fixture.values, never()).get(anyString());
         verify(fixture.materialMapper, never()).selectMaterialPlanById(any());
+        verify(fixture.bloomFilterManager).recordDefiniteNotContain();
+    }
+
+    @Test
+    void shouldRecordBloomFalsePositiveWhenMysqlConfirmsMissingMaterial() {
+        Fixture fixture = fixture();
+        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(10L))).thenReturn(null);
+        when(fixture.bloomFilterManager.GetBloomFilterSnapshot())
+                .thenReturn(new BloomSnapshot(true, 100L, 0L, 0.01D, 0D));
+
+        assertThatThrownBy(() -> fixture.service.get(10L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("广告素材不存在");
+
+        verify(fixture.materialMapper).selectMaterialPlanById(10L);
+        verify(fixture.bloomFilterManager).recordFalsePositive();
     }
 
     @Test

@@ -1,8 +1,8 @@
 package com.example.adplatform.infra.warmup;
 
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
-import com.example.adplatform.infra.bloom.delivery.slot.BloomRebuildResult;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SlotWarmUpTask {
 
-    private final SlotBloomService bloomFilterService;
+    private final SlotBloomOperationsService bloomFilterService;
     private final SlotCacheMaintenancePort slotCacheMaintenancePort;
 
     /** 重建布隆过滤器后，复用本次查询快照预热 Redis。 */

@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.delivery.port.CandidateSearchPort;
+import com.example.adplatform.search.port.CandidateSearchPort;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;

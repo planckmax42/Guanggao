@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

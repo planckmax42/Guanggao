@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本项目是基于 Java 17、Spring Boot 3.3 和 Maven 的广告投放平台。业务代码位于 `src/main/java/com/example/adplatform`，按 `admin`、`delivery`、`tracking`、`report` 和 `search` 等业务域组织；公共代码和基础设施分别放在 `common` 与 `infra`。配置文件及按顺序执行的数据库脚本位于 `src/main/resources`，测试代码在 `src/test/java` 中镜像生产包结构。Docker、Debezium 和可观测性配置位于 `docker/` 及根目录 Compose 文件；JMeter 资源位于 `scripts/jmeter/`。
+本项目是基于 Java 17、Spring Boot 3.3 和 Maven 的广告投放平台。业务代码位于 `src/main/java/com/example/adplatform`，按 `admin`、`delivery`、`tracking`、`report` 和 `search` 等业务域组织；公共代码和基础设施分别放在 `common` 与 `infra`。配置文件及按顺序执行的数据库脚本位于 `src/main/resources`，测试代码在 `src/test/java` 中镜像生产包结构。Docker、Debezium 和可观测性配置位于 `docker/`；JMeter 资源位于 `jmeter/`。
 
 ## 构建、测试与本地开发
 
@@ -10,10 +10,10 @@
 - `mvn test`：运行 JUnit 5 单元测试和 Spring 测试。
 - `mvn -Dtest=SearchPipelineIT test`：显式运行搜索链路集成测试，需要本地 MySQL、Redis 和 Elasticsearch。
 - `mvn spring-boot:run -Dspring-boot.run.profiles=local`：使用本地配置启动 API。
-- `docker compose -f docker-compose.elasticsearch.yml up -d`：启动 Elasticsearch 和 Debezium Connect。
-- `docker compose -f docker-compose.logging.yml up -d`：启动 Grafana、Prometheus 和 Loki。
+- `docker compose -f docker/docker-compose.elasticsearch.yml up -d`：启动 Elasticsearch 和 Debezium Connect。
+- `docker compose -f docker/docker-compose.logging.yml up -d`：启动 Grafana、Prometheus 和 Loki。
 
-数据库初始化顺序见 `README.md`，压测方法见 `scripts/jmeter/README.md`。
+数据库初始化顺序见 `README.md`，压测方法见 `jmeter/README.md`。
 
 ## 编码风格与命名规范
 

@@ -1,0 +1,90 @@
+name: ad-platform-logging
+services:
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: ad-platform-loki
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./observability/loki.yml:/etc/loki/loki.yml:ro
+      - ad-platform-loki-data:/loki
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  alloy:
+    image: grafana/alloy:v1.16.1
+    container_name: ad-platform-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"
+    volumes:
+      - ./observability/alloy.config:/etc/alloy/config.alloy:ro
+      - ../logs:/var/log/ad-platform:ro
+      - ad-platform-alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    container_name: ad-platform-kafka-exporter
+    network_mode: host
+    command:
+      - --kafka.server=127.0.0.1:9092
+      - --web.listen-address=0.0.0.0:9308
+      - --topic.filter=^(event-topic|ad-config-change|ad-config-change-dlt)$
+      - --group.filter=^(event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer)$
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    container_name: ad-platform-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ad-platform-prometheus-data:/prometheus
+    depends_on:
+      - kafka-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: ad-platform-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ad-platform-grafana-data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  ad-platform-loki-data:
+  ad-platform-alloy-data:
+  ad-platform-prometheus-data:
+  ad-platform-grafana-data:

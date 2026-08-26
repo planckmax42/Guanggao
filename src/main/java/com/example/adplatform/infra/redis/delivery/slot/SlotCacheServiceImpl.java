@@ -9,7 +9,7 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotLookupPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
     private final StringRedisTemplate stringRedisTemplate;
     private final SlotMapper slotMapper;
     private final SlotCacheProperties properties;
-    private final SlotBloomService slotBloomService;
+    private final SlotBloomOperationsService slotBloomOperationsService;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
     private final SlotCacheLockManager lockManager;
 
@@ -49,8 +49,8 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         if (!StringUtils.hasText(slotCode)) {//防御性校验，防止绕过controller层传入非法参数
             return Optional.empty();
         }
-        if (slotBloomService.definiteNotContain(slotCode)) {//布隆过滤器初筛
-            slotBloomService.recordDefiniteNotContain();//记录明确不存在数，用于后续计算误判率决定是否要扩容
+        if (slotBloomOperationsService.definiteNotContain(slotCode)) {//布隆过滤器初筛
+            slotBloomOperationsService.recordDefiniteNotContain();//记录明确不存在数，用于后续计算误判率决定是否要扩容
             return Optional.empty();
         }
 
@@ -82,8 +82,8 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
             if (cachedSlotId.isPresent()) {//真正进入mysql之前再次进行redis,最大程度上减少数据库压力
                 return cachedSlotId;
             }
-            if (slotBloomService.definiteNotContain(slotCode)) {//再次查询布隆过滤器是为了防止再此期间布隆过滤器重建完成
-                slotBloomService.recordDefiniteNotContain();
+            if (slotBloomOperationsService.definiteNotContain(slotCode)) {//再次查询布隆过滤器是为了防止再此期间布隆过滤器重建完成
+                slotBloomOperationsService.recordDefiniteNotContain();
                 return Optional.empty();
             }
             return loadEnabledSlotFromMysql(slotCode);//回源mysql
@@ -106,8 +106,8 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         }
 
         if (slot == null) {
-            if (slotBloomService.getBloomFilterSnapshot().bloomFilterReady()) {
-                slotBloomService.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
+            if (slotBloomOperationsService.getBloomSnapshot().bloomFilterReady()) {
+                slotBloomOperationsService.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
             }
             return Optional.empty();
         }
@@ -126,7 +126,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
             return;
         }
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
-            slotBloomService.addSlotBloomFilter(slot.getSlotCode());
+            slotBloomOperationsService.addSlotBloom(slot.getSlotCode());
         }
         writeSlotToRedis(slot);
     }
@@ -156,7 +156,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
     public void refreshSlot(SlotEntity slot, String oldSlotCode) {
         if (slot != null && Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             // 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            slotBloomService.addSlotBloomFilter(slot.getSlotCode());
+            slotBloomOperationsService.addSlotBloom(slot.getSlotCode());
         }
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {

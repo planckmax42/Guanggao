@@ -3,10 +3,11 @@ package com.example.adplatform.infra.warmup;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
-import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexManager;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexManagerServiceImpl;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
 import org.junit.jupiter.api.Test;
 
@@ -14,9 +15,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult.RebuildStatus.SUCCESS;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -25,8 +28,9 @@ class WarmUpTasksTests {
 
     @Test
     void shouldReuseBloomSnapshotWhenWarmingSlotRedis() {
-        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
-        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of("HOME_BANNER")));
+        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
+        when(bloomFilterService.regularRebuild()).thenReturn(new BloomRebuildResult(
+                SUCCESS, Optional.of(List.of("HOME_BANNER")), 10_000L));
         SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
         SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
 
@@ -61,38 +65,39 @@ class WarmUpTasksTests {
     }
 
     @Test
-    void shouldBuildElasticsearchIndexOnlyWhenEnabledAndAliasIsMissing() {
-        AdElasticsearchProperties properties = mock(AdElasticsearchProperties.class);
+    void shouldInitializeElasticsearchWhenEnabled() {
+        EsProperties properties = mock(EsProperties.class);
         when(properties.isEnabled()).thenReturn(true);
-        CandidateIndexManager indexManager = mock(CandidateIndexManager.class);
-        when(indexManager.aliasExists()).thenReturn(false);
+        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
 
-        new ElasticsearchWarmUpTask(properties, indexManager).warmUp();
+        new ElasticsearchWarmUpTask(properties, esIndexManagerServiceImpl).warmUp();
 
-        verify(indexManager).rebuild();
+        verify(esIndexManagerServiceImpl).initialRebuild();
     }
 
     @Test
     void shouldSkipElasticsearchWhenDisabled() {
-        AdElasticsearchProperties properties = mock(AdElasticsearchProperties.class);
-        CandidateIndexManager indexManager = mock(CandidateIndexManager.class);
+        EsProperties properties = mock(EsProperties.class);
+        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
 
-        new ElasticsearchWarmUpTask(properties, indexManager).warmUp();
+        new ElasticsearchWarmUpTask(properties, esIndexManagerServiceImpl).warmUp();
 
         verify(properties).isEnabled();
-        verifyNoInteractions(indexManager);
+        verifyNoInteractions(esIndexManagerServiceImpl);
     }
 
     @Test
-    void shouldKeepCurrentElasticsearchIndexWhenAliasExists() {
-        AdElasticsearchProperties properties = mock(AdElasticsearchProperties.class);
+    void shouldContinueWhenElasticsearchInitializationFails() {
+        EsProperties properties = mock(EsProperties.class);
         when(properties.isEnabled()).thenReturn(true);
-        CandidateIndexManager indexManager = mock(CandidateIndexManager.class);
-        when(indexManager.aliasExists()).thenReturn(true);
+        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
+        doThrow(new IllegalStateException("Elasticsearch unavailable"))
+                .when(esIndexManagerServiceImpl).initialRebuild();
 
-        new ElasticsearchWarmUpTask(properties, indexManager).warmUp();
+        ElasticsearchWarmUpTask task = new ElasticsearchWarmUpTask(
+                properties, esIndexManagerServiceImpl);
 
-        verify(indexManager).aliasExists();
-        verify(indexManager, never()).rebuild();
+        assertDoesNotThrow(task::warmUp);
+        verify(esIndexManagerServiceImpl).initialRebuild();
     }
 }

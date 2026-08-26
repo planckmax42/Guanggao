@@ -4,10 +4,7 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.delivery.port.BudgetAvailabilityPort;
-import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
-import com.example.adplatform.delivery.port.FrequencyControlPort;
-import com.example.adplatform.delivery.port.SlotLookupPort;
+import com.example.adplatform.delivery.port.*;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
@@ -50,7 +47,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
     private final SlotLookupPort slotCacheService;
-    private final CandidateRecallService candidateRecallService;
+    private final CandidateRecallPort candidateRecallPort;
     private final DeliveryStopGuardQueryPort stopGuardService;
     private final BudgetAvailabilityPort budgetRedisService;
     private final FrequencyControlPort frequencyRedisService;
@@ -64,8 +61,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在"));
 
         // 第一阶段：ES 多维粗召回。只有异常/超时/熔断才回源，合法空结果不会查询 MySQL。
-        CandidateRecallResult recallResult = candidateRecallService.recall(request);//粗召回，当ES不可以用或者熔断时降级进入mysql
-        List<AdCandidateDocument> recalled = recallResult.candidates();//去除包装类的源信息，得到候选列表
+        List<AdCandidateDocument> recalled = candidateRecallPort.recall(request);//粗召回，当ES不可以用或者熔断时降级进入mysql
         if (recalled.isEmpty()) {//候选为空直接返回
             return new AdDeliveryResponse(requestId, 0, 0, List.of());
         }

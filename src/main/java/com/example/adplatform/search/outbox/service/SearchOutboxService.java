@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
-
+//todo:此部分功能应该迁移至admin实体层
 /**
  * 在业务事务内追加搜索链路 Outbox 消息。
  *

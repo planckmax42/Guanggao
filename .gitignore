@@ -14,7 +14,7 @@ target/
 !/logs/.gitkeep
 
 # Local diagnostics and load-test outputs
-arthas-boot.jar
+arthas/arthas-boot.jar
 *.jtl
-scripts/jmeter/report/
+jmeter/report/
 kafka_*/

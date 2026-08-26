@@ -5,7 +5,7 @@ import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.infra.bloom.tracking.materialMetadata.MaterialMetadataBloomService;
+import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.infra.redis.tracking.TrackingRedisKeys;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import com.example.adplatform.tracking.port.EventMetadataReaderPort;
@@ -48,6 +48,7 @@ public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort
         }
 
         if (materialIdMetadataBloomFilterService.definitelyNotContains(materialId)) {//todo:看是否开启预热和动态重建机制
+            materialIdMetadataBloomFilterService.recordDefiniteNotContain();
             throw materialNotFound();//布隆过滤器初筛
         }
         EventMaterialMetadata cached = readRedis(materialId);//redis取值
@@ -99,11 +100,15 @@ public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort
                 return cached;
             }
             if (materialIdMetadataBloomFilterService.definitelyNotContains(materialId)) {
+                materialIdMetadataBloomFilterService.recordDefiniteNotContain();
                 throw materialNotFound();//todo:挡在mysql前面的redis和bloom，再次检查能否减少一次mysql查询
             }
 
             MaterialPlanJoinRow row = materialMapper.selectMaterialPlanById(materialId);
             if (row == null) {
+                if (materialIdMetadataBloomFilterService.GetBloomFilterSnapshot().bloomFilterReady()) {
+                    materialIdMetadataBloomFilterService.recordFalsePositive();
+                }
                 throw materialNotFound();
             }
             if (row.getPlanId() == null) {

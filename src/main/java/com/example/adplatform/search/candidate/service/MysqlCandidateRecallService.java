@@ -1,13 +1,14 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsDocumentFactory;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+//todo：此部分已弃用，回源的策略应该在业务层编排
 /**
  * ES 不可用时的 MySQL 保底召回。
  *
@@ -19,7 +20,7 @@ import java.util.List;
 public class MysqlCandidateRecallService {
 
     private final CandidateSourceMapper sourceMapper;
-    private final CandidateDocumentFactory documentFactory;
+    private final EsDocumentFactory documentFactory;
 
     /** 从 MySQL 真实数据源构造并过滤候选快照。 */
     public List<AdCandidateDocument> recall(AdDeliveryRequest request) {

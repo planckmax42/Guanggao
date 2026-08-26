@@ -5,8 +5,9 @@ import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.bloom.delivery.slot.SlotBloomService;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import com.example.adplatform.infra.warmup.SlotWarmUpTask;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult.RebuildStatus.SUCCESS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -125,11 +127,12 @@ class SlotCacheConcurrencyTests {
     void shouldRevalidateWarmupSnapshotBeforeWritingRedis() {
         Map<String, String> redis = new ConcurrentHashMap<>();
         redis.put(DeliveryRedisKeys.slotCodeToId("OLD_CODE"), "1");
-        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
+        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
         SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
-        when(bloomFilterService.regularRebuild()).thenReturn(Optional.of(List.of("OLD_CODE")));
+        when(bloomFilterService.regularRebuild()).thenReturn(new BloomRebuildResult(
+                SUCCESS, Optional.of(List.of("OLD_CODE")), 10_000L));
         SlotWarmUpTask warmUpTask = new SlotWarmUpTask(bloomFilterService, service);
 
         warmUpTask.warmUp();
@@ -144,7 +147,7 @@ class SlotCacheConcurrencyTests {
     private SlotCacheServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
-            SlotBloomService bloomFilterService) {
+            SlotBloomOperationsService bloomFilterService) {
         SlotCacheProperties properties = properties(Duration.ofMillis(100));
         return new SlotCacheServiceImpl(
                 redisTemplate,
@@ -160,7 +163,7 @@ class SlotCacheConcurrencyTests {
             SlotMapper slotMapper,
             Duration readWaitTimeout) {
         SlotCacheProperties properties = properties(readWaitTimeout);
-        SlotBloomService bloomFilterService = mock(SlotBloomService.class);
+        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         when(bloomFilterService.definiteNotContain(anyString())).thenReturn(false);
         SlotMysqlCircuitBreaker circuitBreaker = mock(SlotMysqlCircuitBreaker.class);
         when(circuitBreaker.execute(any())).thenAnswer(invocation ->

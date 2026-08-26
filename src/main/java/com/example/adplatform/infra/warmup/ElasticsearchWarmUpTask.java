@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.infra.elasticsearch.config.AdElasticsearchProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexManager;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexManagerServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -12,17 +12,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ElasticsearchWarmUpTask {
 
-    private final AdElasticsearchProperties properties;
-    private final CandidateIndexManager candidateIndexManager;
+    private final EsProperties properties;
+    private final EsIndexManagerServiceImpl esIndexManagerServiceImpl;
 
     public void warmUp() {
         if (!properties.isEnabled()) {
             return;
         }
         try {
-            if (!candidateIndexManager.aliasExists()) {
-                candidateIndexManager.rebuild();
-            }
+            esIndexManagerServiceImpl.initialRebuild();
         } catch (RuntimeException ex) {
             log.warn("Elasticsearch bootstrap failed; delivery will use MySQL fallback", ex);
         }

@@ -1,14 +1,15 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.delivery.port.CandidateSearchPort;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsRecallServiceImpl;
+import com.example.adplatform.search.port.CandidateSearchPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
-
+//todo:该部分已弃用，deliver直接依赖infra层，后续应该迁移此部分功能到业务层
 /**
  * 候选召回入口，封装 ES 主链路、熔断保护、MySQL 降级和监控指标。
  *
@@ -19,12 +20,12 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class CandidateRecallService {
 
-    private final CandidateSearchPort elasticsearchRecall;
+    private final EsRecallServiceImpl elasticsearchRecall;
     private final MysqlCandidateRecallService mysqlRecall;
     private final MeterRegistry meterRegistry;
 
     public CandidateRecallService(
-            CandidateSearchPort elasticsearchRecall,
+            EsRecallServiceImpl elasticsearchRecall,
             MysqlCandidateRecallService mysqlRecall,
             MeterRegistry meterRegistry) {
         this.elasticsearchRecall = elasticsearchRecall;

@@ -1,7 +1,7 @@
 package com.example.adplatform.search;
 
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.infra.elasticsearch.delivery.CandidateIndexSyncService;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexUpdateServiceImpl;
 import com.example.adplatform.infra.redis.delivery.stopguard.DeliveryStopGuardService;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
@@ -67,7 +67,7 @@ class SearchPipelineIT {
     @Autowired
     private KafkaListenerEndpointRegistry kafkaListenerEndpointRegistry;
     @Autowired
-    private CandidateIndexSyncService candidateIndexSyncService;
+    private EsIndexUpdateServiceImpl esIndexUpdateServiceImpl;
     @Autowired
     private DeliveryStopGuardService deliveryStopGuardService;
 
@@ -102,7 +102,7 @@ class SearchPipelineIT {
         stopKafkaListeners();
         jdbcTemplate.update("UPDATE plan SET status = 'ONLINE' WHERE id = 1");
         try {
-            candidateIndexSyncService.synchronize(new ConfigChangeMessage(
+            esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
                     UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
         } catch (RuntimeException ignored) {
             deliveryStopGuardService.mark(ConfigAggregateType.PLAN, 1L, false);
@@ -144,9 +144,9 @@ class SearchPipelineIT {
                 !deliveryStopGuardService.findStoppedPlans(List.of(1L)).contains(1L));
 
         // 连续配置消息必须保持幂等，不能依赖 Kafka 重试掩盖 ES 近实时版本冲突。
-        candidateIndexSyncService.synchronize(new ConfigChangeMessage(
+        esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
                 UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
-        candidateIndexSyncService.synchronize(new ConfigChangeMessage(
+        esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
                 UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
         assertThat(candidateConsumerRetries).hasValue(0);
     }
