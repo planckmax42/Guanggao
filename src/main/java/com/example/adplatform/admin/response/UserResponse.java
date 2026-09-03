@@ -3,7 +3,7 @@ package com.example.adplatform.admin.response;
 import java.time.LocalDateTime;
 
 public record UserResponse(
-        Long id,
+        String publicId,
         String name,
         String industry,
         String contactName,

@@ -32,11 +32,14 @@ public class EsDocumentFactory {//mysql查询结果到ES映射函数
     /** 根据数据库真实配置生成可直接索引的候选快照。 */
     public AdCandidateDocument from(CandidateSourceRow row) {
         AdCandidateDocument document = new AdCandidateDocument();
-        document.setId(String.valueOf(row.getMaterialId()));
+        document.setId(row.getMaterialPublicId());
         document.setMaterialId(row.getMaterialId());
+        document.setMaterialPublicId(row.getMaterialPublicId());
         document.setPlanId(row.getPlanId());
+        document.setPlanPublicId(row.getPlanPublicId());
         document.setUserId(row.getUserId());
         document.setSlotId(row.getSlotId());
+        document.setSlotPublicId(row.getSlotPublicId());
         document.setSlotCode(normalize(row.getSlotCode(), String::toUpperCase));
         document.setTitle(row.getTitle());
         document.setDescription(row.getDescription());

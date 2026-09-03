@@ -15,6 +15,8 @@ import org.mapstruct.MappingTarget;
 public interface PlanConverter {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "userId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
     @Mapping(target = "status", expression = "java(PlanStatus.DRAFT.name())")
     @Mapping(target = "createdAt", ignore = true)
@@ -22,6 +24,7 @@ public interface PlanConverter {
     PlanEntity toEntity(CreatePlanRequest request);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
     @Mapping(target = "status", ignore = true)
@@ -29,8 +32,10 @@ public interface PlanConverter {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdatePlanRequest request, @MappingTarget PlanEntity entity);
 
-    PlanResponse toResponse(PlanEntity entity);
+    @Mapping(target = "advertiserPublicId", source = "advertiserPublicId")
+    PlanResponse toResponse(PlanEntity entity, String advertiserPublicId);
 
+    @Mapping(target = "publicId", source = "publicId")
     @Mapping(target = "bizKey", source = "name")
     ResourceRefResponse toRef(PlanEntity entity);
 }

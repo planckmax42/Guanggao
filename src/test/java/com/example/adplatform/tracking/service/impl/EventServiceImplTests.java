@@ -43,7 +43,7 @@ class EventServiceImplTests {
                 "event-1",
                 "request-1",
                 "IMPRESSION",
-                1L,
+                "mat_00000000000000000000000000000001",
                 2L,
                 LocalDateTime.of(2026, 7, 23, 12, 0));
     }
@@ -53,7 +53,7 @@ class EventServiceImplTests {
                 "event-1",
                 "request-1",
                 EventType.IMPRESSION,
-                1L,
+                "mat_00000000000000000000000000000001",
                 2L,
                 LocalDateTime.of(2026, 7, 23, 12, 0));
     }

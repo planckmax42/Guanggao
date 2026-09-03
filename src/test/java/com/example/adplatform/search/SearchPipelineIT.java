@@ -103,13 +103,16 @@ class SearchPipelineIT {
         jdbcTemplate.update("UPDATE plan SET status = 'ONLINE' WHERE id = 1");
         try {
             esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
-                    UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
+                    UUID.randomUUID().toString(), ConfigAggregateType.PLAN,
+                    "plan_00000000000000000000000000000001"));
         } catch (RuntimeException ignored) {
             deliveryStopGuardService.mark(ConfigAggregateType.PLAN, 1L, false);
         }
         if (outboxSnapshotTaken) {
             jdbcTemplate.update(
-                    "DELETE FROM outbox_message WHERE id > ? AND message_key = 'PLAN:1'", initialOutboxId);
+                    "DELETE FROM outbox_message WHERE id > ? AND message_key = "
+                            + "'PLAN:plan_00000000000000000000000000000001'",
+                    initialOutboxId);
         }
     }
 
@@ -128,26 +131,32 @@ class SearchPipelineIT {
 
     private void exerciseCandidateConfigPipeline() throws Exception {
         ResponseEntity<JsonNode> paused = restTemplate.exchange(
-                "/api/admin/plans/1/pause", HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
+                "/api/advertiser/plans/plan_00000000000000000000000000000001/pause",
+                HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
         assertThat(paused.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(paused.getBody()).isNotNull();
         assertThat(paused.getBody().path("code").asInt()).isZero();
-        await(Duration.ofSeconds(20), () -> !candidateDocumentExists("1"));
+        await(Duration.ofSeconds(20), () -> !candidateDocumentExists(
+                "mat_00000000000000000000000000000001"));
 
         ResponseEntity<JsonNode> online = restTemplate.exchange(
-                "/api/admin/plans/1/online", HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
+                "/api/advertiser/plans/plan_00000000000000000000000000000001/online",
+                HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
         assertThat(online.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(online.getBody()).isNotNull();
         assertThat(online.getBody().path("code").asInt()).isZero();
-        await(Duration.ofSeconds(20), () -> candidateDocumentExists("1"));
+        await(Duration.ofSeconds(20), () -> candidateDocumentExists(
+                "mat_00000000000000000000000000000001"));
         await(Duration.ofSeconds(5), () ->
                 !deliveryStopGuardService.findStoppedPlans(List.of(1L)).contains(1L));
 
         // 连续配置消息必须保持幂等，不能依赖 Kafka 重试掩盖 ES 近实时版本冲突。
         esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
-                UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
+                UUID.randomUUID().toString(), ConfigAggregateType.PLAN,
+                "plan_00000000000000000000000000000001"));
         esIndexUpdateServiceImpl.update(new ConfigChangeMessage(
-                UUID.randomUUID().toString(), ConfigAggregateType.PLAN, 1L));
+                UUID.randomUUID().toString(), ConfigAggregateType.PLAN,
+                "plan_00000000000000000000000000000001"));
         assertThat(candidateConsumerRetries).hasValue(0);
     }
 

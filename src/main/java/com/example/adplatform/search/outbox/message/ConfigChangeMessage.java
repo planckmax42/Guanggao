@@ -5,10 +5,10 @@ package com.example.adplatform.search.outbox.message;
  *
  * @param eventId 单次变更标识，便于追踪重复投递
  * @param aggregateType 配置聚合类型
- * @param aggregateId 配置主键
+ * @param aggregateId 跨服务使用的不可变公开标识
  */
 public record ConfigChangeMessage(
         String eventId,
         ConfigAggregateType aggregateType,
-        Long aggregateId) {
+        String aggregateId) {
 }

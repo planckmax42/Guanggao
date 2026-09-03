@@ -53,6 +53,7 @@ src/main/resources/sql/04-tracking-report-schema.sql
 src/main/resources/sql/06-elasticsearch-outbox-schema.sql
 src/main/resources/sql/07-debezium-cdc.sql
 src/main/resources/sql/08-remove-event-charge-projection.sql
+src/main/resources/sql/09-public-identifiers.sql
 src/main/resources/sql/99-seed-demo-data.sql
 ```
 
@@ -143,7 +144,7 @@ host 网络访问仅监听 `127.0.0.1:9092` 的 Kafka。Grafana 告警只在 UI 
 ```text
 POST /api/delivery/ads                         广告投放
 POST /api/tracking/events                      曝光/点击/转化事件上报
-POST /api/admin/search/candidates/rebuild      候选索引无停机重建
+POST /api/platform/search/candidates/rebuild   候选索引无停机重建
 GET  /actuator/metrics/ad.candidate.recall.duration
 GET  http://127.0.0.1:8083/connectors/ad-platform-outbox/bloomSnapshot
 ```

@@ -3,8 +3,8 @@ package com.example.adplatform.admin.response;
 import java.time.LocalDateTime;
 
 public record PlanResponse(
-        Long id,
-        Long userId,
+        String publicId,
+        String advertiserPublicId,
         String name,
         Long budgetTotal,
         Long budgetDaily,

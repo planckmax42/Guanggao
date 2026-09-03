@@ -158,7 +158,7 @@ class EventKafkaProducerTests {
                 eventId,
                 "request-1",
                 EventType.IMPRESSION,
-                1L,
+                "mat_00000000000000000000000000000001",
                 2L,
                 LocalDateTime.of(2026, 7, 23, 12, 0));
     }

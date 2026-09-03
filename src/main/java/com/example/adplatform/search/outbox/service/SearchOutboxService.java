@@ -1,6 +1,7 @@
 package com.example.adplatform.search.outbox.service;
 
 import com.example.adplatform.search.outbox.entity.OutboxMessageEntity;
+import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
@@ -10,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
 //todo:此部分功能应该迁移至admin实体层
 /**
  * 在业务事务内追加搜索链路 Outbox 消息。
@@ -32,8 +32,8 @@ public class SearchOutboxService {
     /**
      * 追加配置变更消息。消息 key 使用“类型:ID”，保证同一聚合落在同一个 Kafka 分区。
      */
-    public void appendConfigChange(ConfigAggregateType type, Long aggregateId) {
-        String eventId = UUID.randomUUID().toString();
+    public void appendConfigChange(ConfigAggregateType type, String aggregateId) {
+        String eventId = PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX);
         append(configChangeTopic, type.name() + ":" + aggregateId, ConfigChangeMessage.class.getSimpleName(),
                 new ConfigChangeMessage(eventId, type, aggregateId), eventId);
     }

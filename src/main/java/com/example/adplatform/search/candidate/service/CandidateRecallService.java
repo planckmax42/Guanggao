@@ -1,7 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsRecallServiceImpl;
 import com.example.adplatform.search.port.CandidateSearchPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -20,12 +19,12 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class CandidateRecallService {
 
-    private final EsRecallServiceImpl elasticsearchRecall;
+    private final CandidateSearchPort elasticsearchRecall;
     private final MysqlCandidateRecallService mysqlRecall;
     private final MeterRegistry meterRegistry;
 
     public CandidateRecallService(
-            EsRecallServiceImpl elasticsearchRecall,
+            CandidateSearchPort elasticsearchRecall,
             MysqlCandidateRecallService mysqlRecall,
             MeterRegistry meterRegistry) {
         this.elasticsearchRecall = elasticsearchRecall;

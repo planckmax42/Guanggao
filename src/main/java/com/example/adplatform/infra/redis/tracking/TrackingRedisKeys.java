@@ -22,7 +22,7 @@ public final class TrackingRedisKeys {
     }
 
     /** 生成事件消费者共享的素材元数据缓存 Key。 */
-    public static String eventMaterialMetadata(Long materialId) {
-        return "event:metadata:material:%d".formatted(materialId);
+    public static String eventMaterialMetadata(String materialPublicId) {
+        return "event:metadata:material:%s".formatted(materialPublicId);
     }
 }

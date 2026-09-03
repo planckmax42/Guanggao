@@ -107,7 +107,7 @@ class EventControllerTests {
                         .content("""
                                 {
                                   "eventType": "IMPRESSION",
-                                  "materialId": 1,
+                                  "materialPublicId": "invalid",
                                   "viewerId": 2
                                 }
                                 """))
@@ -122,7 +122,7 @@ class EventControllerTests {
                   "eventId": "event-1",
                   "requestId": "request-1",
                   "eventType": "IMPRESSION",
-                  "materialId": 1,
+                  "materialPublicId": "mat_00000000000000000000000000000001",
                   "viewerId": 2,
                   "eventTime": "2026-07-23T12:00:00"
                 }

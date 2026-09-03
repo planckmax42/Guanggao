@@ -85,7 +85,7 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
         return ReportRedisKeys.dailyStats(
                 statDate,
                 metadata.planId(),
-                message.materialId(),
+                metadata.materialId(),
                 metadata.slotId());
     }
 }

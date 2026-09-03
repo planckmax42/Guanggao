@@ -3,7 +3,8 @@
 ## 运行前准备
 
 1. 启动 MySQL、Redis、Kafka、Elasticsearch 和 Spring Boot 应用。
-2. 执行基础 SQL，其中必须包含 `06-elasticsearch-outbox-schema.sql` 和 `07-debezium-cdc.sql`。
+2. 按顺序执行基础 SQL，其中必须包含 `06-elasticsearch-outbox-schema.sql`、`07-debezium-cdc.sql`
+   和 `09-public-identifiers.sql`。
 3. 确认应用和 ES 可用：
 
 ```bash
@@ -19,7 +20,7 @@ curl http://127.0.0.1:9200/_cluster/health
 mysql -h127.0.0.1 -P3306 -uroot -p ad_platform \
   -e "SET @candidate_count=5000; SOURCE jmeter/sql/prepare-es-recall-data.sql;"
 
-curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
+curl -X POST http://127.0.0.1:8080/api/platform/search/candidates/rebuild
 ```
 
 脚本直接写 MySQL，不会触发应用内的广告位布隆过滤器增量更新。建议在应用启动前生成数据；如果应用已在运行，生成后重启应用，再执行候选索引重建。
@@ -32,7 +33,7 @@ curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
 mysql -h127.0.0.1 -P3306 -uroot -p ad_platform \
   -e "SOURCE jmeter/sql/cleanup-es-recall-data.sql;"
 redis-cli DEL slot:code:ES_LOAD_HOME slot:code:ES_LOAD_FEED slot:code:ES_LOAD_SEARCH
-curl -X POST http://127.0.0.1:8080/api/admin/search/candidates/rebuild
+curl -X POST http://127.0.0.1:8080/api/platform/search/candidates/rebuild
 ```
 
 ## 线程组

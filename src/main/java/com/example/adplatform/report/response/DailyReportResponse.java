@@ -7,9 +7,9 @@ import java.time.LocalDate;
  */
 public record DailyReportResponse(
         LocalDate statDate,
-        Long planId,
-        Long materialId,
-        Long slotId,
+        String planPublicId,
+        String materialPublicId,
+        String slotPublicId,
         Long impressionCount,
         Long clickCount,
         Long conversionCount,

@@ -24,10 +24,11 @@ class EventArchiveProcessorTests {
         EventConverter converter = mock(EventConverter.class);
         EventMapper eventMapper = mock(EventMapper.class);
         EventMessage message = new EventMessage(
-                "event-1", "request-1", EventType.CLICK, 10L, 20L, LocalDateTime.now());
+                "event-1", "request-1", EventType.CLICK,
+                "mat_00000000000000000000000000000010", 20L, LocalDateTime.now());
         EventMaterialMetadata metadata = new EventMaterialMetadata(
-                30L, 40L, 100_000L, 10_000L, 25L, "CPC");
-        when(metadataCacheService.get(message.materialId())).thenReturn(metadata);
+                10L, 30L, 40L, 100_000L, 10_000L, 25L, "CPC");
+        when(metadataCacheService.get(message.materialPublicId())).thenReturn(metadata);
         when(converter.toEntity(any(), any()))
                 .thenReturn(new EventEntity());
 

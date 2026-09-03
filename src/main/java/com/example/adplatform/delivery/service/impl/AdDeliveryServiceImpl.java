@@ -151,9 +151,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private AdItemResponse toAdItemResponse(ScoredCandidate item) {
         AdCandidateDocument candidate = item.candidate();
         return new AdItemResponse(
-                candidate.getPlanId(),
-                candidate.getMaterialId(),
-                candidate.getSlotId(),
+                candidate.getPlanPublicId(),
+                candidate.getMaterialPublicId(),
+                candidate.getSlotPublicId(),
                 candidate.getTitle(),
                 candidate.getDescription(),
                 candidate.getImageUrl(),

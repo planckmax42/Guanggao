@@ -24,7 +24,7 @@ public interface EventConverter {
     @Mapping(target = "requestId", source = "message.requestId")
     @Mapping(target = "eventType", expression = "java(message.eventType().name())")
     @Mapping(target = "planId", source = "metadata.planId")
-    @Mapping(target = "materialId", source = "message.materialId")
+    @Mapping(target = "materialId", source = "metadata.materialId")
     @Mapping(target = "slotId", source = "metadata.slotId")
     @Mapping(target = "viewerId", source = "message.viewerId")
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(metadata.billingType()))")

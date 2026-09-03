@@ -20,7 +20,7 @@ class EventMessageJsonTests {
                 "event-1",
                 "request-1",
                 EventType.CLICK,
-                10L,
+                "mat_00000000000000000000000000000010",
                 20L,
                 LocalDateTime.of(2026, 7, 17, 12, 0));
 

@@ -32,6 +32,9 @@ import static org.mockito.Mockito.when;
 
 class EventMetadataCacheServiceTests {
 
+    private static final String MATERIAL_PUBLIC_ID = "mat_00000000000000000000000000000010";
+    private static final String OTHER_MATERIAL_PUBLIC_ID = "mat_00000000000000000000000000000011";
+
     @AfterEach
     void clearTransactionSynchronization() {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -44,28 +47,28 @@ class EventMetadataCacheServiceTests {
     void shouldReturnRedisValueWithoutQueryingMysql() throws Exception {
         Fixture fixture = fixture();
         EventMaterialMetadata expected = metadata();
-        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(10L)))
+        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID)))
                 .thenReturn(fixture.objectMapper.writeValueAsString(expected));
 
-        EventMaterialMetadata actual = fixture.service.get(10L);
+        EventMaterialMetadata actual = fixture.service.get(MATERIAL_PUBLIC_ID);
 
         assertThat(actual).isEqualTo(expected);
-        verify(fixture.materialMapper, never()).selectMaterialPlanById(any());
+        verify(fixture.materialMapper, never()).selectMaterialPlanByPublicId(any());
     }
 
     @Test
     void shouldLoadMysqlAndPopulateRedisOnCacheMiss() {
         Fixture fixture = fixture();
-        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(10L))).thenReturn(null);
-        when(fixture.materialMapper.selectMaterialPlanById(10L)).thenReturn(row());
+        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID))).thenReturn(null);
+        when(fixture.materialMapper.selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID)).thenReturn(row());
 
-        EventMaterialMetadata actual = fixture.service.get(10L);
+        EventMaterialMetadata actual = fixture.service.get(MATERIAL_PUBLIC_ID);
 
         assertThat(actual).isEqualTo(metadata());
-        verify(fixture.materialMapper).selectMaterialPlanById(10L);
-        verify(fixture.bloomFilterManager).addBloomFilter(10L);
+        verify(fixture.materialMapper).selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID);
+        verify(fixture.bloomFilterManager).addBloomFilter(MATERIAL_PUBLIC_ID);
         verify(fixture.values).set(
-                eq(TrackingRedisKeys.eventMaterialMetadata(10L)),
+                eq(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID)),
                 any(String.class),
                 eq(Duration.ofHours(1)));
     }
@@ -74,40 +77,40 @@ class EventMetadataCacheServiceTests {
     void shouldReuseValueFilledWhileWaitingForSingleFlightLock() throws Exception {
         Fixture fixture = fixture();
         EventMaterialMetadata expected = metadata();
-        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(10L)))
+        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID)))
                 .thenReturn(null, fixture.objectMapper.writeValueAsString(expected));
 
-        EventMaterialMetadata actual = fixture.service.get(10L);
+        EventMaterialMetadata actual = fixture.service.get(MATERIAL_PUBLIC_ID);
 
         assertThat(actual).isEqualTo(expected);
-        verify(fixture.materialMapper, never()).selectMaterialPlanById(any());
+        verify(fixture.materialMapper, never()).selectMaterialPlanByPublicId(any());
     }
 
     @Test
     void shouldRejectDefiniteBloomMissWithoutQueryingMysql() {
         Fixture fixture = fixture();
-        when(fixture.bloomFilterManager.definitelyNotContains(10L)).thenReturn(true);
+        when(fixture.bloomFilterManager.definitelyNotContains(MATERIAL_PUBLIC_ID)).thenReturn(true);
 
-        assertThatThrownBy(() -> fixture.service.get(10L))
+        assertThatThrownBy(() -> fixture.service.get(MATERIAL_PUBLIC_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("广告素材不存在");
         verify(fixture.values, never()).get(anyString());
-        verify(fixture.materialMapper, never()).selectMaterialPlanById(any());
+        verify(fixture.materialMapper, never()).selectMaterialPlanByPublicId(any());
         verify(fixture.bloomFilterManager).recordDefiniteNotContain();
     }
 
     @Test
     void shouldRecordBloomFalsePositiveWhenMysqlConfirmsMissingMaterial() {
         Fixture fixture = fixture();
-        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(10L))).thenReturn(null);
+        when(fixture.values.get(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID))).thenReturn(null);
         when(fixture.bloomFilterManager.GetBloomFilterSnapshot())
                 .thenReturn(new BloomSnapshot(true, 100L, 0L, 0.01D, 0D));
 
-        assertThatThrownBy(() -> fixture.service.get(10L))
+        assertThatThrownBy(() -> fixture.service.get(MATERIAL_PUBLIC_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("广告素材不存在");
 
-        verify(fixture.materialMapper).selectMaterialPlanById(10L);
+        verify(fixture.materialMapper).selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID);
         verify(fixture.bloomFilterManager).recordFalsePositive();
     }
 
@@ -116,14 +119,14 @@ class EventMetadataCacheServiceTests {
         Fixture fixture = fixture();
         beginTransactionSynchronization();
 
-        fixture.service.refreshAfterCommit(10L, metadata());
+        fixture.service.refreshAfterCommit(MATERIAL_PUBLIC_ID, metadata());
 
-        verify(fixture.bloomFilterManager).addBloomFilter(10L);
+        verify(fixture.bloomFilterManager).addBloomFilter(MATERIAL_PUBLIC_ID);
         verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
         commitSynchronizations();
-        verify(fixture.bloomFilterManager, times(1)).addBloomFilter(10L);
+        verify(fixture.bloomFilterManager, times(1)).addBloomFilter(MATERIAL_PUBLIC_ID);
         verify(fixture.values).set(
-                eq(TrackingRedisKeys.eventMaterialMetadata(10L)),
+                eq(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID)),
                 anyString(),
                 eq(Duration.ofHours(1)));
     }
@@ -133,9 +136,9 @@ class EventMetadataCacheServiceTests {
         Fixture fixture = fixture();
         beginTransactionSynchronization();
 
-        fixture.service.refreshAfterCommit(10L, metadata());
+        fixture.service.refreshAfterCommit(MATERIAL_PUBLIC_ID, metadata());
 
-        verify(fixture.bloomFilterManager).addBloomFilter(10L);
+        verify(fixture.bloomFilterManager).addBloomFilter(MATERIAL_PUBLIC_ID);
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(synchronization -> synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
         verify(fixture.values, never()).set(anyString(), anyString(), any(Duration.class));
@@ -144,7 +147,8 @@ class EventMetadataCacheServiceTests {
     @Test
     void shouldEvictPlanMetadataOnlyAfterTransactionCommit() {
         Fixture fixture = fixture();
-        when(fixture.materialMapper.selectMaterialIdsByPlanId(20L)).thenReturn(List.of(10L, 11L));
+        when(fixture.materialMapper.selectMaterialPublicIdsByPlanId(20L))
+                .thenReturn(List.of(MATERIAL_PUBLIC_ID, OTHER_MATERIAL_PUBLIC_ID));
         beginTransactionSynchronization();
 
         fixture.service.evictPlanAfterCommit(20L);
@@ -152,8 +156,8 @@ class EventMetadataCacheServiceTests {
         verify(fixture.redisTemplate, never()).delete(anyCollection());
         commitSynchronizations();
         verify(fixture.redisTemplate).delete(List.of(
-                TrackingRedisKeys.eventMaterialMetadata(10L),
-                TrackingRedisKeys.eventMaterialMetadata(11L)));
+                TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID),
+                TrackingRedisKeys.eventMaterialMetadata(OTHER_MATERIAL_PUBLIC_ID)));
     }
 
     private void beginTransactionSynchronization() {
@@ -198,6 +202,7 @@ class EventMetadataCacheServiceTests {
     private MaterialPlanJoinRow row() {
         MaterialPlanJoinRow row = new MaterialPlanJoinRow();
         row.setMaterialId(10L);
+        row.setMaterialPublicId(MATERIAL_PUBLIC_ID);
         row.setMaterialPlanId(20L);
         row.setSlotId(30L);
         row.setPlanId(20L);
@@ -209,7 +214,7 @@ class EventMetadataCacheServiceTests {
     }
 
     private EventMaterialMetadata metadata() {
-        return new EventMaterialMetadata(20L, 30L, 10000L, 1000L, 100L, "CPC");
+        return new EventMaterialMetadata(10L, 20L, 30L, 10000L, 1000L, 100L, "CPC");
     }
 
     private record Fixture(

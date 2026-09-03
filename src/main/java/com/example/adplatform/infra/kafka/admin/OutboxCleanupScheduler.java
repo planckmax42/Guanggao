@@ -21,7 +21,7 @@ public class  OutboxCleanupScheduler {
                 log.info("Cleaned expired search outbox messages, count={}", deleted);
             }
         } catch (RuntimeException ex) {
-            log.warn("Search outbox cleanup failed", ex);
+            log.warn("Search outbox cleanup failed", ex); 
         }
     }
 }

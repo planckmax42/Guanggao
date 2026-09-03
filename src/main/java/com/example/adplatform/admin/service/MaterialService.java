@@ -10,7 +10,7 @@ public interface MaterialService {
 
     ResourceRefResponse create(CreateMaterialRequest request);
 
-    MaterialResponse audit(Long id, AuditMaterialRequest request);
+    MaterialResponse audit(String publicId, AuditMaterialRequest request);
 
-    PageResponse<MaterialResponse> pageQuery(long current, long size, Long planId, String auditStatus);
+    PageResponse<MaterialResponse> pageQuery(long current, long size, String planPublicId, String auditStatus);
 }

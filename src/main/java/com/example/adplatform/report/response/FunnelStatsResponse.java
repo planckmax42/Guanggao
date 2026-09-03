@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public record FunnelStatsResponse(
         LocalDate startDate,
         LocalDate endDate,
-        Long planId,
+        String planPublicId,
         Long impressionCount,
         Long clickCount,
         Long conversionCount,

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/platform/advertisers")
 public class UserController {
 
     private final UserService userService;

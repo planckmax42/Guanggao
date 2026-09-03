@@ -3,9 +3,9 @@ package com.example.adplatform.infra.bloomfilter.tracking.materialMetadata;
 /** 素材元数据布隆过滤器维护接口。 */
 public interface MaterialMetadataBloomService {
 
-    boolean definitelyNotContains(Long materialId);
+    boolean definitelyNotContains(String materialPublicId);
 
-    void addBloomFilter(Long materialId);
+    void addBloomFilter(String materialPublicId);
 
     void recordDefiniteNotContain();
 

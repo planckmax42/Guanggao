@@ -17,6 +17,8 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SlotServiceImplTests {
 
@@ -45,7 +47,8 @@ class SlotServiceImplTests {
         InOrder order = inOrder(slotMapper, slotCacheService);
         order.verify(slotMapper).insert(entity);
         order.verify(slotCacheService).refreshSlot(entity, null);
-        verify(searchOutboxService).appendConfigChange(ConfigAggregateType.SLOT, 1L);
+        assertThat(entity.getPublicId()).matches("^slot_[0-9a-f]{32}$");
+        verify(searchOutboxService).appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
     }
 
     @Test
@@ -65,15 +68,18 @@ class SlotServiceImplTests {
                 "NEW_BANNER", "New Banner", 1080, 300, "APP_HOME", CommonStatus.ENABLED);
         SlotEntity existing = new SlotEntity();
         existing.setId(1L);
+        existing.initializePublicId("slot_00000000000000000000000000000001");
         existing.setSlotCode("OLD_BANNER");
         existing.setStatus(CommonStatus.ENABLED);
         SlotEntity updated = new SlotEntity();
         updated.setId(1L);
+        updated.initializePublicId("slot_00000000000000000000000000000001");
         updated.setSlotCode("NEW_BANNER");
         updated.setStatus(CommonStatus.ENABLED);
-        when(slotMapper.selectById(1L)).thenReturn(existing, updated);
+        when(slotMapper.selectOne(any())).thenReturn(existing);
+        when(slotMapper.selectById(1L)).thenReturn(updated);
 
-        service.update(1L, request);
+        service.update("slot_00000000000000000000000000000001", request);
 
         InOrder order = inOrder(slotMapper, slotCacheService);
         order.verify(slotMapper).updateById(existing);

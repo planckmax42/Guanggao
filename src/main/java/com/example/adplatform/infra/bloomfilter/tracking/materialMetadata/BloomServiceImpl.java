@@ -10,6 +10,7 @@ import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.BloomRebuildResult.RebuildStatus;
 import java.util.List;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,8 +24,8 @@ public class BloomServiceImpl implements MaterialMetadataBloomService {
 
     private final MaterialMapper materialMapper;
     private final BloomProperties bloomProperties;
-    private final AtomicReference<BloomFilter<Long>> currentBloomFilter;
-    private BloomFilter<Long> standbyBloomFilter;
+    private final AtomicReference<BloomFilter<CharSequence>> currentBloomFilter;
+    private BloomFilter<CharSequence> standbyBloomFilter;
     private Long currentCapacity;//todo：是否有必要原子 final
     private final Object updateLock = new Object();
     private final ReentrantLock rebuildLock = new ReentrantLock();//todo为什么锁是final 这里要是不new会怎样
@@ -49,22 +50,22 @@ public class BloomServiceImpl implements MaterialMetadataBloomService {
     }
 
     @Override
-    public boolean definitelyNotContains(Long materialId) {
+    public boolean definitelyNotContains(String materialPublicId) {
         return bloomFilterReady
-                && materialId != null//todo:太多&&看看是不是有问题
-                && materialId > 0
-                && !currentBloomFilter.get().mightContain(materialId);
+                && materialPublicId != null
+                && !materialPublicId.isBlank()
+                && !currentBloomFilter.get().mightContain(materialPublicId);
     }
 
     @Override
-    public void addBloomFilter(Long materialId) {
-        if (materialId == null || materialId <= 0) {
+    public void addBloomFilter(String materialPublicId) {
+        if (materialPublicId == null || materialPublicId.isBlank()) {
             return;
         }
         synchronized (updateLock) {
-            currentBloomFilter.get().put(materialId);
+            currentBloomFilter.get().put(materialPublicId);
             if (standbyBloomFilter != null) {
-                standbyBloomFilter.put(materialId);
+                standbyBloomFilter.put(materialPublicId);
             }
         }
     }
@@ -81,7 +82,7 @@ public class BloomServiceImpl implements MaterialMetadataBloomService {
 
     @Override
     public BloomSnapshot GetBloomFilterSnapshot() {
-        BloomFilter<Long> filter = currentBloomFilter.get();
+        BloomFilter<CharSequence> filter = currentBloomFilter.get();
         long definiteNotContainCount = definiteNotContain.get();
         long falsePositive = falsePositiveCount.get();
         long totalCount = definiteNotContainCount + falsePositive;
@@ -122,9 +123,9 @@ public class BloomServiceImpl implements MaterialMetadataBloomService {
             synchronized (updateLock){
                 standbyBloomFilter = createBloomFilter(targetCapacity);
             }
-            List<Long> materialIds;
+            List<String> materialIds;
             try {
-                materialIds = materialMapper.selectAllMaterialIds();
+                materialIds = materialMapper.selectAllMaterialPublicIds();
                 materialIds.forEach(standbyBloomFilter::put);
                 synchronized (updateLock){
                     currentBloomFilter.set(standbyBloomFilter);
@@ -146,9 +147,9 @@ public class BloomServiceImpl implements MaterialMetadataBloomService {
         }
     }
 
-    private BloomFilter<Long> createBloomFilter(long targetCapacity) {
+    private BloomFilter<CharSequence> createBloomFilter(long targetCapacity) {
         return BloomFilter.create(
-                Funnels.longFunnel(),
+                Funnels.stringFunnel(StandardCharsets.UTF_8),
                 targetCapacity,
                 bloomProperties.getFalsePositiveProbability());
     }

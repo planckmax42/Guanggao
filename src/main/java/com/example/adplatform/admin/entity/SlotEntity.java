@@ -1,12 +1,16 @@
 package com.example.adplatform.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.AccessLevel;
+
+import java.util.Objects;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +24,18 @@ public class SlotEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+
+    /** 只在创建时生成的对外广告位标识。 */
+    @Setter(AccessLevel.NONE)
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String publicId;
+
+    public void initializePublicId(String publicId) {
+        if (this.publicId != null) {
+            throw new IllegalStateException("广告位 publicId 创建后不允许修改");
+        }
+        this.publicId = Objects.requireNonNull(publicId, "publicId");
+    }
 
     /**
      * 对外使用的广告位编码。投放接口使用它定位广告位，避免直接暴露数据库主键。

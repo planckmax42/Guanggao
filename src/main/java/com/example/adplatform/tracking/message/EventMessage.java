@@ -11,14 +11,14 @@ public record EventMessage(
         String eventId,
         String requestId,
         EventType eventType,
-        Long materialId,
+        String materialPublicId,
         Long viewerId,
         LocalDateTime eventTime) {
 
     /** 兼容旧 Kafka 消息；新 HTTP 消息会在发布前已经补齐时间。 */
     public EventMessage withDefaultEventTime() {
         return eventTime == null
-                ? new EventMessage(eventId, requestId, eventType, materialId, viewerId, LocalDateTime.now())
+                ? new EventMessage(eventId, requestId, eventType, materialPublicId, viewerId, LocalDateTime.now())
                 : this;
     }
 }

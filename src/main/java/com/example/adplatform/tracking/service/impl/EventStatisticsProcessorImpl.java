@@ -19,7 +19,7 @@ public class EventStatisticsProcessorImpl implements EventStatisticsProcessor {
     @Override
     public void record(EventMessage message) {
         message = message.withDefaultEventTime();
-        EventMaterialMetadata metadata = metadataCacheService.get(message.materialId());
+        EventMaterialMetadata metadata = metadataCacheService.get(message.materialPublicId());
         eventStatisticsStore.recordEventOnce(message, metadata);
     }
 }

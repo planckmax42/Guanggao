@@ -38,6 +38,8 @@ import static org.mockito.Mockito.when;
 
 class EventMetadataCacheConcurrencyTests {
 
+    private static final String MATERIAL_PUBLIC_ID = "mat_00000000000000000000000000000010";
+
     @Test
     void shouldMergeThreeConsumerGroupFallbacksIntoOneMysqlJoin() throws Exception {
         Map<String, String> redis = new ConcurrentHashMap<>();
@@ -45,7 +47,7 @@ class EventMetadataCacheConcurrencyTests {
         CountDownLatch mysqlReadStarted = new CountDownLatch(1);
         CountDownLatch allowMysqlReturn = new CountDownLatch(1);
         MaterialMapper materialMapper = mock(MaterialMapper.class);
-        when(materialMapper.selectMaterialPlanById(10L)).thenAnswer(invocation -> {
+        when(materialMapper.selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID)).thenAnswer(invocation -> {
             mysqlReadStarted.countDown();
             assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
             return row();
@@ -57,12 +59,12 @@ class EventMetadataCacheConcurrencyTests {
                 Duration.ofSeconds(1));
 
         CompletableFuture<EventMaterialMetadata> archive = CompletableFuture.supplyAsync(
-                () -> fixture.service().get(10L));
+                () -> fixture.service().get(MATERIAL_PUBLIC_ID));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<EventMaterialMetadata> billing = CompletableFuture.supplyAsync(
-                () -> fixture.service().get(10L));
+                () -> fixture.service().get(MATERIAL_PUBLIC_ID));
         CompletableFuture<EventMaterialMetadata> statistics = CompletableFuture.supplyAsync(
-                () -> fixture.service().get(10L));
+                () -> fixture.service().get(MATERIAL_PUBLIC_ID));
         assertEquals(true, threeReadersMissedRedis.await(1, TimeUnit.SECONDS));
         Thread.sleep(100L);
         assertFalse(billing.isDone());
@@ -72,7 +74,7 @@ class EventMetadataCacheConcurrencyTests {
         assertEquals(metadata(), archive.get(1, TimeUnit.SECONDS));
         assertEquals(metadata(), billing.get(1, TimeUnit.SECONDS));
         assertEquals(metadata(), statistics.get(1, TimeUnit.SECONDS));
-        verify(materialMapper, times(1)).selectMaterialPlanById(10L);
+        verify(materialMapper, times(1)).selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID);
     }
 
     @Test
@@ -82,14 +84,14 @@ class EventMetadataCacheConcurrencyTests {
         CountDownLatch allowMysqlReturn = new CountDownLatch(1);
         CountDownLatch invalidationStarted = new CountDownLatch(1);
         MaterialMapper materialMapper = mock(MaterialMapper.class);
-        when(materialMapper.selectMaterialPlanById(10L)).thenAnswer(invocation -> {
+        when(materialMapper.selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID)).thenAnswer(invocation -> {
             mysqlReadStarted.countDown();
             assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
             return row();
         });
-        when(materialMapper.selectMaterialIdsByPlanId(20L)).thenAnswer(invocation -> {
+        when(materialMapper.selectMaterialPublicIdsByPlanId(20L)).thenAnswer(invocation -> {
             invalidationStarted.countDown();
-            return List.of(10L);
+            return List.of(MATERIAL_PUBLIC_ID);
         });
         Fixture fixture = fixture(
                 redisTemplate(redis, null),
@@ -97,7 +99,7 @@ class EventMetadataCacheConcurrencyTests {
                 Duration.ofSeconds(1));
 
         CompletableFuture<EventMaterialMetadata> olderRead = CompletableFuture.supplyAsync(
-                () -> fixture.service().get(10L));
+                () -> fixture.service().get(MATERIAL_PUBLIC_ID));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<Void> committedInvalidation = CompletableFuture.runAsync(
                 () -> fixture.service().evictPlanAfterCommit(20L));
@@ -107,7 +109,7 @@ class EventMetadataCacheConcurrencyTests {
         assertEquals(metadata(), olderRead.get(1, TimeUnit.SECONDS));
         committedInvalidation.get(1, TimeUnit.SECONDS);
 
-        assertFalse(redis.containsKey(TrackingRedisKeys.eventMaterialMetadata(10L)));
+        assertFalse(redis.containsKey(TrackingRedisKeys.eventMaterialMetadata(MATERIAL_PUBLIC_ID)));
     }
 
     @Test
@@ -116,7 +118,7 @@ class EventMetadataCacheConcurrencyTests {
         CountDownLatch mysqlReadStarted = new CountDownLatch(1);
         CountDownLatch allowMysqlReturn = new CountDownLatch(1);
         MaterialMapper materialMapper = mock(MaterialMapper.class);
-        when(materialMapper.selectMaterialPlanById(10L)).thenAnswer(invocation -> {
+        when(materialMapper.selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID)).thenAnswer(invocation -> {
             mysqlReadStarted.countDown();
             assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
             return row();
@@ -128,11 +130,11 @@ class EventMetadataCacheConcurrencyTests {
                 Duration.ofMillis(30));
 
         CompletableFuture<EventMaterialMetadata> leader = CompletableFuture.supplyAsync(
-                () -> fixture.service().get(10L));
+                () -> fixture.service().get(MATERIAL_PUBLIC_ID));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<Throwable> follower = CompletableFuture.supplyAsync(() -> {
             try {
-                fixture.service().get(10L);
+                fixture.service().get(MATERIAL_PUBLIC_ID);
                 return null;
             } catch (Throwable ex) {
                 return ex;
@@ -146,7 +148,7 @@ class EventMetadataCacheConcurrencyTests {
 
         allowMysqlReturn.countDown();
         assertEquals(metadata(), leader.get(1, TimeUnit.SECONDS));
-        verify(materialMapper, times(1)).selectMaterialPlanById(10L);
+        verify(materialMapper, times(1)).selectMaterialPlanByPublicId(MATERIAL_PUBLIC_ID);
     }
 
     @Test
@@ -158,10 +160,10 @@ class EventMetadataCacheConcurrencyTests {
                 Duration.ofMillis(30));
 
         try (MaterialMetadataRedisLock.LockHandle ignored =
-                     fixture.lockManager().acquireForWrite(List.of(10L))) {
+                     fixture.lockManager().acquireForWrite(List.of(MATERIAL_PUBLIC_ID))) {
             CompletableFuture<Throwable> attempt = CompletableFuture.supplyAsync(() -> {
                 try {
-                    fixture.service().get(10L);
+                    fixture.service().get(MATERIAL_PUBLIC_ID);
                     return null;
                 } catch (Throwable ex) {
                     return ex;
@@ -185,12 +187,12 @@ class EventMetadataCacheConcurrencyTests {
                 Duration.ofSeconds(1));
 
         try (MaterialMetadataRedisLock.LockHandle ignored =
-                     fixture.lockManager().acquireForWrite(List.of(10L))) {
+                     fixture.lockManager().acquireForWrite(List.of(MATERIAL_PUBLIC_ID))) {
             CompletableFuture<InterruptedResult> attempt = new CompletableFuture<>();
             Thread thread = new Thread(() -> {
                 Thread.currentThread().interrupt();
                 try {
-                    fixture.service().get(10L);
+                    fixture.service().get(MATERIAL_PUBLIC_ID);
                     attempt.complete(new InterruptedResult(null, Thread.currentThread().isInterrupted()));
                 } catch (Throwable ex) {
                     attempt.complete(new InterruptedResult(ex, Thread.currentThread().isInterrupted()));
@@ -274,6 +276,7 @@ class EventMetadataCacheConcurrencyTests {
     private MaterialPlanJoinRow row() {
         MaterialPlanJoinRow row = new MaterialPlanJoinRow();
         row.setMaterialId(10L);
+        row.setMaterialPublicId(MATERIAL_PUBLIC_ID);
         row.setMaterialPlanId(20L);
         row.setSlotId(30L);
         row.setPlanId(20L);
@@ -285,7 +288,7 @@ class EventMetadataCacheConcurrencyTests {
     }
 
     private EventMaterialMetadata metadata() {
-        return new EventMaterialMetadata(20L, 30L, 10_000L, 1_000L, 100L, "CPC");
+        return new EventMaterialMetadata(10L, 20L, 30L, 10_000L, 1_000L, 100L, "CPC");
     }
 
     private record Fixture(

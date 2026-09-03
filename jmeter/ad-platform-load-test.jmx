@@ -22,47 +22,47 @@
           </elementProp>
           <elementProp name="material_1" elementType="Argument">
             <stringProp name="Argument.name">material_1</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000001</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_2" elementType="Argument">
             <stringProp name="Argument.name">material_2</stringProp>
-            <stringProp name="Argument.value">2</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000002</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_3" elementType="Argument">
             <stringProp name="Argument.name">material_3</stringProp>
-            <stringProp name="Argument.value">3</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000003</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_4" elementType="Argument">
             <stringProp name="Argument.name">material_4</stringProp>
-            <stringProp name="Argument.value">4</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000004</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_5" elementType="Argument">
             <stringProp name="Argument.name">material_5</stringProp>
-            <stringProp name="Argument.value">9</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000009</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_6" elementType="Argument">
             <stringProp name="Argument.name">material_6</stringProp>
-            <stringProp name="Argument.value">10</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000010</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_7" elementType="Argument">
             <stringProp name="Argument.name">material_7</stringProp>
-            <stringProp name="Argument.value">11</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000011</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_8" elementType="Argument">
             <stringProp name="Argument.name">material_8</stringProp>
-            <stringProp name="Argument.value">12</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000012</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="material_9" elementType="Argument">
             <stringProp name="Argument.name">material_9</stringProp>
-            <stringProp name="Argument.value">13</stringProp>
+            <stringProp name="Argument.value">mat_00000000000000000000000000000013</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
@@ -193,7 +193,7 @@
       </ThreadGroup>
       <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告主" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/users</stringProp>
+          <stringProp name="HTTPSampler.path">/api/platform/advertisers</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
@@ -207,16 +207,16 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 userId" enabled="true">
-            <stringProp name="JSONPostProcessor.referenceNames">userId</stringProp>
-            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 advertiserPublicId" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">advertiserPublicId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.publicId</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-            <stringProp name="JSONPostProcessor.defaultValues">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">adv_00000000000000000000000000000001</stringProp>
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告位" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/slots</stringProp>
+          <stringProp name="HTTPSampler.path">/api/platform/slots</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
@@ -230,39 +230,39 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 slotId" enabled="true">
-            <stringProp name="JSONPostProcessor.referenceNames">slotId</stringProp>
-            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 slotPublicId" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">slotPublicId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.publicId</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-            <stringProp name="JSONPostProcessor.defaultValues">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">slot_00000000000000000000000000000001</stringProp>
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;userId&quot;:${userId},&quot;name&quot;:&quot;压测计划-${__UUID}&quot;,&quot;budgetTotal&quot;:1000000,&quot;budgetDaily&quot;:200000,&quot;bidPrice&quot;:150,&quot;billingType&quot;:&quot;CPC&quot;,&quot;startTime&quot;:&quot;2026-01-01T00:00:00&quot;,&quot;endTime&quot;:&quot;2099-12-31T23:59:59&quot;}</stringProp>
+                <stringProp name="Argument.value">{&quot;advertiserPublicId&quot;:&quot;${advertiserPublicId}&quot;,&quot;name&quot;:&quot;压测计划-${__UUID}&quot;,&quot;budgetTotal&quot;:1000000,&quot;budgetDaily&quot;:200000,&quot;bidPrice&quot;:150,&quot;billingType&quot;:&quot;CPC&quot;,&quot;startTime&quot;:&quot;2026-01-01T00:00:00&quot;,&quot;endTime&quot;:&quot;2099-12-31T23:59:59&quot;}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 planId" enabled="true">
-            <stringProp name="JSONPostProcessor.referenceNames">planId</stringProp>
-            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 planPublicId" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">planPublicId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.publicId</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-            <stringProp name="JSONPostProcessor.defaultValues">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">plan_00000000000000000000000000000001</stringProp>
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-更新广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans/${planId}</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans/${planPublicId}</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
@@ -277,7 +277,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-上线广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans/${planId}/online</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans/${planPublicId}/online</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -286,30 +286,30 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建素材" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/materials</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/materials</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;planId&quot;:${planId},&quot;slotId&quot;:${slotId},&quot;title&quot;:&quot;压测素材&quot;,&quot;description&quot;:&quot;JMeter 压测创建素材&quot;,&quot;imageUrl&quot;:&quot;https://cdn.example.com/load.jpg&quot;,&quot;landingPageUrl&quot;:&quot;https://www.example.com/load&quot;}</stringProp>
+                <stringProp name="Argument.value">{&quot;planPublicId&quot;:&quot;${planPublicId}&quot;,&quot;slotPublicId&quot;:&quot;${slotPublicId}&quot;,&quot;title&quot;:&quot;压测素材&quot;,&quot;description&quot;:&quot;JMeter 压测创建素材&quot;,&quot;imageUrl&quot;:&quot;https://cdn.example.com/load.jpg&quot;,&quot;landingPageUrl&quot;:&quot;https://www.example.com/load&quot;}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 materialId" enabled="true">
-            <stringProp name="JSONPostProcessor.referenceNames">materialId</stringProp>
-            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 materialPublicId" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">materialPublicId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.publicId</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-            <stringProp name="JSONPostProcessor.defaultValues">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">mat_00000000000000000000000000000001</stringProp>
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-审核素材通过" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/materials/${materialId}/audit</stringProp>
+          <stringProp name="HTTPSampler.path">/api/platform/materials/${materialPublicId}/audit</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
@@ -324,14 +324,14 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-创建或更新定向规则" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/rules</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/rules</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;planId&quot;:${planId},&quot;regions&quot;:[&quot;BEIJING&quot;,&quot;SHANGHAI&quot;],&quot;deviceTypes&quot;:[&quot;IOS&quot;,&quot;ANDROID&quot;],&quot;gender&quot;:null,&quot;ageMin&quot;:18,&quot;ageMax&quot;:45,&quot;userTags&quot;:[&quot;load&quot;,&quot;shopping&quot;]}</stringProp>
+                <stringProp name="Argument.value">{&quot;planPublicId&quot;:&quot;${planPublicId}&quot;,&quot;regions&quot;:[&quot;BEIJING&quot;,&quot;SHANGHAI&quot;],&quot;deviceTypes&quot;:[&quot;IOS&quot;,&quot;ANDROID&quot;],&quot;gender&quot;:null,&quot;ageMin&quot;:18,&quot;ageMax&quot;:45,&quot;userTags&quot;:[&quot;load&quot;,&quot;shopping&quot;]}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -339,7 +339,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-查询定向规则" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/rules/${planId}</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/rules/by-plan/${planPublicId}</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -348,7 +348,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告主" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/users/page?current=1&amp;size=20&amp;status=1</stringProp>
+          <stringProp name="HTTPSampler.path">/api/platform/advertisers/page?current=1&amp;size=20&amp;status=1</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -357,7 +357,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告位" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/slots/page?current=1&amp;size=20&amp;status=1</stringProp>
+          <stringProp name="HTTPSampler.path">/api/platform/slots/page?current=1&amp;size=20&amp;status=1</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -366,7 +366,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans/page?current=1&amp;size=20&amp;status=ONLINE</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans/page?current=1&amp;size=20&amp;status=ONLINE</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -375,7 +375,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-分页查询素材" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/materials/page?current=1&amp;size=20&amp;auditStatus=APPROVED</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/materials/page?current=1&amp;size=20&amp;auditStatus=APPROVED</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -384,7 +384,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-暂停广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans/${planId}/pause</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans/${planPublicId}/pause</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -393,7 +393,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="ADMIN-下线广告计划" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/admin/plans/${planId}/offline</stringProp>
+          <stringProp name="HTTPSampler.path">/api/advertiser/plans/${planPublicId}/offline</stringProp>
           <stringProp name="HTTPSampler.method">PUT</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -545,7 +545,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;conv-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CONVERSION&quot;,&quot;materialPublicId&quot;:&quot;${__V(material_${__Random(1,9)})}&quot;,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -560,7 +560,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;clk-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialPublicId&quot;:&quot;${__V(material_${__Random(1,9)})}&quot;,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -575,7 +575,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;materialId&quot;:${__V(material_${__Random(1,9)})},&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;imp-${__UUID}&quot;,&quot;requestId&quot;:&quot;req-${__UUID}&quot;,&quot;eventType&quot;:&quot;IMPRESSION&quot;,&quot;materialPublicId&quot;:&quot;${__V(material_${__Random(1,9)})}&quot;,&quot;viewerId&quot;:${__Random(10000,99999)}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -602,7 +602,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;dup-click-${__P(runId,manual)}&quot;,&quot;requestId&quot;:&quot;req-duplicate&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialId&quot;:3,&quot;viewerId&quot;:88888}</stringProp>
+                <stringProp name="Argument.value">{&quot;eventId&quot;:&quot;dup-click-${__P(runId,manual)}&quot;,&quot;requestId&quot;:&quot;req-duplicate&quot;,&quot;eventType&quot;:&quot;CLICK&quot;,&quot;materialPublicId&quot;:&quot;mat_00000000000000000000000000000003&quot;,&quot;viewerId&quot;:88888}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -622,7 +622,7 @@
       </ThreadGroup>
       <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-日统计" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/report/daily?statDate=${__time(yyyy-MM-dd,)}&amp;planId=2</stringProp>
+          <stringProp name="HTTPSampler.path">/api/report/daily?statDate=${__time(yyyy-MM-dd,)}&amp;planPublicId=plan_00000000000000000000000000000002</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -631,7 +631,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-漏斗统计" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/report/funnel?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;planId=2</stringProp>
+          <stringProp name="HTTPSampler.path">/api/report/funnel?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;planPublicId=plan_00000000000000000000000000000002</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
@@ -640,7 +640,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="REPORT-素材排行" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/report/top-materials?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;planId=2&amp;limit=10</stringProp>
+          <stringProp name="HTTPSampler.path">/api/report/top-materials?startDate=${__time(yyyy-MM-dd,)}&amp;endDate=${__time(yyyy-MM-dd,)}&amp;planPublicId=plan_00000000000000000000000000000002&amp;limit=10</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">

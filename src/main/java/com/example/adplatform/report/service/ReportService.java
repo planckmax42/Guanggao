@@ -9,9 +9,13 @@ import java.util.List;
 
 public interface ReportService {
 
-    List<DailyReportResponse> daily(LocalDate statDate, Long planId);
+    List<DailyReportResponse> daily(LocalDate statDate, String planPublicId);
 
-    FunnelStatsResponse funnel(LocalDate startDate, LocalDate endDate, Long planId);
+    FunnelStatsResponse funnel(LocalDate startDate, LocalDate endDate, String planPublicId);
 
-    List<TopMaterialResponse> topMaterials(LocalDate startDate, LocalDate endDate, Long planId, Integer limit);
+    List<TopMaterialResponse> topMaterials(
+            LocalDate startDate,
+            LocalDate endDate,
+            String planPublicId,
+            Integer limit);
 }

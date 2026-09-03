@@ -19,9 +19,9 @@ class MaterialMetadataRedisLockTests {
         MaterialMetadataRedisLock manager = manager(1_024, Duration.ofMillis(30));
 
         try (MaterialMetadataRedisLock.LockHandle ignored =
-                     manager.acquireForWrite(List.of(10L))) {
+                     manager.acquireForWrite(List.of("mat_10"))) {
             CompletableFuture<Optional<MaterialMetadataRedisLock.LockHandle>> attempt =
-                    CompletableFuture.supplyAsync(() -> manager.tryAcquireForRead(10L));
+                    CompletableFuture.supplyAsync(() -> manager.tryAcquireForRead("mat_10"));
 
             assertTrue(attempt.get(1, TimeUnit.SECONDS).isEmpty());
         }
@@ -32,12 +32,12 @@ class MaterialMetadataRedisLockTests {
         MaterialMetadataRedisLock manager = manager(1_024, Duration.ofSeconds(1));
 
         try (MaterialMetadataRedisLock.LockHandle ignored =
-                     manager.acquireForWrite(List.of(10L))) {
+                     manager.acquireForWrite(List.of("mat_10"))) {
             CompletableFuture<Boolean> interrupted = new CompletableFuture<>();
             Thread thread = new Thread(() -> {
                 Thread.currentThread().interrupt();
                 Optional<MaterialMetadataRedisLock.LockHandle> handle =
-                        manager.tryAcquireForRead(10L);
+                        manager.tryAcquireForRead("mat_10");
                 handle.ifPresent(MaterialMetadataRedisLock.LockHandle::close);
                 interrupted.complete(Thread.currentThread().isInterrupted());
             });
@@ -54,9 +54,9 @@ class MaterialMetadataRedisLockTests {
         CyclicBarrier start = new CyclicBarrier(2);
 
         CompletableFuture<Void> ascending = CompletableFuture.runAsync(
-                () -> repeatedlyAcquire(manager, start, List.of(0L, 1L)));
+                () -> repeatedlyAcquire(manager, start, List.of("mat_0", "mat_1")));
         CompletableFuture<Void> descending = CompletableFuture.runAsync(
-                () -> repeatedlyAcquire(manager, start, List.of(1L, 0L)));
+                () -> repeatedlyAcquire(manager, start, List.of("mat_1", "mat_0")));
 
         CompletableFuture.allOf(ascending, descending).get(2, TimeUnit.SECONDS);
     }
@@ -64,7 +64,7 @@ class MaterialMetadataRedisLockTests {
     private void repeatedlyAcquire(
             MaterialMetadataRedisLock manager,
             CyclicBarrier start,
-            List<Long> materialIds) {
+            List<String> materialIds) {
         try {
             start.await(1, TimeUnit.SECONDS);
             for (int index = 0; index < 100; index++) {

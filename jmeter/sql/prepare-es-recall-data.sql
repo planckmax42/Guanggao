@@ -30,22 +30,23 @@ DELETE FROM slot WHERE id BETWEEN 900001 AND 900003;
 DELETE FROM `user` WHERE id = 900000;
 
 INSERT INTO `user`
-    (id, name, industry, contact_name, contact_email, bloomSnapshot, created_at, updated_at)
+    (id, public_id, name, industry, contact_name, contact_email, bloomSnapshot, created_at, updated_at)
 VALUES
-    (900000, 'ES召回压测广告主', '性能测试', '压测管理员', 'es-load-test@example.com', 1, NOW(), NOW());
+    (900000, 'adv_00000000000000000000000000900000', 'ES召回压测广告主', '性能测试', '压测管理员', 'es-load-test@example.com', 1, NOW(), NOW());
 
 INSERT INTO slot
-    (id, slot_code, name, width, height, scene, bloomSnapshot, created_at, updated_at)
+    (id, public_id, slot_code, name, width, height, scene, bloomSnapshot, created_at, updated_at)
 VALUES
-    (900001, 'ES_LOAD_HOME', 'ES压测首页广告位', 1080, 300, 'LOAD_TEST', 1, NOW(), NOW()),
-    (900002, 'ES_LOAD_FEED', 'ES压测信息流广告位', 720, 360, 'LOAD_TEST', 1, NOW(), NOW()),
-    (900003, 'ES_LOAD_SEARCH', 'ES压测搜索广告位', 640, 120, 'LOAD_TEST', 1, NOW(), NOW());
+    (900001, 'slot_00000000000000000000000000900001', 'ES_LOAD_HOME', 'ES压测首页广告位', 1080, 300, 'LOAD_TEST', 1, NOW(), NOW()),
+    (900002, 'slot_00000000000000000000000000900002', 'ES_LOAD_FEED', 'ES压测信息流广告位', 720, 360, 'LOAD_TEST', 1, NOW(), NOW()),
+    (900003, 'slot_00000000000000000000000000900003', 'ES_LOAD_SEARCH', 'ES压测搜索广告位', 640, 120, 'LOAD_TEST', 1, NOW(), NOW());
 
 INSERT INTO plan
-    (id, user_id, name, budget_total, budget_daily, bid_price, billing_type,
+    (id, public_id, user_id, name, budget_total, budget_daily, bid_price, billing_type,
      start_time, end_time, bloomSnapshot, created_at, updated_at)
 SELECT
     900000 + n,
+    CONCAT('plan_', LPAD(900000 + n, 32, '0')),
     900000,
     CONCAT('ES召回压测计划-', LPAD(n, 5, '0')),
     100000000,
@@ -60,10 +61,11 @@ SELECT
 FROM tmp_es_candidate_seq;
 
 INSERT INTO material
-    (id, plan_id, slot_id, title, description, image_url, landing_page_url,
+    (id, public_id, plan_id, slot_id, title, description, image_url, landing_page_url,
      audit_status, bloomSnapshot, created_at, updated_at)
 SELECT
     900000 + n,
+    CONCAT('mat_', LPAD(900000 + n, 32, '0')),
     900000 + n,
     900001 + MOD(n - 1, 3),
     CONCAT('ES召回压测素材-', LPAD(n, 5, '0')),
@@ -77,10 +79,11 @@ SELECT
 FROM tmp_es_candidate_seq;
 
 INSERT INTO `rule`
-    (id, plan_id, region, device_type, gender, age_min, age_max, user_tags,
+    (id, public_id, plan_id, region, device_type, gender, age_min, age_max, user_tags,
      created_at, updated_at)
 SELECT
     900000 + n,
+    CONCAT('rule_', LPAD(900000 + n, 32, '0')),
     900000 + n,
     CASE
         WHEN MOD(n, 10) = 0 THEN NULL

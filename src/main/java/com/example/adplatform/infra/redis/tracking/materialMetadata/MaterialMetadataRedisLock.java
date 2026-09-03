@@ -27,9 +27,9 @@ public class MaterialMetadataRedisLock {
         this.readWaitTimeout = config.getReadWaitTimeout();
     }
 
-    /** 读侧限时获取 materialId 对应的条带锁。 */
-    public Optional<LockHandle> tryAcquireForRead(Long materialId) {
-        ReentrantLock lock = stripes[stripeIndex(materialId)];
+    /** 读侧限时获取 materialPublicId 对应的条带锁。 */
+    public Optional<LockHandle> tryAcquireForRead(String materialPublicId) {
+        ReentrantLock lock = stripes[stripeIndex(materialPublicId)];
         try {
             if (!lock.tryLock(readWaitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                 return Optional.empty();
@@ -42,8 +42,8 @@ public class MaterialMetadataRedisLock {
     }
 
     /** 写侧按条带索引升序获取全部相关锁，避免批量失效产生死锁。 */
-    public LockHandle acquireForWrite(Collection<Long> materialIds) {
-        List<ReentrantLock> locks = materialIds.stream()
+    public LockHandle acquireForWrite(Collection<String> materialPublicIds) {
+        List<ReentrantLock> locks = materialPublicIds.stream()
                 .filter(Objects::nonNull)
                 .mapToInt(this::stripeIndex)
                 .distinct()
@@ -54,8 +54,8 @@ public class MaterialMetadataRedisLock {
         return new LockHandle(locks);
     }
 
-    private int stripeIndex(Long materialId) {
-        return Math.floorMod(Long.hashCode(materialId), stripes.length);
+    private int stripeIndex(String materialPublicId) {
+        return Math.floorMod(materialPublicId.hashCode(), stripes.length);
     }
 
     /** 反向释放一组已获取的条带锁，可用于 try-with-resources。 */

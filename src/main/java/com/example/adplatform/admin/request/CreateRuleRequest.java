@@ -3,13 +3,16 @@ package com.example.adplatform.admin.request;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
+import static com.example.adplatform.common.id.PublicIdGenerator.PLAN_PATTERN;
+
 public record CreateRuleRequest(
-        @NotNull Long planId,
+        @NotBlank @Pattern(regexp = PLAN_PATTERN) String planPublicId,
         @Size(max = 32) List<@Size(max = 64) String> regions,
         @Size(max = 16) List<@Size(max = 32) String> deviceTypes,
         @Size(max = 32) String gender,

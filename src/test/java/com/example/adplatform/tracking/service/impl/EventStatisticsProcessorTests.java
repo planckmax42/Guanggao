@@ -20,10 +20,11 @@ class EventStatisticsProcessorTests {
         EventMetadataReaderPort metadataCacheService = mock(EventMetadataReaderPort.class);
         EventStatisticsStore store = mock(EventStatisticsStore.class);
         EventMessage message = new EventMessage(
-                "event-1", "request-1", EventType.IMPRESSION, 10L, 20L, LocalDateTime.now());
+                "event-1", "request-1", EventType.IMPRESSION,
+                "mat_00000000000000000000000000000010", 20L, LocalDateTime.now());
         EventMaterialMetadata metadata = new EventMaterialMetadata(
-                30L, 40L, 100_000L, 10_000L, 25L, "CPM");
-        when(metadataCacheService.get(message.materialId())).thenReturn(metadata);
+                10L, 30L, 40L, 100_000L, 10_000L, 25L, "CPM");
+        when(metadataCacheService.get(message.materialPublicId())).thenReturn(metadata);
 
         new EventStatisticsProcessorImpl(metadataCacheService, store).record(message);
 

@@ -28,7 +28,7 @@ class EventConsumerDispatcherTests {
                 "event-1",
                 "request-1",
                 EventType.IMPRESSION,
-                1L,
+                "mat_00000000000000000000000000000001",
                 2L,
                 LocalDateTime.now());
     }

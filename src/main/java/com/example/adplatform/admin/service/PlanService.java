@@ -10,13 +10,13 @@ public interface PlanService {
 
     ResourceRefResponse create(CreatePlanRequest request);
 
-    PlanResponse update(Long id, UpdatePlanRequest request);
+    PlanResponse update(String publicId, UpdatePlanRequest request);
 
-    PlanResponse online(Long id);
+    PlanResponse online(String publicId);
 
-    PlanResponse pause(Long id);
+    PlanResponse pause(String publicId);
 
-    PlanResponse offline(Long id);
+    PlanResponse offline(String publicId);
 
-    PageResponse<PlanResponse> pageQuery(long current, long size, Long userId, String status);
+    PageResponse<PlanResponse> pageQuery(long current, long size, String advertiserPublicId, String status);
 }

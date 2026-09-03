@@ -12,6 +12,7 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
+import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public ResourceRefResponse create(CreateUserRequest request) {
         UserEntity entity = userConverter.toEntity(request);
+        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.ADVERTISER_PREFIX));
         try {
             userMapper.insert(entity);
         } catch (DuplicateKeyException ex) {

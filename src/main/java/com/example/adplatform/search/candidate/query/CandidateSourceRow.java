@@ -15,9 +15,12 @@ import java.time.LocalDateTime;
 @Setter
 public class CandidateSourceRow {
     private Long materialId;
+    private String materialPublicId;
     private Long planId;
+    private String planPublicId;
     private Long userId;
     private Long slotId;
+    private String slotPublicId;
     private String slotCode;
     private String title;
     private String description;

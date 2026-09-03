@@ -13,14 +13,20 @@ import org.mapstruct.Mapping;
 public interface MaterialConverter {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "planId", ignore = true)
+    @Mapping(target = "slotId", ignore = true)
     @Mapping(target = "auditStatus", expression = "java(MaterialAuditStatus.PENDING.name())")
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     MaterialEntity toEntity(CreateMaterialRequest request);
 
-    MaterialResponse toResponse(MaterialEntity entity);
+    @Mapping(target = "planPublicId", source = "planPublicId")
+    @Mapping(target = "slotPublicId", source = "slotPublicId")
+    MaterialResponse toResponse(MaterialEntity entity, String planPublicId, String slotPublicId);
 
+    @Mapping(target = "publicId", source = "publicId")
     @Mapping(target = "bizKey", source = "title")
     ResourceRefResponse toRef(MaterialEntity entity);
 }

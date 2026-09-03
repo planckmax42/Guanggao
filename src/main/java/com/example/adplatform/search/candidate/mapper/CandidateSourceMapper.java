@@ -16,8 +16,9 @@ public interface CandidateSourceMapper {
 
     /** 与 {@link CandidateSourceRow} 字段一一对应的去范式化投影。 */
     String COLUMNS = """
-            m.id AS materialId, m.plan_id AS planId, p.user_id AS userId,
-            m.slot_id AS slotId, s.slot_code AS slotCode,
+            m.id AS materialId, m.public_id AS materialPublicId,
+            m.plan_id AS planId, p.public_id AS planPublicId, p.user_id AS userId,
+            m.slot_id AS slotId, s.public_id AS slotPublicId, s.slot_code AS slotCode,
             m.title, m.description, m.image_url AS imageUrl,
             m.landing_page_url AS landingPageUrl, m.bloomSnapshot AS materialStatus,
             m.audit_status AS auditStatus, p.bloomSnapshot AS planStatus,
@@ -45,14 +46,31 @@ public interface CandidateSourceMapper {
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " ORDER BY m.id")
     List<CandidateSourceRow> selectAllEligible();
 
-    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND m.id = #{materialId}")
-    CandidateSourceRow selectEligibleByMaterialId(@Param("materialId") Long materialId);
+    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND m.public_id = #{materialPublicId}")
+    CandidateSourceRow selectEligibleByMaterialPublicId(@Param("materialPublicId") String materialPublicId);
 
-    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND p.id = #{planId} ORDER BY m.id")
-    List<CandidateSourceRow> selectEligibleByPlanId(@Param("planId") Long planId);
+    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND p.public_id = #{planPublicId} ORDER BY m.id")
+    List<CandidateSourceRow> selectEligibleByPlanPublicId(@Param("planPublicId") String planPublicId);
 
-    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.id = #{slotId} ORDER BY m.id")
-    List<CandidateSourceRow> selectEligibleBySlotId(@Param("slotId") Long slotId);
+    @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.public_id = #{slotPublicId} ORDER BY m.id")
+    List<CandidateSourceRow> selectEligibleBySlotPublicId(@Param("slotPublicId") String slotPublicId);
+
+    @Select("SELECT id FROM material WHERE public_id = #{publicId}")
+    Long selectMaterialInternalId(@Param("publicId") String publicId);
+
+    @Select("SELECT id FROM plan WHERE public_id = #{publicId}")
+    Long selectPlanInternalId(@Param("publicId") String publicId);
+
+    @Select("SELECT id FROM slot WHERE public_id = #{publicId}")
+    Long selectSlotInternalId(@Param("publicId") String publicId);
+
+    @Select("""
+            SELECT p.public_id
+            FROM `rule` r
+            JOIN plan p ON p.id = r.plan_id
+            WHERE r.public_id = #{rulePublicId}
+            """)
+    String selectPlanPublicIdByRulePublicId(@Param("rulePublicId") String rulePublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.slot_code = #{slotCode} ORDER BY m.id DESC")
     List<CandidateSourceRow> selectEligibleBySlotCode(@Param("slotCode") String slotCode);

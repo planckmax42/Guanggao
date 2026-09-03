@@ -1,12 +1,16 @@
 package com.example.adplatform.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.AccessLevel;
+
+import java.util.Objects;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +24,18 @@ public class MaterialEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+
+    /** 只在创建时生成的对外素材标识。 */
+    @Setter(AccessLevel.NONE)
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String publicId;
+
+    public void initializePublicId(String publicId) {
+        if (this.publicId != null) {
+            throw new IllegalStateException("广告素材 publicId 创建后不允许修改");
+        }
+        this.publicId = Objects.requireNonNull(publicId, "publicId");
+    }
 
     /**
      * 所属广告计划 ID，素材跟随计划的预算、出价和投放状态。

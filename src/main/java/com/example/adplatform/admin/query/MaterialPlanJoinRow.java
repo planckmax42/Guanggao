@@ -14,6 +14,7 @@ import lombok.Setter;
 public class MaterialPlanJoinRow {
 
     private Long materialId;
+    private String materialPublicId;
     private Long materialPlanId;
     private Long slotId;
 

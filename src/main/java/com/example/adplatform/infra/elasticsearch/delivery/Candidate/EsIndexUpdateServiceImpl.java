@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * 消费配置变更后，将单个聚合的最新 MySQL 状态同步到候选写别名。
  *
- * <p>消息只携带聚合类型和 ID，不携带完整配置快照。处理时先删除该聚合的旧文档，再从
+ * <p>消息只携带聚合类型和 publicId，不携带完整配置快照。处理时先删除该聚合的旧文档，再从
  * MySQL 读取当前可投放状态并写回，因此重复消息和过期消息都会收敛到数据库最新状态。
  * 全量重建期间拒绝增量写入，由 Kafka 重试机制稍后重新消费。</p>
  */
@@ -48,37 +48,55 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort {
         IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
         switch (message.aggregateType()) {
             case MATERIAL -> updateMaterial(message.aggregateId(), index);
-            case PLAN, RULE -> updatePlan(message.aggregateId(), index);
+            case PLAN -> updatePlan(message.aggregateId(), index);
+            case RULE -> updateRule(message.aggregateId(), index);
             case SLOT -> updateSlot(message.aggregateId(), index);
         }
         // 增量消息可能连续到达。必须先 refresh，避免下一次 delete_by_query 搜到旧 Lucene
         // 段并以过期 seq_no 删除，从而产生 409；同时确保清除停投标记前新状态已可搜索。
         operations.indexOps(index).refresh();//手动刷新保证可见性
-        stopGuardService.mark(message.aggregateType(), message.aggregateId(), false);
+        Long internalId = resolveInternalId(message);
+        stopGuardService.mark(message.aggregateType(), internalId, false);
     }
 
-    private void updateMaterial(Long materialId, IndexCoordinates index) {//先删后写入保证幂等性
-        operations.delete(String.valueOf(materialId), index);
-        CandidateSourceRow row = sourceMapper.selectEligibleByMaterialId(materialId);
+    private void updateMaterial(String materialPublicId, IndexCoordinates index) {//先删后写入保证幂等性
+        operations.delete(materialPublicId, index);
+        CandidateSourceRow row = sourceMapper.selectEligibleByMaterialPublicId(materialPublicId);
         if (row != null) {
             operations.save(documentFactory.from(row), index);
         }
     }
 
-    private void updatePlan(Long planId, IndexCoordinates index) {//这里产生了写放大，todo:考虑解决方案，或许可以改进ES中存储的内容，相同内容不重复存储，同时保持幂等性
+    private void updatePlan(String planPublicId, IndexCoordinates index) {//这里产生了写放大，todo:考虑解决方案，或许可以改进ES中存储的内容，相同内容不重复存储，同时保持幂等性
         // 计划与素材是一对多关系，必须按 planId 清理后重新生成该计划的完整候选集合。
-        deleteByField("planId", planId, index);
-        saveAll(sourceMapper.selectEligibleByPlanId(planId), index);
+        deleteByField("planPublicId", planPublicId, index);
+        saveAll(sourceMapper.selectEligibleByPlanPublicId(planPublicId), index);
     }
 
-    private void updateSlot(Long slotId, IndexCoordinates index) {
+    private void updateSlot(String slotPublicId, IndexCoordinates index) {
         // 广告位状态变化会影响该位置下所有素材，不能只更新某一个文档。
-        deleteByField("slotId", slotId, index);
-        saveAll(sourceMapper.selectEligibleBySlotId(slotId), index);
+        deleteByField("slotPublicId", slotPublicId, index);
+        saveAll(sourceMapper.selectEligibleBySlotPublicId(slotPublicId), index);
     }
 
-    private void deleteByField(String field, Long value, IndexCoordinates index) {
+    private void updateRule(String rulePublicId, IndexCoordinates index) {
+        String planPublicId = sourceMapper.selectPlanPublicIdByRulePublicId(rulePublicId);
+        if (planPublicId != null) {
+            updatePlan(planPublicId, index);
+        }
+    }
+
+    private void deleteByField(String field, String value, IndexCoordinates index) {
         operations.delete(new CriteriaQuery(new Criteria(field).is(value)), AdCandidateDocument.class, index);
+    }
+
+    private Long resolveInternalId(ConfigChangeMessage message) {
+        return switch (message.aggregateType()) {
+            case MATERIAL -> sourceMapper.selectMaterialInternalId(message.aggregateId());
+            case PLAN -> sourceMapper.selectPlanInternalId(message.aggregateId());
+            case SLOT -> sourceMapper.selectSlotInternalId(message.aggregateId());
+            case RULE -> null;
+        };
     }
 
     private void saveAll(List<CandidateSourceRow> rows, IndexCoordinates index) {

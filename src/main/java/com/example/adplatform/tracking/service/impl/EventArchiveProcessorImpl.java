@@ -25,7 +25,7 @@ public class EventArchiveProcessorImpl implements EventArchiveProcessor {
     @Transactional(rollbackFor = Exception.class)
     public void archive(EventMessage message) {
         message = message.withDefaultEventTime();
-        EventMaterialMetadata metadata = metadataCacheService.get(message.materialId());
+        EventMaterialMetadata metadata = metadataCacheService.get(message.materialPublicId());
         EventEntity event = eventConverter.toEntity(message, metadata);
         try {
             eventMapper.insert(event);

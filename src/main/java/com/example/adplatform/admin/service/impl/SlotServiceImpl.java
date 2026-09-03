@@ -9,11 +9,14 @@ import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
 import com.example.adplatform.admin.service.SlotService;
+import com.example.adplatform.admin.response.AvailableSlotResponse;
 import com.example.adplatform.admin.response.SlotResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
+import com.example.adplatform.common.enums.CommonStatus;
+import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
@@ -46,20 +49,22 @@ public class SlotServiceImpl implements SlotService {
     @Transactional(rollbackFor = Exception.class)
     public ResourceRefResponse create(CreateSlotRequest request) {
         SlotEntity entity = slotConverter.toEntity(request);
+        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
             slotMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
         slotCacheService.refreshSlot(entity, null);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, entity.getId());
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
         return slotConverter.toRef(entity);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SlotResponse update(Long id, UpdateSlotRequest request) {
-        SlotEntity entity = getSlotOrThrow(id);
+    public SlotResponse update(String publicId, UpdateSlotRequest request) {
+        SlotEntity entity = getSlotOrThrow(publicId);
+        Long internalId = entity.getId();
         String oldSlotCode = entity.getSlotCode();
         slotConverter.updateEntity(request, entity);
         try {
@@ -68,12 +73,12 @@ public class SlotServiceImpl implements SlotService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
 
-        SlotEntity updated = slotMapper.selectById(id);
+        SlotEntity updated = slotMapper.selectById(internalId);
         slotCacheService.refreshSlot(updated, oldSlotCode);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, id);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
                 ConfigAggregateType.SLOT,
-                id,
+                internalId,
                 updated.getStatus() == null || updated.getStatus() != 1));
         return slotConverter.toResponse(updated);
     }
@@ -90,8 +95,19 @@ public class SlotServiceImpl implements SlotService {
         return PageResponse.of(result, records);
     }
 
-    private SlotEntity getSlotOrThrow(Long id) {
-        SlotEntity entity = slotMapper.selectById(id);
+    @Override
+    public List<AvailableSlotResponse> listAvailable() {
+        return slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
+                        .eq(SlotEntity::getStatus, CommonStatus.ENABLED)
+                        .orderByAsc(SlotEntity::getSlotCode))
+                .stream()
+                .map(slotConverter::toAvailableResponse)
+                .toList();
+    }
+
+    private SlotEntity getSlotOrThrow(String publicId) {
+        SlotEntity entity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, publicId));
         if (entity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }

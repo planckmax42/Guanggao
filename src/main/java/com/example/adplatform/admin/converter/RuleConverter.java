@@ -27,6 +27,8 @@ public abstract class RuleConverter {
     private ObjectMapper objectMapper;
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "planId", ignore = true)
     @Mapping(target = "region", source = "regions", qualifiedByName = "toJson")
     @Mapping(target = "deviceType", source = "deviceTypes", qualifiedByName = "toJson")
     @Mapping(target = "userTags", source = "userTags", qualifiedByName = "toJson")
@@ -35,6 +37,7 @@ public abstract class RuleConverter {
     public abstract RuleEntity toEntity(CreateRuleRequest request);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "planId", ignore = true)
     @Mapping(target = "region", source = "regions", qualifiedByName = "toJson")
     @Mapping(target = "deviceType", source = "deviceTypes", qualifiedByName = "toJson")
@@ -43,13 +46,15 @@ public abstract class RuleConverter {
     @Mapping(target = "updatedAt", ignore = true)
     public abstract void updateEntity(CreateRuleRequest request, @MappingTarget RuleEntity entity);
 
-    @Mapping(target = "regions", source = "region", qualifiedByName = "fromJson")
-    @Mapping(target = "deviceTypes", source = "deviceType", qualifiedByName = "fromJson")
-    @Mapping(target = "userTags", source = "userTags", qualifiedByName = "fromJson")
-    public abstract RuleResponse toResponse(RuleEntity entity);
+    @Mapping(target = "regions", source = "entity.region", qualifiedByName = "fromJson")
+    @Mapping(target = "deviceTypes", source = "entity.deviceType", qualifiedByName = "fromJson")
+    @Mapping(target = "userTags", source = "entity.userTags", qualifiedByName = "fromJson")
+    @Mapping(target = "planPublicId", source = "planPublicId")
+    public abstract RuleResponse toResponse(RuleEntity entity, String planPublicId);
 
-    @Mapping(target = "bizKey", expression = "java(String.valueOf(entity.getPlanId()))")
-    public abstract ResourceRefResponse toRef(RuleEntity entity);
+    @Mapping(target = "publicId", source = "entity.publicId")
+    @Mapping(target = "bizKey", source = "planPublicId")
+    public abstract ResourceRefResponse toRef(RuleEntity entity, String planPublicId);
 
     @Named("toJson")
     protected String toJson(List<String> values) {

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 提供候选索引人工全量重建入口；正常增量同步不需要调用该接口。 */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/admin/search/candidates")
+@RequestMapping("/api/platform/search/candidates")
 public class CandidateIndexManagerController {
 
     private final CandidateIndexRebuildPort candidateIndexRebuildPort;

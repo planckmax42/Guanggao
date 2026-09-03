@@ -3,7 +3,7 @@ package com.example.adplatform.admin.response;
 import java.time.LocalDateTime;
 
 public record SlotResponse(
-        Long id,
+        String publicId,
         String slotCode,
         String name,
         Integer width,

@@ -9,9 +9,9 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface AdDeliveryConverter {
 
-    @Mapping(target = "planId", source = "plan.id")
-    @Mapping(target = "materialId", source = "material.id")
-    @Mapping(target = "slotId", source = "material.slotId")
+    @Mapping(target = "planPublicId", source = "plan.publicId")
+    @Mapping(target = "materialPublicId", source = "material.publicId")
+    @Mapping(target = "slotPublicId", ignore = true)
     @Mapping(target = "title", source = "material.title")
     @Mapping(target = "description", source = "material.description")
     @Mapping(target = "imageUrl", source = "material.imageUrl")

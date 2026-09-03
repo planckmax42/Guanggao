@@ -10,6 +10,7 @@ import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,10 +22,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.example.adplatform.common.id.PublicIdGenerator.SLOT_PATTERN;
+
 @Validated
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/admin/slots")
+@RequestMapping("/api/platform/slots")
 public class SlotController {
 
     private final SlotService slotService;
@@ -40,11 +43,11 @@ public class SlotController {
     /**
      * 更新广告位基础信息。修改广告位编码或启停状态后，会同步刷新投放链路使用的 Redis 缓存。
      */
-    @PutMapping("/{id}")
+    @PutMapping("/{publicId}")
     public Result<SlotResponse> update(
-            @PathVariable Long id,
+            @PathVariable @Pattern(regexp = SLOT_PATTERN) String publicId,
             @Valid @RequestBody UpdateSlotRequest request) {
-        return Result.success(slotService.update(id, request));
+        return Result.success(slotService.update(publicId, request));
     }
 
     /**

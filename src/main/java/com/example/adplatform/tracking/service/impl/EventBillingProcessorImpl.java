@@ -32,7 +32,7 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
     @Transactional(rollbackFor = Exception.class)
     public void bill(EventMessage message) {
         message = message.withDefaultEventTime();
-        EventMaterialMetadata metadata = metadataCacheService.get(message.materialId());
+        EventMaterialMetadata metadata = metadataCacheService.get(message.materialPublicId());
         long costAmount = calculateCostAmount(message, metadata);
         if (costAmount <= 0) {
             return;
@@ -101,7 +101,7 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
         ChargeRecordEntity record = new ChargeRecordEntity();
         record.setEventId(message.eventId());
         record.setPlanId(metadata.planId());
-        record.setMaterialId(message.materialId());
+        record.setMaterialId(metadata.materialId());
         record.setSlotId(metadata.slotId());
         record.setBillingType(BillingType.normalizeOrDefault(metadata.billingType()));
         record.setAmount(amount);

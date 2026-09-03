@@ -8,5 +8,5 @@ public interface RuleService {
 
     ResourceRefResponse createOrUpdate(CreateRuleRequest request);
 
-    RuleResponse getByPlanId(Long planId);
+    RuleResponse getByPlanPublicId(String planPublicId);
 }

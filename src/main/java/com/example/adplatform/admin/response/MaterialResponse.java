@@ -3,9 +3,9 @@ package com.example.adplatform.admin.response;
 import java.time.LocalDateTime;
 
 public record MaterialResponse(
-        Long id,
-        Long planId,
-        Long slotId,
+        String publicId,
+        String planPublicId,
+        String slotPublicId,
         String title,
         String description,
         String imageUrl,

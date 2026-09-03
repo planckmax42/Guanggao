@@ -125,7 +125,8 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
 
     private Map<String, Property> candidateProperties() {
         Map<String, Property> fields = new LinkedHashMap<>();
-        keyword(fields, "id", "slotCode", "materialStatus", "auditStatus", "planStatus", "billingType", "gender");
+        keyword(fields, "id", "materialPublicId", "planPublicId", "slotPublicId", "slotCode",
+                "materialStatus", "auditStatus", "planStatus", "billingType", "gender");
         keyword(fields, "regions", "deviceTypes", "tags");
         longs(fields, "materialId", "planId", "userId", "slotId", "budgetTotal", "budgetDaily", "bidPrice");
         integers(fields, "ageMin", "ageMax");

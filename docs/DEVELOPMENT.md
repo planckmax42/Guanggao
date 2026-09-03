@@ -96,6 +96,7 @@ elasticsearch:
 06-elasticsearch-outbox-schema.sql
 07-debezium-cdc.sql
 08-remove-event-charge-projection.sql
+09-public-identifiers.sql
 99-seed-demo-data.sql
 ```
 
@@ -251,15 +252,18 @@ ad-platform
 
 接口：
 
-- `POST /api/admin/users`
-- `GET /api/admin/users/page`
-- `POST /api/admin/plans`
-- `PUT /api/admin/plans/{id}`
-- `PUT /api/admin/plans/{id}/online`
-- `PUT /api/admin/plans/{id}/pause`
-- `POST /api/admin/materials`
-- `PUT /api/admin/materials/{id}/audit`
-- `POST /api/admin/rules`
+- `POST /api/platform/advertisers`
+- `GET /api/platform/advertisers/page`
+- `POST /api/platform/slots`
+- `PUT /api/platform/slots/{slotPublicId}`
+- `GET /api/advertiser/available-slots`
+- `POST /api/advertiser/plans`
+- `PUT /api/advertiser/plans/{planPublicId}`
+- `PUT /api/advertiser/plans/{planPublicId}/online`
+- `PUT /api/advertiser/plans/{planPublicId}/pause`
+- `POST /api/advertiser/materials`
+- `PUT /api/platform/materials/{materialPublicId}/audit`
+- `POST /api/advertiser/rules`
 
 验收标准：
 
@@ -481,7 +485,7 @@ ad-candidate-read / ad-candidate-write
 
 接口：
 
-- `POST /api/admin/search/candidates/rebuild`
+- `POST /api/platform/search/candidates/rebuild`
 
 验收标准：
 
@@ -678,8 +682,8 @@ private static final Logger log = LoggerFactory.getLogger(Xxx.class);
 
 - `requestId`
 - `eventId`
-- `planId`
-- `materialId`
+- `planPublicId`
+- `materialPublicId`
 - 错误原因
 
 禁止记录：
@@ -751,8 +755,8 @@ infra.kafka.KafkaTopicConstants
 - `eventId`
 - `eventType`
 - `requestId`
-- `planId`
-- `materialId`
+- `planPublicId`
+- `materialPublicId`
 - `viewerId`
 - `eventTime`
 

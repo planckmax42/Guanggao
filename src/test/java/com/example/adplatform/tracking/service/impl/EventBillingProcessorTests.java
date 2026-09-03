@@ -47,10 +47,11 @@ class EventBillingProcessorTests {
                 statisticsStore);
 
         LocalDateTime eventTime = LocalDateTime.of(2026, 7, 17, 12, 0);
-        message = new EventMessage("event-1", "request-1", EventType.CLICK, 10L, 20L, eventTime);
+        message = new EventMessage("event-1", "request-1", EventType.CLICK,
+                "mat_00000000000000000000000000000010", 20L, eventTime);
         metadata = new EventMaterialMetadata(
-                30L, 40L, 100_000L, 10_000L, 25L, "CPC");
-        when(metadataCacheService.get(message.materialId())).thenReturn(metadata);
+                10L, 30L, 40L, 100_000L, 10_000L, 25L, "CPC");
+        when(metadataCacheService.get(message.materialPublicId())).thenReturn(metadata);
     }
 
     @Test

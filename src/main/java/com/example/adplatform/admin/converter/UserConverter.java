@@ -12,6 +12,7 @@ import org.mapstruct.Mapping;
 public interface UserConverter {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -19,6 +20,7 @@ public interface UserConverter {
 
     UserResponse toResponse(UserEntity entity);
 
+    @Mapping(target = "publicId", source = "publicId")
     @Mapping(target = "bizKey", source = "name")
     ResourceRefResponse toRef(UserEntity entity);
 }

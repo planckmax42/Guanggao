@@ -5,7 +5,7 @@ import java.util.Optional;
 
 public record BloomRebuildResult(
         RebuildStatus rebuildStatus,
-        Optional<List<Long>> slotNames,
+        Optional<List<String>> materialPublicIds,
         long newCapacity
 ) {
     public enum RebuildStatus {

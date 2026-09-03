@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record RuleResponse(
-        Long id,
-        Long planId,
+        String publicId,
+        String planPublicId,
         List<String> regions,
         List<String> deviceTypes,
         String gender,

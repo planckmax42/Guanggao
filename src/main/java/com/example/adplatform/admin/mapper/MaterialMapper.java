@@ -19,6 +19,7 @@ public interface MaterialMapper extends BaseMapper<MaterialEntity> {
     @Select("""
             SELECT
                 m.id AS materialId,
+                m.public_id AS materialPublicId,
                 m.plan_id AS materialPlanId,
                 m.slot_id AS slotId,
                 p.id AS planId,
@@ -28,13 +29,13 @@ public interface MaterialMapper extends BaseMapper<MaterialEntity> {
                 p.billing_type AS billingType
             FROM material m
             LEFT JOIN plan p ON p.id = m.plan_id
-            WHERE m.id = #{materialId}
+            WHERE m.public_id = #{materialPublicId}
             """)
-    MaterialPlanJoinRow selectMaterialPlanById(@Param("materialId") Long materialId);
+    MaterialPlanJoinRow selectMaterialPlanByPublicId(@Param("materialPublicId") String materialPublicId);
 
-    @Select("SELECT id FROM material ORDER BY id")
-    List<Long> selectAllMaterialIds();
+    @Select("SELECT public_id FROM material ORDER BY id")
+    List<String> selectAllMaterialPublicIds();
 
-    @Select("SELECT id FROM material WHERE plan_id = #{planId}")
-    List<Long> selectMaterialIdsByPlanId(@Param("planId") Long planId);
+    @Select("SELECT public_id FROM material WHERE plan_id = #{planId}")
+    List<String> selectMaterialPublicIdsByPlanId(@Param("planId") Long planId);
 }
