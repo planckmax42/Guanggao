@@ -27,6 +27,15 @@ class GlobalExceptionHandlerTests {
     }
 
     @Test
+    void shouldReturnUnifiedErrorResponseForDependencyException() throws Exception {
+        mockMvc.perform(get("/test/dependency-exception"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE.getCode()))
+                .andExpect(jsonPath("$.message").value("Elasticsearch 暂时不可用"))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
     void shouldReturnUnifiedErrorResponseForSystemException() throws Exception {
         mockMvc.perform(get("/test/system-exception"))
                 .andExpect(status().isInternalServerError())
@@ -41,6 +50,13 @@ class GlobalExceptionHandlerTests {
         @GetMapping("/test/business-exception")
         void businessException() {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        @GetMapping("/test/dependency-exception")
+        void dependencyException() {
+            throw new DependencyException(
+                    ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
+                    "Elasticsearch 暂时不可用");
         }
 
         @GetMapping("/test/system-exception")

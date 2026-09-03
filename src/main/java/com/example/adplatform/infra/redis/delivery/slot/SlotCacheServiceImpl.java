@@ -5,7 +5,7 @@ import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotLookupPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
@@ -63,7 +63,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         if (readLock == null) {//获取条带锁失败处理逻辑，todo：目前太糙，以及上面那个null，或许增加补偿机制？
             if (Thread.currentThread().isInterrupted()) {//失败原因为中断
                 log.warn("广告位缓存回源锁等待被中断，slotCode={}", slotCode);
-                throw new BusinessException(
+                throw new DependencyException(
                         ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                         "广告位查询被中断，请稍后重试");
             }
@@ -72,7 +72,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
                 return cachedSlotId;
             }
             log.warn("广告位缓存回源锁等待超时，slotCode={}", slotCode);
-            throw new BusinessException(
+            throw new DependencyException(
                     ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                     "广告位查询繁忙，请稍后重试");
         }
@@ -95,14 +95,16 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         try {//在熔断器的保护下进入mysql查询
             slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
         } catch (CallNotPermittedException ex) {
-            throw new BusinessException(
+            throw new DependencyException(
                     ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
-                    "广告位查询服务已熔断，请稍后重试");
+                    "广告位查询服务已熔断，请稍后重试",
+                    ex);
         } catch (RuntimeException ex) {
             log.warn("广告位缓存回源 MySQL 失败，slotCode={}", slotCode, ex);
-            throw new BusinessException(
+            throw new DependencyException(
                     ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
-                    "广告位查询服务暂时不可用，请稍后重试");
+                    "广告位查询服务暂时不可用，请稍后重试",
+                    ex);
         }
 
         if (slot == null) {

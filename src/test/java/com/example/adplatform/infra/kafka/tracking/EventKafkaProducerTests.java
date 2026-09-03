@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.tracking;
 
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.resilience.tracking.EventKafkaCircuitBreaker;
 import com.example.adplatform.tracking.entity.EventType;
@@ -72,11 +72,12 @@ class EventKafkaProducerTests {
                         new TimeoutException("broker unavailable")));
         EventKafkaProducer producer = createProducer();
 
-        BusinessException failure = failureOf(
+        DependencyException failure = failureOf(
                 producer.publish(message("event-1")).toCompletableFuture());
 
         assertThat(failure.getErrorCode())
                 .isEqualTo(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE);
+        assertThat(failure.getCause()).isInstanceOf(TimeoutException.class);
         assertThat(meterRegistry.counter(
                 "ad.event.producer.messages",
                 "result",
@@ -90,10 +91,11 @@ class EventKafkaProducerTests {
                         new SerializationException("invalid payload")));
         EventKafkaProducer producer = createProducer();
 
-        BusinessException failure = failureOf(
+        DependencyException failure = failureOf(
                 producer.publish(message("event-1")).toCompletableFuture());
 
         assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.SYSTEM_ERROR);
+        assertThat(failure.getCause()).isInstanceOf(SerializationException.class);
         assertThat(meterRegistry.counter(
                 "ad.event.producer.messages",
                 "result",
@@ -111,7 +113,7 @@ class EventKafkaProducerTests {
 
         failureOf(producer.publish(message("event-1")).toCompletableFuture());
         failureOf(producer.publish(message("event-2")).toCompletableFuture());
-        BusinessException rejected = failureOf(
+        DependencyException rejected = failureOf(
                 producer.publish(message("event-3")).toCompletableFuture());
 
         assertThat(circuitBreaker.currentState().name()).isEqualTo("OPEN");
@@ -131,7 +133,7 @@ class EventKafkaProducerTests {
                 .thenThrow(new TimeoutException("metadata unavailable"));
         EventKafkaProducer producer = createProducer();
 
-        BusinessException failure = failureOf(
+        DependencyException failure = failureOf(
                 producer.publish(message("event-1")).toCompletableFuture());
 
         assertThat(failure.getErrorCode())
@@ -163,11 +165,11 @@ class EventKafkaProducerTests {
                 LocalDateTime.of(2026, 7, 23, 12, 0));
     }
 
-    private BusinessException failureOf(CompletableFuture<Void> future) {
+    private DependencyException failureOf(CompletableFuture<Void> future) {
         CompletionException completionException =
                 assertThrows(CompletionException.class, future::join);
         assertThat(completionException.getCause())
-                .isInstanceOf(BusinessException.class);
-        return (BusinessException) completionException.getCause();
+                .isInstanceOf(DependencyException.class);
+        return (DependencyException) completionException.getCause();
     }
 }

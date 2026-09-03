@@ -4,6 +4,7 @@ import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.infra.redis.tracking.TrackingRedisKeys;
@@ -271,7 +272,7 @@ public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
     }
 
-    private BusinessException dependencyUnavailable(String message) {
-        return new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, message);
+    private DependencyException dependencyUnavailable(String message) {
+        return new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, message);
     }
 }

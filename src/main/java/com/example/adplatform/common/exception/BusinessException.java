@@ -1,20 +1,20 @@
 package com.example.adplatform.common.exception;
 
-public class BusinessException extends RuntimeException {
-
-    private final ErrorCode errorCode;
+public class BusinessException extends AppException {
 
     public BusinessException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
+        super(errorCode);
     }
 
     public BusinessException(ErrorCode errorCode, String message) {
-        super(message);
-        this.errorCode = errorCode;
+        super(errorCode, message);
     }
 
-    public ErrorCode getErrorCode() {
-        return errorCode;
+    public BusinessException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode, cause);
+    }
+
+    public BusinessException(ErrorCode errorCode, String message, Throwable cause) {
+        super(errorCode, message, cause);
     }
 }

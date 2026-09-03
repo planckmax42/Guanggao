@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.tracking;
 
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.tracking.message.EventMessage;
 import com.example.adplatform.tracking.port.EventPublisher;
@@ -98,7 +98,7 @@ public class EventKafkaProducer implements EventPublisher {
             sample.stop(acknowledgementTimers.get("circuit_open"));//记录到计时器
             circuitOpenCounter.increment();//记录到计数器
             log.warn("事件 Kafka Producer 已熔断，拒绝发送，eventId={}，topic={}", message.eventId(), eventTopic);
-            return CompletableFuture.failedFuture(dependencyUnavailable());//抛出熔断异常，最终被全局异常捕获器捕获然后返回503
+            return CompletableFuture.failedFuture(dependencyUnavailable(ex));//抛出熔断异常，最终被全局异常捕获器捕获然后返回503
         } catch (RuntimeException ex) {//捕获其他异常，在函数内拆包然后分别处理
             return CompletableFuture.failedFuture(handleSendFailure(message, ex, sample));
         }
@@ -113,7 +113,7 @@ public class EventKafkaProducer implements EventPublisher {
         });
     }
 
-    private BusinessException handleSendFailure(
+    private DependencyException handleSendFailure(
             EventMessage message,
             Throwable error,
             Timer.Sample sample) {
@@ -123,20 +123,20 @@ public class EventKafkaProducer implements EventPublisher {
             circuitOpenCounter.increment();
             log.warn("事件 Kafka Producer 已熔断，拒绝发送，eventId={}，topic={}",
                     message.eventId(), eventTopic);
-            return dependencyUnavailable();
+            return dependencyUnavailable(cause);
         }
         if (cause instanceof RetriableException) {
             sample.stop(acknowledgementTimers.get("retryable_failure"));
             retryableFailureCounter.increment();
             log.warn("Kafka 事件发送在投递时间窗内未成功，eventId={}，topic={}，原因={}",
                     message.eventId(), eventTopic, cause.toString());
-            return dependencyUnavailable();
+            return dependencyUnavailable(cause);
         }
         sample.stop(acknowledgementTimers.get("non_retryable_failure"));
         nonRetryableFailureCounter.increment();
         log.error("Kafka 事件发送发生不可重试错误，eventId={}，topic={}",
                 message.eventId(), eventTopic, cause);
-        return new BusinessException(ErrorCode.SYSTEM_ERROR, "广告事件写入 Kafka 失败");
+        return new DependencyException(ErrorCode.SYSTEM_ERROR, "广告事件写入 Kafka 失败", cause);
     }
 
     private Throwable unwrap(Throwable error) {
@@ -150,10 +150,11 @@ public class EventKafkaProducer implements EventPublisher {
         return current;
     }
 
-    private BusinessException dependencyUnavailable() {
-        return new BusinessException(
+    private DependencyException dependencyUnavailable(Throwable cause) {
+        return new DependencyException(
                 ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
-                "Kafka 暂时不可用，请使用相同 eventId 稍后重试");
+                "Kafka 暂时不可用，请使用相同 eventId 稍后重试",
+                cause);
     }
 
 }

@@ -5,7 +5,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch.indices.update_aliases.Action;
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.warmup.port.CandidateIndexInitialRebuildPort;
 import com.example.adplatform.infra.warmup.port.exception.CandidateIndexInitialRebuildException;
@@ -85,7 +85,7 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
 
     private void rebuildExecutor() throws IOException{
         if (!properties.isEnabled()) {//检查ES是否启用
-            throw new BusinessException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "Elasticsearch未启用");
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, "Elasticsearch未启用");
         }
         String lockToken = rebuildGuard.acquire(properties.getCandidate().getRebuildLockTtl());
         String indexName = "ad-candidate-" + LocalDateTime.now().format(INDEX_SUFFIX);//生成新索引名称

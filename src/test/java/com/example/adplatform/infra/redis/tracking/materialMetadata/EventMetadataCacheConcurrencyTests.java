@@ -4,7 +4,7 @@ import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.Materi
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.redis.tracking.TrackingRedisKeys;
 import com.example.adplatform.tracking.service.EventMaterialMetadata;
@@ -141,8 +141,8 @@ class EventMetadataCacheConcurrencyTests {
             }
         });
 
-        BusinessException failure = assertInstanceOf(
-                BusinessException.class,
+        DependencyException failure = assertInstanceOf(
+                DependencyException.class,
                 follower.get(1, TimeUnit.SECONDS));
         assertEquals(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, failure.getErrorCode());
 
@@ -170,8 +170,8 @@ class EventMetadataCacheConcurrencyTests {
                 }
             });
 
-            BusinessException failure = assertInstanceOf(
-                    BusinessException.class,
+            DependencyException failure = assertInstanceOf(
+                    DependencyException.class,
                     attempt.get(1, TimeUnit.SECONDS));
             assertEquals(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, failure.getErrorCode());
             verifyNoInteractions(materialMapper);
@@ -201,7 +201,7 @@ class EventMetadataCacheConcurrencyTests {
             thread.start();
 
             InterruptedResult result = attempt.get(1, TimeUnit.SECONDS);
-            BusinessException failure = assertInstanceOf(BusinessException.class, result.failure());
+            DependencyException failure = assertInstanceOf(DependencyException.class, result.failure());
             assertEquals(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, failure.getErrorCode());
             assertEquals(true, result.interrupted());
             verifyNoInteractions(materialMapper);

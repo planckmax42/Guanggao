@@ -1,7 +1,11 @@
 package com.example.adplatform.common.exception;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+@Getter
+@RequiredArgsConstructor
 public enum ErrorCode {
 
     SUCCESS(0, "成功", HttpStatus.OK),
@@ -22,23 +26,6 @@ public enum ErrorCode {
 
     private final int code;
     private final String message;
-    private final HttpStatus httpStatus;
+    private final HttpStatus httpStatus;//todo:如果对外提供Kafka服务，可以加上单独转换层
 
-    ErrorCode(int code, String message, HttpStatus httpStatus) {
-        this.code = code;
-        this.message = message;
-        this.httpStatus = httpStatus;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public HttpStatus getHttpStatus() {
-        return httpStatus;
-    }
 }

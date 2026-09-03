@@ -3,7 +3,7 @@ package com.example.adplatform.infra.redis.delivery.slot;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
@@ -115,8 +115,8 @@ class SlotCacheConcurrencyTests {
                 }
             });
 
-            BusinessException failure = assertInstanceOf(
-                    BusinessException.class,
+            DependencyException failure = assertInstanceOf(
+                    DependencyException.class,
                     attempt.get(1, TimeUnit.SECONDS));
             assertEquals(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE, failure.getErrorCode());
             verifyNoInteractions(slotMapper);

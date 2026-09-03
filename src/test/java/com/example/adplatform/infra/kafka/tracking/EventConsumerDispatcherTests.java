@@ -1,6 +1,7 @@
 package com.example.adplatform.infra.kafka.tracking;
 
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.tracking.entity.EventType;
 import com.example.adplatform.tracking.message.EventMessage;
@@ -76,12 +77,12 @@ class EventConsumerDispatcherTests {
 
     @Test
     void shouldRecordAndRethrowTemporaryDependencyFailure() {
-        BusinessException failure = new BusinessException(
+        DependencyException failure = new DependencyException(
                 ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                 "event metadata busy");
 
-        BusinessException thrown = assertThrows(
-                BusinessException.class,
+        DependencyException thrown = assertThrows(
+                DependencyException.class,
                 () -> dispatcher.dispatch(
                         EventConsumerStage.BILLING,
                         message,

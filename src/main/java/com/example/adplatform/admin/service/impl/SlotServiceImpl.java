@@ -63,7 +63,11 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotResponse update(String publicId, UpdateSlotRequest request) {
-        SlotEntity entity = getSlotOrThrow(publicId);
+        SlotEntity entity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, publicId));
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
         Long internalId = entity.getId();
         String oldSlotCode = entity.getSlotCode();
         slotConverter.updateEntity(request, entity);
@@ -103,14 +107,5 @@ public class SlotServiceImpl implements SlotService {
                 .stream()
                 .map(slotConverter::toAvailableResponse)
                 .toList();
-    }
-
-    private SlotEntity getSlotOrThrow(String publicId) {
-        SlotEntity entity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, publicId));
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-        }
-        return entity;
     }
 }
