@@ -65,7 +65,7 @@ class SlotServiceImplTests {
                 searchOutboxService,
                 eventPublisher);
         UpdateSlotRequest request = new UpdateSlotRequest(
-                "NEW_BANNER", "New Banner", 1080, 300, "APP_HOME", CommonStatus.ENABLED);
+                "NEW_BANNER", "New Banner", 1080, 300, "APP_HOME");
         SlotEntity existing = new SlotEntity();
         existing.setId(1L);
         existing.initializePublicId("slot_00000000000000000000000000000001");

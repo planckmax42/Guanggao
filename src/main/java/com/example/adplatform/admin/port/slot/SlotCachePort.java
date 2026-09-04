@@ -1,13 +1,12 @@
 package com.example.adplatform.admin.port.slot;
 
-import com.example.adplatform.admin.entity.SlotEntity;
 
 /** 广告位缓存维护端口，由基础设施层提供具体实现。 */
 public interface SlotCachePort {
 
 
 
-    void writeSlotToRedis(SlotEntity slot);
+    void writeSlotToRedis(String slotCode,Long slotId);
 
     void evictSlotCodeFromRedis(String slotCode);
 

@@ -2,6 +2,7 @@ package com.example.adplatform.admin.controller;
 
 import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
+import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.service.SlotService;
 import com.example.adplatform.admin.response.SlotResponse;
 import com.example.adplatform.common.response.PageResponse;
@@ -41,13 +42,23 @@ public class SlotController {
     }
 
     /**
-     * 更新广告位基础信息。修改广告位编码或启停状态后，会同步刷新投放链路使用的 Redis 缓存。
+     * 更新广告位基础信息。修改广告位编码后，会同步刷新投放链路使用的 Redis 缓存。
      */
     @PutMapping("/{publicId}")
     public Result<SlotResponse> update(
             @PathVariable @Pattern(regexp = SLOT_PATTERN) String publicId,
             @Valid @RequestBody UpdateSlotRequest request) {
         return Result.success(slotService.update(publicId, request));
+    }
+
+    /**
+     * 单独更新广告位启停状态。
+     */
+    @PutMapping("/{publicId}/status")
+    public Result<SlotResponse> updateStatus(
+            @PathVariable @Pattern(regexp = SLOT_PATTERN) String publicId,
+            @Valid @RequestBody UpdateSlotStatusRequest request) {
+        return Result.success(slotService.updateStatus(publicId, request));
     }
 
     /**

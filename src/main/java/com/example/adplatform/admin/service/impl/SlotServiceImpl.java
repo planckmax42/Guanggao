@@ -6,6 +6,7 @@ import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.port.slot.SlotFilterPort;
 import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
+import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.slot.SlotCachePort;
@@ -37,7 +38,7 @@ import java.util.Objects;
 /**
  * 广告位管理服务，同时维护 Redis 广告位缓存和 ES 配置同步 Outbox。
  *
- * <p>广告位停用会影响该位置下的全部候选，因此更新后发布 SLOT 聚合消息，并在事务
+ * <p>广告位停用会影响该位置下的全部候选，因此状态更新后发布 SLOT 聚合消息，并在事务
  * 提交后写入 Redis 停投保护。</p>
  */
 @RequiredArgsConstructor
@@ -55,19 +56,22 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ResourceRefResponse create(CreateSlotRequest request) {
-        SlotEntity entity = slotConverter.toEntity(request);
-        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
+        SlotEntity slotEntity = slotConverter.toEntity(request);
+        String slotCode = slotEntity.getSlotCode();
+        slotEntity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
-            slotMapper.insert(entity);
+            slotMapper.insert(slotEntity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
-        if (Objects.equals(entity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            slotFilterService.addSlotFilter(entity.getSlotCode());
-            slotCacheService.writeSlotToRedis(entity);
+        if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
+            slotFilterService.addSlotFilter(slotCode);
+            executeAfterCommitWithLock(()->{
+                slotCacheService.writeSlotToRedis(slotCode, slotEntity.getId());
+            },slotEntity.getSlotCode());
         }
-        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
-        return slotConverter.toRef(entity);
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, slotEntity.getPublicId());
+        return slotConverter.toRef(slotEntity);
     }
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -86,20 +90,47 @@ public class SlotServiceImpl implements SlotService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
         SlotEntity newEntity = slotMapper.selectById(internalId);
+        String newSlotCode = newEntity.getSlotCode();
         if (Objects.equals(newEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            slotFilterService.addSlotFilter(newEntity.getSlotCode());
-            try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(oldSlotCode, newEntity.getSlotCode())){
+            slotFilterService.addSlotFilter(newSlotCode);
+            executeAfterCommitWithLock(()->{
                 slotCacheService.evictSlotCodeFromRedis(oldSlotCode);
-                slotCacheService.writeSlotToRedis(newEntity);
-            }
+                slotCacheService.writeSlotToRedis(newSlotCode,internalId);
+            },oldSlotCode,newSlotCode);
         }
+        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
+        return slotConverter.toResponse(newEntity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SlotResponse updateStatus(String publicId, UpdateSlotStatusRequest request) {
+        SlotEntity slotEntity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, publicId));
+        if (slotEntity == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
+        String slotCode = slotEntity.getSlotCode();
+        slotEntity.setStatus(request.status());
+        slotMapper.updateById(slotEntity);
+        if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)){
+            slotFilterService.addSlotFilter(slotCode);
+        }
+        executeAfterCommitWithLock(() -> {
+            if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)){
+                slotCacheService.writeSlotToRedis(slotCode, slotEntity.getId());
+            }else {
+                slotCacheService.evictSlotCodeFromRedis(slotCode);
+            }
+        }, slotCode);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
                 ConfigAggregateType.SLOT,
-                internalId,
-                newEntity.getStatus() == null || newEntity.getStatus() != 1));
-        return slotConverter.toResponse(newEntity);
+                slotEntity.getId(),
+                !Objects.equals(request.status(), CommonStatus.ENABLED)));
+        return slotConverter.toResponse(slotEntity);
     }
+
     @Override
     public PageResponse<SlotResponse> pageQuery(long current, long size, String slotCode, Integer status) {
         Page<SlotEntity> page = new Page<>(current, size);
@@ -119,5 +150,17 @@ public class SlotServiceImpl implements SlotService {
                 .stream()
                 .map(slotConverter::toAvailableResponse)
                 .toList();
+    }
+    private void executeAfterCommitWithLock(Runnable action,String... slotCode){
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit(){
+                        try(SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(slotCode)) {
+                           action.run();
+                        }
+                    }
+                }
+        );
     }
 }

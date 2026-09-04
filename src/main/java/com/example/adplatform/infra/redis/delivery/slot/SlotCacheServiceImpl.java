@@ -128,7 +128,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             slotBloomOperationsService.addSlotFilter(slot.getSlotCode());
         }
-        writeSlotToRedis(slot);
+        writeSlotToRedis(slot.getSlotCode(),slot.getId());
     }
 
     /** {@inheritDoc} */
@@ -143,7 +143,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
                 evictSlotCodeFromRedis(slotCode);
                 return;
             }
-            writeSlotToRedis(current);
+            writeSlotToRedis(current.getSlotCode(),current.getId());
         }
     }
 
@@ -190,14 +190,14 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
      * @param oldSlotCode 更新前的广告位编码
      */
     /** 只刷新 Redis，不改变布隆过滤器；用于数据库提交后的缓存同步。 */
-    public void writeSlotToRedis(SlotEntity slot) {
+    public void writeSlotToRedis(String slotCode,Long slotId) {
         try {
             stringRedisTemplate.opsForValue().set(
-                    DeliveryRedisKeys.slotCodeToId(slot.getSlotCode()),
-                    String.valueOf(slot.getId()),
+                    DeliveryRedisKeys.slotCodeToId(slotCode),
+                    String.valueOf(slotId),
                     properties.getRedisTtl());
         } catch (RuntimeException ex) {
-            log.warn("写入广告位缓存失败，slotCode={}，后续请求将回源 MySQL：{}", slot.getSlotCode(), ex.getMessage());
+            log.warn("写入广告位缓存失败，slotCode={}，后续请求将回源 MySQL：{}", slotCode, ex.getMessage());
         }
     }
     /**
