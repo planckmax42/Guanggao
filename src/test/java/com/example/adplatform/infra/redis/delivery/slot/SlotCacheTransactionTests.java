@@ -51,9 +51,9 @@ class SlotCacheTransactionTests {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
 
-        service.refreshSlot(slot, null);
+        service.refreshSlotCache(slot, null);
 
-        verify(bloomFilterService).addSlotBloom("HOME_BANNER");
+        verify(bloomFilterService).addSlotFilter("HOME_BANNER");
         verify(valueOperations, never()).set(
                 DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
 
@@ -61,7 +61,7 @@ class SlotCacheTransactionTests {
                 TransactionSynchronizationManager.getSynchronizations();
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(bloomFilterService, times(1)).addSlotBloom("HOME_BANNER");
+        verify(bloomFilterService, times(1)).addSlotFilter("HOME_BANNER");
         verify(valueOperations).set(
                 DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
     }
@@ -81,12 +81,12 @@ class SlotCacheTransactionTests {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
 
-        service.refreshSlot(enabledSlot(), null);
+        service.refreshSlotCache(enabledSlot(), null);
 
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(synchronization -> synchronization.afterCompletion(
                         TransactionSynchronization.STATUS_ROLLED_BACK));
-        verify(bloomFilterService).addSlotBloom("HOME_BANNER");
+        verify(bloomFilterService).addSlotFilter("HOME_BANNER");
         verify(redisTemplate, never()).opsForValue();
     }
 
@@ -106,9 +106,9 @@ class SlotCacheTransactionTests {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
 
-        service.refreshSlot(slot, slot.getSlotCode());
+        service.refreshSlotCache(slot, slot.getSlotCode());
 
-        verify(bloomFilterService, never()).addSlotBloom(slot.getSlotCode());
+        verify(bloomFilterService, never()).addSlotFilter(slot.getSlotCode());
     }
 
     private SlotEntity enabledSlot() {

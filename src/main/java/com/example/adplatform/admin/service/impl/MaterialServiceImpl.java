@@ -11,7 +11,7 @@ import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
-import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
+import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.MaterialResponse;
 import com.example.adplatform.common.exception.BusinessException;
@@ -50,7 +50,7 @@ public class MaterialServiceImpl implements MaterialService {
     private final MaterialConverter materialConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final EventMetadataCacheMaintenancePort eventMetadataCacheService;
+    private final EventMetadataPort eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)

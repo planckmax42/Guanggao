@@ -2,7 +2,7 @@ package com.example.adplatform.infra.warmup;
 
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
-import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
+import com.example.adplatform.admin.port.slot.SlotCachePort;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
@@ -31,7 +31,7 @@ class WarmUpTasksTests {
         SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         when(bloomFilterService.regularRebuild()).thenReturn(new BloomRebuildResult(
                 SUCCESS, Optional.of(List.of("HOME_BANNER")), 10_000L));
-        SlotCacheMaintenancePort cacheMaintenancePort = mock(SlotCacheMaintenancePort.class);
+        SlotCachePort cacheMaintenancePort = mock(SlotCachePort.class);
         SlotWarmUpTask task = new SlotWarmUpTask(bloomFilterService, cacheMaintenancePort);
 
         task.warmUp();

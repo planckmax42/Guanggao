@@ -67,7 +67,7 @@ class SlotBloomOperationsServiceTests {
                 CompletableFuture.supplyAsync(service::regularRebuild);
 
         assertTrue(rebuildStarted.await(1, TimeUnit.SECONDS));
-        service.addSlotBloom("NEW_SLOT");
+        service.addSlotFilter("NEW_SLOT");
         continueRebuild.countDown();
 
         assertEquals(SUCCESS, rebuildFuture.get(1, TimeUnit.SECONDS).rebuildStatus());

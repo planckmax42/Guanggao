@@ -57,7 +57,7 @@ class SlotCacheConcurrencyTests {
                 () -> service.getEnabledSlotIdByCode("OLD_CODE"));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<Void> committedRefresh = CompletableFuture.runAsync(
-                () -> service.refreshSlot(slot(1L, "NEW_CODE", CommonStatus.ENABLED), "OLD_CODE"));
+                () -> service.refreshSlotCache(slot(1L, "NEW_CODE", CommonStatus.ENABLED), "OLD_CODE"));
 
         allowMysqlReturn.countDown();
         assertEquals(Optional.of(1L), olderRead.get(1, TimeUnit.SECONDS));

@@ -10,7 +10,7 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.admin.mapper.UserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
-import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
+import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.PlanResponse;
 import com.example.adplatform.common.enums.CommonStatus;
@@ -48,7 +48,7 @@ public class PlanServiceImpl implements PlanService {
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final EventMetadataCacheMaintenancePort eventMetadataCacheService;
+    private final EventMetadataPort eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)

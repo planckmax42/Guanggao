@@ -3,7 +3,7 @@ package com.example.adplatform.infra.redis.delivery.slot;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
+import com.example.adplatform.admin.port.slot.SlotCachePort;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
@@ -17,8 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.Objects;
@@ -32,7 +30,7 @@ import java.util.Optional;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenancePort {
+public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
 
     private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
 
@@ -128,50 +126,9 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
             return;
         }
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
-            slotBloomOperationsService.addSlotBloom(slot.getSlotCode());
+            slotBloomOperationsService.addSlotFilter(slot.getSlotCode());
         }
         writeSlotToRedis(slot);
-    }
-
-    /** 只刷新 Redis，不改变布隆过滤器；用于数据库提交后的缓存同步。 */
-    private void writeSlotToRedis(SlotEntity slot) {
-        if (slot == null || !StringUtils.hasText(slot.getSlotCode())) {
-            return;
-        }
-        if (!Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
-            evictSlotCode(slot.getSlotCode());
-            return;
-        }
-
-        try {
-            stringRedisTemplate.opsForValue().set(
-                    DeliveryRedisKeys.slotCodeToId(slot.getSlotCode()),
-                    String.valueOf(slot.getId()),
-                    properties.getRedisTtl());
-        } catch (RuntimeException ex) {
-            log.warn("写入广告位缓存失败，slotCode={}，后续请求将回源 MySQL：{}", slot.getSlotCode(), ex.getMessage());
-        }
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void refreshSlot(SlotEntity slot, String oldSlotCode) {
-        if (slot != null && Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
-            // 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            slotBloomOperationsService.addSlotBloom(slot.getSlotCode());
-        }
-        if (TransactionSynchronizationManager.isActualTransactionActive()
-                && TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                /** 数据库事务成功提交后再刷新缓存，避免脏数据进入 Redis。 */
-                @Override
-                public void afterCommit() {
-                    refreshSlotCache(slot, oldSlotCode);
-                }
-            });
-            return;
-        }
-        refreshSlotCache(slot, oldSlotCode);
     }
 
     /** {@inheritDoc} */
@@ -183,28 +140,10 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(slotCode)) {
             SlotEntity current = selectEnabledSlotByCode(slotCode);
             if (current == null) {
-                evictSlotCode(slotCode);
+                evictSlotCodeFromRedis(slotCode);
                 return;
             }
             writeSlotToRedis(current);
-        }
-    }
-
-    /**
-     * 在数据库事务提交后删除旧编码并写入当前广告位缓存。
-     *
-     * @param slot 更新后的广告位
-     * @param oldSlotCode 更新前的广告位编码
-     */
-    private void refreshSlotCache(SlotEntity slot, String oldSlotCode) {
-        String currentSlotCode = slot == null ? null : slot.getSlotCode();
-        try (SlotCacheLockManager.LockHandle ignored =
-                     lockManager.acquireForWrite(oldSlotCode, currentSlotCode)) {
-            if (StringUtils.hasText(oldSlotCode)
-                    && (slot == null || !oldSlotCode.equals(currentSlotCode))) {
-                evictSlotCode(oldSlotCode);
-            }
-            writeSlotToRedis(slot);
         }
     }
 
@@ -240,20 +179,33 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCacheMaintenanc
         try {
             return Optional.of(Long.valueOf(value));
         } catch (NumberFormatException ex) {
-            evictSlotCode(slotCode);
+            evictSlotCodeFromRedis(slotCode);
             return Optional.empty();
         }
     }
-
+    /**
+     * 在数据库事务提交后删除旧编码并写入当前广告位缓存。
+     *
+     * @param slot 更新后的广告位
+     * @param oldSlotCode 更新前的广告位编码
+     */
+    /** 只刷新 Redis，不改变布隆过滤器；用于数据库提交后的缓存同步。 */
+    public void writeSlotToRedis(SlotEntity slot) {
+        try {
+            stringRedisTemplate.opsForValue().set(
+                    DeliveryRedisKeys.slotCodeToId(slot.getSlotCode()),
+                    String.valueOf(slot.getId()),
+                    properties.getRedisTtl());
+        } catch (RuntimeException ex) {
+            log.warn("写入广告位缓存失败，slotCode={}，后续请求将回源 MySQL：{}", slot.getSlotCode(), ex.getMessage());
+        }
+    }
     /**
      * 删除指定广告位编码的 Redis 映射缓存。
      *
      * @param slotCode 待清理的广告位编码
      */
-    private void evictSlotCode(String slotCode) {
-        if (!StringUtils.hasText(slotCode)) {
-            return;
-        }
+    public void evictSlotCodeFromRedis(String slotCode) {
         try {
             stringRedisTemplate.delete(DeliveryRedisKeys.slotCodeToId(slotCode));
         } catch (RuntimeException ex) {

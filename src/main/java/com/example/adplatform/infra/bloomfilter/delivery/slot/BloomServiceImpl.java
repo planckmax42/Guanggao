@@ -1,6 +1,9 @@
 package com.example.adplatform.infra.bloomfilter.delivery.slot;
 
+import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.port.slot.SlotFilterPort;
+import com.example.adplatform.common.enums.CommonStatus;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 import io.micrometer.core.instrument.Gauge;
@@ -11,6 +14,7 @@ import org.springframework.util.StringUtils;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult.RebuildStatus;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 @Service
 @SuppressWarnings("UnstableApiUsage")
-public class BloomServiceImpl implements SlotBloomOperationsService {
+public class BloomServiceImpl implements SlotBloomOperationsService, SlotFilterPort {
 
     private final SlotMapper slotMapper;
     private final BloomProperties bloomProperties;
@@ -61,7 +65,7 @@ public class BloomServiceImpl implements SlotBloomOperationsService {
     }
 
     @Override
-    public void addSlotBloom(String slotCode) {
+    public void addSlotFilter(String slotCode) {
         if (!StringUtils.hasText(slotCode)) {
             return;
         }
@@ -166,4 +170,8 @@ public class BloomServiceImpl implements SlotBloomOperationsService {
         REGULAR_REBUILD,
         EXPAND_REBUILD;
     }
+//    @Override
+//    public void refreshSlotFilter(SlotEntity slot, String oldSlotCode) {
+
+//    }
 }

@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.redis.tracking.materialMetadata;
 
 import com.example.adplatform.admin.mapper.MaterialMapper;
-import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
+import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.DependencyException;
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort, EventMetadataCacheMaintenancePort {
+public class MaterialMetadataRedisServiceImpl implements EventMetadataReaderPort, EventMetadataPort {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;

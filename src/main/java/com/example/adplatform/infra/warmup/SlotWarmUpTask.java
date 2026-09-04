@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
+import com.example.adplatform.admin.port.slot.SlotCachePort;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.Optional;
 public class SlotWarmUpTask {
 
     private final SlotBloomOperationsService bloomFilterService;
-    private final SlotCacheMaintenancePort slotCacheMaintenancePort;
+    private final SlotCachePort slotCachePort;
 
     /** 重建布隆过滤器后，复用本次查询快照预热 Redis。 */
     public void warmUp() {
@@ -29,7 +29,7 @@ public class SlotWarmUpTask {
         int processedCount = 0;
         for (String slotCode : enabledSlotNames.get()) {
             try {
-                slotCacheMaintenancePort.refreshSlotByCode(slotCode);
+                slotCachePort.refreshSlotByCode(slotCode);
                 processedCount++;
             } catch (RuntimeException ex) {
                 log.warn("广告位 Redis 预热失败，已停止本次预热，slotCode={}", slotCode, ex);

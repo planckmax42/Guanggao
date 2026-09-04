@@ -6,7 +6,7 @@ import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.EventMetadataCacheMaintenancePort;
+import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.request.CreateMaterialRequest;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
@@ -30,8 +30,8 @@ class MaterialServiceImplTests {
         MaterialConverter materialConverter = mock(MaterialConverter.class);
         SearchOutboxService searchOutboxService = mock(SearchOutboxService.class);
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-        EventMetadataCacheMaintenancePort cacheMaintenancePort =
-                mock(EventMetadataCacheMaintenancePort.class);
+        EventMetadataPort cacheMaintenancePort =
+                mock(EventMetadataPort.class);
         MaterialServiceImpl service = new MaterialServiceImpl(
                 materialMapper,
                 planMapper,

@@ -16,7 +16,7 @@ public interface SlotBloomOperationsService {
      *
      * @param slotCode 广告位编码
      */
-    void addSlotBloom(String slotCode);
+    void addSlotFilter(String slotCode);
     /**
      * 获取过滤器运行状态。
      *

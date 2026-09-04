@@ -1,6 +1,7 @@
 package com.example.adplatform.common.exception;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,6 +45,15 @@ class GlobalExceptionHandlerTests {
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
+    @Test
+    void shouldReturnMysqlConnectionFailedForDatabaseTimeout() throws Exception {
+        mockMvc.perform(get("/test/database-timeout"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value(ErrorCode.MYSQL_CONNECTION_FAILED.getCode()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.MYSQL_CONNECTION_FAILED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
     @RestController
     private static class ExceptionTestController {
 
@@ -57,6 +67,11 @@ class GlobalExceptionHandlerTests {
             throw new DependencyException(
                     ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                     "Elasticsearch 暂时不可用");
+        }
+
+        @GetMapping("/test/database-timeout")
+        void databaseTimeout() {
+            throw new QueryTimeoutException("数据库查询超时");
         }
 
         @GetMapping("/test/system-exception")

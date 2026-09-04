@@ -3,7 +3,7 @@ package com.example.adplatform.admin.service.impl;
 import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.SlotCacheMaintenancePort;
+import com.example.adplatform.admin.port.slot.SlotCachePort;
 import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.common.enums.CommonStatus;
@@ -26,7 +26,7 @@ class SlotServiceImplTests {
     void shouldRegisterNewSlotForTransactionAwareCacheRefresh() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         SlotConverter slotConverter = mock(SlotConverter.class);
-        SlotCacheMaintenancePort slotCacheService = mock(SlotCacheMaintenancePort.class);
+        SlotCachePort slotCacheService = mock(SlotCachePort.class);
         SearchOutboxService searchOutboxService = mock(SearchOutboxService.class);
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         SlotServiceImpl service = new SlotServiceImpl(
@@ -46,7 +46,7 @@ class SlotServiceImplTests {
 
         InOrder order = inOrder(slotMapper, slotCacheService);
         order.verify(slotMapper).insert(entity);
-        order.verify(slotCacheService).refreshSlot(entity, null);
+        order.verify(slotCacheService).refreshSlotCache(entity, null);
         assertThat(entity.getPublicId()).matches("^slot_[0-9a-f]{32}$");
         verify(searchOutboxService).appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
     }
@@ -55,7 +55,7 @@ class SlotServiceImplTests {
     void shouldRequestCacheRefreshAfterUpdatingSlot() {
         SlotMapper slotMapper = mock(SlotMapper.class);
         SlotConverter slotConverter = mock(SlotConverter.class);
-        SlotCacheMaintenancePort slotCacheService = mock(SlotCacheMaintenancePort.class);
+        SlotCachePort slotCacheService = mock(SlotCachePort.class);
         SearchOutboxService searchOutboxService = mock(SearchOutboxService.class);
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         SlotServiceImpl service = new SlotServiceImpl(
@@ -83,6 +83,6 @@ class SlotServiceImplTests {
 
         InOrder order = inOrder(slotMapper, slotCacheService);
         order.verify(slotMapper).updateById(existing);
-        order.verify(slotCacheService).refreshSlot(updated, "OLD_BANNER");
+        order.verify(slotCacheService).refreshSlotCache(updated, "OLD_BANNER");
     }
 }
