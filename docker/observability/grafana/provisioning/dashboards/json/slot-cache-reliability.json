@@ -1,0 +1,91 @@
+{
+  "annotations": {"list": []},
+  "description": "广告位 Redis 访问、熔断、Outbox 补偿与安全停投可观测性。",
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [{"editorMode": "code", "expr": "max(ad_slot_cache_circuit_state)", "legendFormat": "0=CLOSED / 1=OPEN", "range": true, "refId": "A"}],
+      "title": "Slot Redis 熔断状态",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 9, "x": 6, "y": 0},
+      "id": 2,
+      "targets": [{"editorMode": "code", "expr": "100 * sum(rate(ad_slot_cache_operation_total{result=~\"failure|rejected\"}[$__rate_interval])) / clamp_min(sum(rate(ad_slot_cache_operation_total[$__rate_interval])), 0.000001)", "legendFormat": "Failure %", "range": true, "refId": "A"}],
+      "title": "Redis 操作失败率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 9, "x": 15, "y": 0},
+      "id": 3,
+      "targets": [{"editorMode": "code", "expr": "sum by (operation, result) (rate(ad_slot_cache_operation_total[$__rate_interval]))", "legendFormat": "{{operation}} / {{result}}", "range": true, "refId": "A"}],
+      "title": "Redis 操作速率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 5},
+      "id": 4,
+      "targets": [{"editorMode": "code", "expr": "sum by (stage, result) (rate(ad_slot_cache_sync_total[$__rate_interval]))", "legendFormat": "{{stage}} / {{result}}", "range": true, "refId": "A"}],
+      "title": "缓存同步结果",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 5},
+      "id": 5,
+      "targets": [{"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (le) (rate(ad_slot_cache_sync_delay_seconds_bucket[$__rate_interval])))", "legendFormat": "P95", "range": true, "refId": "A"}],
+      "title": "Outbox 同步延迟 P95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 5},
+      "id": 6,
+      "targets": [{"editorMode": "code", "expr": "sum(rate(ad_delivery_no_fill_total{reason=\"slot_cache_unavailable\"}[$__rate_interval]))", "legendFormat": "no-fill/s", "range": true, "refId": "A"}],
+      "title": "Redis 异常安全停投",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 12},
+      "id": 7,
+      "targets": [{"editorMode": "code", "expr": "max(kafka_consumergroup_lag_sum{consumergroup=\"slot-cache-sync-consumer\",topic=\"ad-slot-cache-sync\"})", "legendFormat": "Lag", "range": true, "refId": "A"}],
+      "title": "Slot 缓存消费积压",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "ad-platform-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "targets": [{"editorMode": "code", "expr": "sum(increase(ad_slot_cache_log_suppressed_total[$__rate_interval]))", "legendFormat": "Suppressed", "range": true, "refId": "A"}],
+      "title": "被抑制的重复故障日志",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["ad-platform", "redis", "slot-cache", "outbox"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "title": "广告位缓存可靠性",
+  "uid": "slot-cache-reliability",
+  "version": 1
+}

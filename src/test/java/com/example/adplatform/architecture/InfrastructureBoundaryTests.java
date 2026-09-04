@@ -47,10 +47,10 @@ class InfrastructureBoundaryTests {
         assertThat(infraRoot.resolve("redis/tracking")).isDirectory();
         assertThat(infraRoot.resolve("redis/report")).isDirectory();
         assertThat(infraRoot.resolve("kafka/tracking")).isDirectory();
-        assertThat(infraRoot.resolve("kafka/search")).isDirectory();
+        assertThat(infraRoot.resolve("kafka/admin")).isDirectory();
         assertThat(infraRoot.resolve("elasticsearch/delivery")).isDirectory();
-        assertThat(infraRoot.resolve("bloom/delivery")).isDirectory();
-        assertThat(infraRoot.resolve("bloom/tracking")).isDirectory();
+        assertThat(infraRoot.resolve("bloomfilter/delivery")).isDirectory();
+        assertThat(infraRoot.resolve("bloomfilter/tracking")).isDirectory();
         assertThat(infraRoot.resolve("resilience/delivery")).isDirectory();
         assertThat(infraRoot.resolve("resilience/tracking")).isDirectory();
     }

@@ -3,6 +3,7 @@ package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.port.CandidateDocumentFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,12 +25,13 @@ import java.util.function.UnaryOperator;
  */
 @Component
 @RequiredArgsConstructor
-public class EsDocumentFactory {//mysql查询结果到ES映射函数
+public class EsDocumentFactory implements CandidateDocumentFactory {//mysql查询结果到ES映射函数
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() { };
     private final ObjectMapper objectMapper;
 
     /** 根据数据库真实配置生成可直接索引的候选快照。 */
+    @Override
     public AdCandidateDocument from(CandidateSourceRow row) {
         AdCandidateDocument document = new AdCandidateDocument();
         document.setId(row.getMaterialPublicId());

@@ -9,7 +9,11 @@ import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreakerProperties;
 import com.example.adplatform.infra.warmup.SlotWarmUpTask;
+import com.example.adplatform.delivery.port.SlotLookupResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -23,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,21 +51,25 @@ class SlotCacheConcurrencyTests {
         SlotMapper slotMapper = mock(SlotMapper.class);
         CountDownLatch mysqlReadStarted = new CountDownLatch(1);
         CountDownLatch allowMysqlReturn = new CountDownLatch(1);
+        AtomicInteger mysqlCalls = new AtomicInteger();
         when(slotMapper.selectOne(any())).thenAnswer(invocation -> {
-            mysqlReadStarted.countDown();
-            assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
-            return slot(1L, "OLD_CODE", CommonStatus.ENABLED);
+            if (mysqlCalls.incrementAndGet() == 1) {
+                mysqlReadStarted.countDown();
+                assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
+                return slot(1L, "OLD_CODE", CommonStatus.ENABLED);
+            }
+            return slot(1L, "NEW_CODE", CommonStatus.ENABLED);
         });
         SlotCacheServiceImpl service = service(redisTemplate, slotMapper);
 
-        CompletableFuture<Optional<Long>> olderRead = CompletableFuture.supplyAsync(
+        CompletableFuture<SlotLookupResult> olderRead = CompletableFuture.supplyAsync(
                 () -> service.getEnabledSlotIdByCode("OLD_CODE"));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<Void> committedRefresh = CompletableFuture.runAsync(
-                () -> service.refreshSlotCache(slot(1L, "NEW_CODE", CommonStatus.ENABLED), "OLD_CODE"));
+                () -> service.reconcileSlot("slot_1", "OLD_CODE"));
 
         allowMysqlReturn.countDown();
-        assertEquals(Optional.of(1L), olderRead.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotLookupResult.enabled(1L), olderRead.get(1, TimeUnit.SECONDS));
         committedRefresh.get(1, TimeUnit.SECONDS);
 
         assertFalse(redis.containsKey(DeliveryRedisKeys.slotCodeToId("OLD_CODE")));
@@ -83,16 +92,16 @@ class SlotCacheConcurrencyTests {
                 redisTemplate(redis, distinctReadersMissedRedis),
                 slotMapper);
 
-        CompletableFuture<Optional<Long>> first = CompletableFuture.supplyAsync(
+        CompletableFuture<SlotLookupResult> first = CompletableFuture.supplyAsync(
                 () -> service.getEnabledSlotIdByCode("HOME_BANNER"));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
-        CompletableFuture<Optional<Long>> second = CompletableFuture.supplyAsync(
+        CompletableFuture<SlotLookupResult> second = CompletableFuture.supplyAsync(
                 () -> service.getEnabledSlotIdByCode("HOME_BANNER"));
         assertEquals(true, distinctReadersMissedRedis.await(1, TimeUnit.SECONDS));
         allowMysqlReturn.countDown();
 
-        assertEquals(Optional.of(1L), first.get(1, TimeUnit.SECONDS));
-        assertEquals(Optional.of(1L), second.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotLookupResult.enabled(1L), first.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotLookupResult.enabled(1L), second.get(1, TimeUnit.SECONDS));
         verify(slotMapper, times(1)).selectOne(any());
     }
 
@@ -155,7 +164,10 @@ class SlotCacheConcurrencyTests {
                 properties,
                 bloomFilterService,
                 mock(SlotMysqlCircuitBreaker.class),
-                new SlotCacheLockManager(properties));
+                redisCircuitBreaker(),
+                new SlotCacheLockManager(properties),
+                new SimpleMeterRegistry(),
+                logLimiter(properties));
     }
 
     private Fixture fixture(
@@ -175,7 +187,10 @@ class SlotCacheConcurrencyTests {
                 properties,
                 bloomFilterService,
                 circuitBreaker,
-                lockManager);
+                redisCircuitBreaker(),
+                lockManager,
+                new SimpleMeterRegistry(),
+                logLimiter(properties));
         return new Fixture(service, lockManager);
     }
 
@@ -185,6 +200,16 @@ class SlotCacheConcurrencyTests {
         properties.getLock().setStripes(1_024);
         properties.getLock().setReadWaitTimeout(readWaitTimeout);
         return properties;
+    }
+
+    private SlotRedisCircuitBreaker redisCircuitBreaker() {
+        return new SlotRedisCircuitBreaker(
+                new SlotRedisCircuitBreakerProperties(),
+                new SimpleMeterRegistry());
+    }
+
+    private SlotCacheFailureLogLimiter logLimiter(SlotCacheProperties properties) {
+        return new SlotCacheFailureLogLimiter(properties, new SimpleMeterRegistry());
     }
 
     @SuppressWarnings("unchecked")

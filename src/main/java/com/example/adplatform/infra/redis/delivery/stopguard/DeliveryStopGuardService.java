@@ -5,9 +5,13 @@ import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
 import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.stereotype.Service;
+import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
+import com.example.adplatform.infra.redis.delivery.slot.SlotCacheFailureLogLimiter;
+import org.springframework.dao.DataAccessException;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -31,6 +35,9 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
     private static final String STOPPED_SLOTS = "delivery:stopped:slots";
 
     private final StringRedisTemplate stringRedisTemplate;
+    private final MeterRegistry meterRegistry;
+    private final SlotCacheProperties slotCacheProperties;
+    private final SlotCacheFailureLogLimiter failureLogLimiter;
 
     /** 添加或移除某个聚合的临时停投标记。定向规则本身不需要独立 stopped set。 */
     @Override
@@ -45,27 +52,29 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
             } else {
                 stringRedisTemplate.opsForSet().remove(key, id.toString());
             }
-        } catch (RuntimeException ex) {
-            log.warn("Failed to update delivery stop guard, type={}, id={}, stopped={}", type, id, stopped, ex);
+        } catch (DataAccessException ex) {
+            if (failureLogLimiter.shouldLog("stop_guard_write")) {
+                log.warn("Failed to update delivery stop guard, type={}, id={}, stopped={}", type, id, stopped, ex);
+            }
         }
     }
 
     @Override
     public Set<Long> findStoppedPlans(Collection<Long> planIds) {
-        return findMembers(STOPPED_PLANS, planIds);
+        return findMembers(STOPPED_PLANS, planIds, false);
     }
 
     @Override
     public Set<Long> findStoppedMaterials(Collection<Long> materialIds) {
-        return findMembers(STOPPED_MATERIALS, materialIds);
+        return findMembers(STOPPED_MATERIALS, materialIds, false);
     }
 
     @Override
     public Set<Long> findStoppedSlots(Collection<Long> slotIds) {
-        return findMembers(STOPPED_SLOTS, slotIds);
+        return findMembers(STOPPED_SLOTS, slotIds, true);
     }
 
-    private Set<Long> findMembers(String key, Collection<Long> ids) {
+    private Set<Long> findMembers(String key, Collection<Long> ids, boolean failClosed) {
         if (ids == null || ids.isEmpty()) {//传入参数为空直接返回
             return Set.of();
         }
@@ -77,9 +86,15 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
                 ids.forEach(id -> connection.setCommands().sIsMember(key.getBytes(), id.toString().getBytes()));
                 return null;
             });
-        } catch (RuntimeException ex) {
-            log.warn("Failed to read delivery stop guards, key={}, fail-open", key, ex);
-            return Set.of();
+        } catch (DataAccessException ex) {
+            boolean effectiveFailClosed = failClosed
+                    && slotCacheProperties.getFailurePolicy() == SlotCacheProperties.FailurePolicy.FAIL_CLOSED;
+            String policy = effectiveFailClosed ? "fail-closed" : "fail-open";
+            meterRegistry.counter("ad.delivery.stop.guard", "key", key, "result", policy).increment();
+            if (failureLogLimiter.shouldLog("stop_guard_read")) {
+                log.warn("Failed to read delivery stop guards, key={}, policy={}", key, policy, ex);
+            }
+            return effectiveFailClosed ? new HashSet<>(ids) : Set.of();
         }
         Set<Long> stopped = new HashSet<>();
         int index = 0;

@@ -8,25 +8,29 @@ import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotLookupPort;
-import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
+import com.example.adplatform.delivery.port.SlotLookupResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 广告位编码缓存的默认实现。
  *
- * <p>查询按“布隆过滤器→Redis→MySQL”顺序执行；缓存更新在数据库事务提交后进行，
- * 避免未提交数据进入缓存。</p>
+ * <p>Redis 健康时允许缓存未命中回源 MySQL；Redis 访问异常或熔断时返回
+ * {@link SlotLookupResult.Status#CACHE_UNAVAILABLE}，由投放层按 no-fill 停投。</p>
  */
 @RequiredArgsConstructor
 @Service
@@ -39,35 +43,41 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
     private final SlotCacheProperties properties;
     private final SlotBloomOperationsService slotBloomOperationsService;
     private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
+    private final SlotRedisCircuitBreaker redisCircuitBreaker;
     private final SlotCacheLockManager lockManager;
+    private final MeterRegistry meterRegistry;
+    private final SlotCacheFailureLogLimiter failureLogLimiter;
 
-    /** {@inheritDoc} */
     @Override
-    public Optional<Long> getEnabledSlotIdByCode(String slotCode) {
-        if (!StringUtils.hasText(slotCode)) {//防御性校验，防止绕过controller层传入非法参数
-            return Optional.empty();
+    public SlotLookupResult getEnabledSlotIdByCode(String slotCode) {
+        RedisReadResult firstRead = readSlotId(slotCode);
+        if (firstRead.status() == RedisReadStatus.HIT) {
+            return SlotLookupResult.enabled(firstRead.slotId());
         }
-        if (slotBloomOperationsService.definiteNotContain(slotCode)) {//布隆过滤器初筛
-            slotBloomOperationsService.recordDefiniteNotContain();//记录明确不存在数，用于后续计算误判率决定是否要扩容
-            return Optional.empty();
-        }
-
-        Optional<Long> cachedSlotId = getSlotIdFromRedis(slotCode);//先走Redis
-        if (cachedSlotId.isPresent()) {
-            return cachedSlotId;
+        if (firstRead.status() == RedisReadStatus.UNAVAILABLE) {
+            return SlotLookupResult.cacheUnavailable();
         }
 
-        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);//嵌套类获取条带锁，todo:引入条带锁扩容机制，动态计算获取锁失败率决定是否扩容（目前想法）
-        if (readLock == null) {//获取条带锁失败处理逻辑，todo：目前太糙，以及上面那个null，或许增加补偿机制？
-            if (Thread.currentThread().isInterrupted()) {//失败原因为中断
+        // Redis 先于本地布隆过滤器，避免多实例布隆快照延迟导致新广告位假阴性。
+        if (slotBloomOperationsService.definiteNotContain(slotCode)) {
+            slotBloomOperationsService.recordDefiniteNotContain();
+            return SlotLookupResult.notFound();
+        }
+
+        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
+        if (readLock == null) {
+            if (Thread.currentThread().isInterrupted()) {
                 log.warn("广告位缓存回源锁等待被中断，slotCode={}", slotCode);
                 throw new DependencyException(
                         ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
                         "广告位查询被中断，请稍后重试");
             }
-            cachedSlotId = getSlotIdFromRedis(slotCode);//再走一次redis,是否在等待间隔其他线程回源成功
-            if (cachedSlotId.isPresent()) {
-                return cachedSlotId;
+            RedisReadResult retryRead = readSlotId(slotCode);
+            if (retryRead.status() == RedisReadStatus.HIT) {
+                return SlotLookupResult.enabled(retryRead.slotId());
+            }
+            if (retryRead.status() == RedisReadStatus.UNAVAILABLE) {
+                return SlotLookupResult.cacheUnavailable();
             }
             log.warn("广告位缓存回源锁等待超时，slotCode={}", slotCode);
             throw new DependencyException(
@@ -75,22 +85,25 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
                     "广告位查询繁忙，请稍后重试");
         }
 
-        try (readLock) {//继承AutoCloseable类实现离开try代码块自动释放锁
-            cachedSlotId = getSlotIdFromRedis(slotCode);
-            if (cachedSlotId.isPresent()) {//真正进入mysql之前再次进行redis,最大程度上减少数据库压力
-                return cachedSlotId;
+        try (readLock) {
+            RedisReadResult retryRead = readSlotId(slotCode);
+            if (retryRead.status() == RedisReadStatus.HIT) {
+                return SlotLookupResult.enabled(retryRead.slotId());
             }
-            if (slotBloomOperationsService.definiteNotContain(slotCode)) {//再次查询布隆过滤器是为了防止再此期间布隆过滤器重建完成
+            if (retryRead.status() == RedisReadStatus.UNAVAILABLE) {
+                return SlotLookupResult.cacheUnavailable();
+            }
+            if (slotBloomOperationsService.definiteNotContain(slotCode)) {
                 slotBloomOperationsService.recordDefiniteNotContain();
-                return Optional.empty();
+                return SlotLookupResult.notFound();
             }
-            return loadEnabledSlotFromMysql(slotCode);//回源mysql
+            return loadEnabledSlotFromMysql(slotCode);
         }
     }
 
-    private Optional<Long> loadEnabledSlotFromMysql(String slotCode) {
+    private SlotLookupResult loadEnabledSlotFromMysql(String slotCode) {
         SlotEntity slot;
-        try {//在熔断器的保护下进入mysql查询
+        try {
             slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
         } catch (CallNotPermittedException ex) {
             throw new DependencyException(
@@ -107,31 +120,33 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
 
         if (slot == null) {
             if (slotBloomOperationsService.getBloomSnapshot().bloomFilterReady()) {
-                slotBloomOperationsService.recordFalsePositive();//记录布隆过滤器误判数，用于计算误判率决定是否扩容
+                slotBloomOperationsService.recordFalsePositive();
             }
-            return Optional.empty();
+            return SlotLookupResult.notFound();
         }
-        cacheSlot(slot);//回源后缓存进redis和布隆过滤器
-        return Optional.of(slot.getId());
+        try {
+            cacheSlot(slot);
+        } catch (SlotCacheAccessException ex) {
+            // MySQL 已确认本次请求的状态，回填失败不影响当前结果。
+            if (failureLogLimiter.shouldLog("backfill")) {
+                log.warn("广告位回源后写入 Redis 失败，slotCode={}", slotCode, ex);
+            }
+        }
+        return SlotLookupResult.enabled(slot.getId());
     }
 
-    /**
-     * {@inheritDoc}
-     * 将启用广告位写入 Redis；如果广告位已停用，则删除对应缓存。
-     *
-     * @param slot 待同步的广告位，为 {@code null} 时忽略
-     */
     public void cacheSlot(SlotEntity slot) {
         if (slot == null || !StringUtils.hasText(slot.getSlotCode())) {
             return;
         }
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             slotBloomOperationsService.addSlotFilter(slot.getSlotCode());
+            writeSlotToRedis(slot.getSlotCode(), slot.getId());
+        } else {
+            evictSlotCodeFromRedis(slot.getSlotCode());
         }
-        writeSlotToRedis(slot.getSlotCode(),slot.getId());
     }
 
-    /** {@inheritDoc} */
     @Override
     public void refreshSlotByCode(String slotCode) {
         if (!StringUtils.hasText(slotCode)) {
@@ -141,75 +156,135 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
             SlotEntity current = selectEnabledSlotByCode(slotCode);
             if (current == null) {
                 evictSlotCodeFromRedis(slotCode);
-                return;
+            } else {
+                writeSlotToRedis(current.getSlotCode(), current.getId());
             }
-            writeSlotToRedis(current.getSlotCode(),current.getId());
         }
     }
 
-    /**
-     * 从 MySQL 查询指定编码且状态为启用的广告位。
-     *
-     * @param slotCode 对外广告位编码
-     * @return 启用广告位；不存在时返回 {@code null}
-     */
+    @Override
+    public void reconcileSlot(String slotPublicId, String previousSlotCode) {
+        long startNanos = System.nanoTime();
+        try {
+            SlotEntity current = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                    .eq(SlotEntity::getPublicId, slotPublicId));
+            String currentSlotCode = current == null ? null : current.getSlotCode();
+            try (SlotCacheLockManager.LockHandle ignored =
+                         lockManager.acquireForWrite(previousSlotCode, currentSlotCode)) {
+                if (StringUtils.hasText(previousSlotCode)
+                        && !Objects.equals(previousSlotCode, currentSlotCode)) {
+                    evictSlotCodeFromRedis(previousSlotCode);
+                }
+                if (current != null && Objects.equals(current.getStatus(), CommonStatus.ENABLED)) {
+                    slotBloomOperationsService.addSlotFilter(currentSlotCode);
+                    writeSlotToRedis(currentSlotCode, current.getId());
+                } else if (current != null) {
+                    evictSlotCodeFromRedis(currentSlotCode);
+                }
+            }
+            recordOperation("reconcile", "success", startNanos);
+        } catch (RuntimeException ex) {
+            recordOperation("reconcile", "failure", startNanos);
+            throw ex;
+        }
+    }
+
     private SlotEntity selectEnabledSlotByCode(String slotCode) {
         return slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getSlotCode, slotCode)
                 .eq(SlotEntity::getStatus, CommonStatus.ENABLED));
     }
 
-    /**
-     * 从 Redis 读取广告位 ID，读取失败或值格式错误时按缓存未命中处理。
-     *
-     * @param slotCode 对外广告位编码
-     * @return Redis 中的广告位 ID；未命中或异常时返回 empty
-     */
-    private Optional<Long> getSlotIdFromRedis(String slotCode) {
+    private RedisReadResult readSlotId(String slotCode) {
+        long startNanos = System.nanoTime();
         String value;
         try {
-            value = stringRedisTemplate.opsForValue().get(DeliveryRedisKeys.slotCodeToId(slotCode));
-        } catch (RuntimeException ex) {
-            log.warn("读取广告位缓存失败，slotCode={}，本次请求回源 MySQL：{}", slotCode, ex.getMessage());
-            return Optional.empty();
+            value = redisCircuitBreaker.execute(() -> stringRedisTemplate.opsForValue()
+                    .get(DeliveryRedisKeys.slotCodeToId(slotCode)));
+        } catch (DataAccessException | CallNotPermittedException ex) {
+            recordOperation("read", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
+            boolean failClosed = properties.getFailurePolicy() == SlotCacheProperties.FailurePolicy.FAIL_CLOSED;
+            if (failureLogLimiter.shouldLog("read")) {
+                log.warn("读取广告位缓存失败，slotCode={}，policy={}",
+                        slotCode, properties.getFailurePolicy(), ex);
+            }
+            return failClosed ? RedisReadResult.unavailable() : RedisReadResult.miss();
         }
         if (!StringUtils.hasText(value)) {
-            return Optional.empty();
+            recordOperation("read", "miss", startNanos);
+            return RedisReadResult.miss();
         }
         try {
-            return Optional.of(Long.valueOf(value));
+            Long slotId = Long.valueOf(value);
+            recordOperation("read", "hit", startNanos);
+            return RedisReadResult.hit(slotId);
         } catch (NumberFormatException ex) {
-            evictSlotCodeFromRedis(slotCode);
-            return Optional.empty();
+            log.error("广告位缓存值格式错误，slotCode={}，value={}", slotCode, value, ex);
+            try {
+                evictSlotCodeFromRedis(slotCode);
+                return RedisReadResult.miss();
+            } catch (SlotCacheAccessException deleteFailure) {
+                return RedisReadResult.unavailable();
+            }
         }
     }
-    /**
-     * 在数据库事务提交后删除旧编码并写入当前广告位缓存。
-     *
-     * @param slot 更新后的广告位
-     * @param oldSlotCode 更新前的广告位编码
-     */
-    /** 只刷新 Redis，不改变布隆过滤器；用于数据库提交后的缓存同步。 */
-    public void writeSlotToRedis(String slotCode,Long slotId) {
+
+    @Override
+    public void writeSlotToRedis(String slotCode, Long slotId) {
+        long startNanos = System.nanoTime();
         try {
-            stringRedisTemplate.opsForValue().set(
-                    DeliveryRedisKeys.slotCodeToId(slotCode),
-                    String.valueOf(slotId),
-                    properties.getRedisTtl());
-        } catch (RuntimeException ex) {
-            log.warn("写入广告位缓存失败，slotCode={}，后续请求将回源 MySQL：{}", slotCode, ex.getMessage());
+            redisCircuitBreaker.execute(() -> {
+                stringRedisTemplate.opsForValue().set(
+                        DeliveryRedisKeys.slotCodeToId(slotCode),
+                        String.valueOf(slotId),
+                        properties.getRedisTtl());
+                return null;
+            });
+            recordOperation("write", "success", startNanos);
+        } catch (DataAccessException | CallNotPermittedException ex) {
+            recordOperation("write", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
+            throw new SlotCacheAccessException("write", slotCode, ex);
         }
     }
-    /**
-     * 删除指定广告位编码的 Redis 映射缓存。
-     *
-     * @param slotCode 待清理的广告位编码
-     */
+
+    @Override
     public void evictSlotCodeFromRedis(String slotCode) {
+        long startNanos = System.nanoTime();
         try {
-            stringRedisTemplate.delete(DeliveryRedisKeys.slotCodeToId(slotCode));
-        } catch (RuntimeException ex) {
-            log.warn("删除广告位缓存失败，slotCode={}：{}", slotCode, ex.getMessage());
+            // false 表示键已不存在，删除的最终目标已达成，仍视为成功。
+            redisCircuitBreaker.execute(() ->
+                    stringRedisTemplate.delete(DeliveryRedisKeys.slotCodeToId(slotCode)));
+            recordOperation("evict", "success", startNanos);
+        } catch (DataAccessException | CallNotPermittedException ex) {
+            recordOperation("evict", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
+            throw new SlotCacheAccessException("evict", slotCode, ex);
+        }
+    }
+
+    private void recordOperation(String operation, String result, long startNanos) {
+        meterRegistry.counter("ad.slot.cache.operation", "operation", operation, "result", result)
+                .increment();
+        meterRegistry.timer("ad.slot.cache.operation.duration", "operation", operation)
+                .record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+    }
+
+    private enum RedisReadStatus {
+        HIT,
+        MISS,
+        UNAVAILABLE
+    }
+
+    private record RedisReadResult(RedisReadStatus status, Long slotId) {
+        private static RedisReadResult hit(Long slotId) {
+            return new RedisReadResult(RedisReadStatus.HIT, slotId);
+        }
+
+        private static RedisReadResult miss() {
+            return new RedisReadResult(RedisReadStatus.MISS, null);
+        }
+
+        private static RedisReadResult unavailable() {
+            return new RedisReadResult(RedisReadStatus.UNAVAILABLE, null);
         }
     }
 }

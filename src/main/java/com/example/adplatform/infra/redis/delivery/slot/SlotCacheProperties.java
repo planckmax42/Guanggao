@@ -24,6 +24,14 @@ public class SlotCacheProperties {
     @NotNull
     private Duration redisTtl;
 
+    /** Redis 读取失败时的投放策略，默认停投优先。 */
+    @NotNull
+    private FailurePolicy failurePolicy = FailurePolicy.FAIL_CLOSED;
+
+    /** 同类 Redis 异常完整堆栈的最小输出间隔。 */
+    @NotNull
+    private Duration failureLogInterval = Duration.ofSeconds(30);
+
     /** 单实例内协调缓存回填与提交后刷新的条带锁参数。 */
     @Valid
     @NotNull
@@ -48,6 +56,11 @@ public class SlotCacheProperties {
                     && !readWaitTimeout.isZero()
                     && !readWaitTimeout.isNegative();
         }
+    }
+
+    public enum FailurePolicy {
+        FAIL_CLOSED,
+        FAIL_OPEN
     }
 
 }

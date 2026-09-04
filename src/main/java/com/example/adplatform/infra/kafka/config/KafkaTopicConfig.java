@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
+import org.apache.kafka.common.config.TopicConfig;
 
 /** 广告事件 Kafka Topic 的声明式创建配置。 */
 @Configuration
@@ -34,6 +35,26 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic configChangeDltTopic(@Value("${app.kafka.topics.config-change-dlt}") String topicName) {//同步到ES失败使用的DLT，todo：给eventTopic增加DLT
         return topic(topicName);
+    }
+
+    /** 广告位 Redis 最终一致同步 Topic。 */
+    @Bean
+    public NewTopic slotCacheSyncTopic(@Value("${app.kafka.topics.slot-cache-sync}") String topicName) {
+        return TopicBuilder.name(topicName)
+                .partitions(3)
+                .replicas(1)
+                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(7L * 24 * 60 * 60 * 1000))
+                .build();
+    }
+
+    /** 非瞬时故障消息的死信 Topic。 */
+    @Bean
+    public NewTopic slotCacheSyncDltTopic(@Value("${app.kafka.topics.slot-cache-sync-dlt}") String topicName) {
+        return TopicBuilder.name(topicName)
+                .partitions(3)
+                .replicas(1)
+                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(14L * 24 * 60 * 60 * 1000))
+                .build();
     }
 
     private NewTopic topic(String topicName) {

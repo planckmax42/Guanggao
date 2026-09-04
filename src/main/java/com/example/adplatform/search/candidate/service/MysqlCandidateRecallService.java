@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsDocumentFactory;
+import com.example.adplatform.search.port.CandidateDocumentFactory;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import java.util.List;
 public class MysqlCandidateRecallService {
 
     private final CandidateSourceMapper sourceMapper;
-    private final EsDocumentFactory documentFactory;
+    private final CandidateDocumentFactory documentFactory;
 
     /** 从 MySQL 真实数据源构造并过滤候选快照。 */
     public List<AdCandidateDocument> recall(AdDeliveryRequest request) {

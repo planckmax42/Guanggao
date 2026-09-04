@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
 class EventKafkaProducerConfigTests {
 
     @Test
-    void shouldOverrideReliabilityOnlyForEventTemplate() {
+    void shouldUseReliableProducerSettingsForEventAndOutboxTemplates() {
         KafkaProperties kafkaProperties = new KafkaProperties();
         kafkaProperties.getProducer().setAcks("1");
         SslBundles sslBundles = mock(SslBundles.class);
@@ -45,8 +45,8 @@ class EventKafkaProducerConfigTests {
                 .containsEntry(ProducerConfig.BATCH_SIZE_CONFIG, 65_536)
                 .containsEntry(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
         assertThat(outboxConfig)
-                .containsEntry(ProducerConfig.ACKS_CONFIG, "1")
-                .doesNotContainKey(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG)
+                .containsEntry(ProducerConfig.ACKS_CONFIG, "all")
+                .containsEntry(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true)
                 .doesNotContainKey(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG);
     }
 

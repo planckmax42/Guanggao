@@ -42,8 +42,8 @@ services:
     command:
       - --kafka.server=127.0.0.1:9092
       - --web.listen-address=0.0.0.0:9308
-      - --topic.filter=^(event-topic|ad-config-change|ad-config-change-dlt)$
-      - --group.filter=^(event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer)$
+      - --topic.filter=^(event-topic|ad-config-change|ad-config-change-dlt|ad-slot-cache-sync|ad-slot-cache-sync-dlt)$
+      - --group.filter=^(event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer|slot-cache-sync-consumer)$
     restart: unless-stopped
 
   prometheus:

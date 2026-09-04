@@ -3,127 +3,102 @@ package com.example.adplatform.infra.redis.delivery.slot;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
+import com.example.adplatform.delivery.port.SlotLookupResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
-import org.junit.jupiter.api.AfterEach;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreakerProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.function.Supplier;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SlotCacheTransactionTests {
 
-    @AfterEach
-    void clearTransactionSynchronization() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
-        TransactionSynchronizationManager.setActualTransactionActive(false);
-    }
-
     @Test
-    void shouldRegisterBloomImmediatelyAndRefreshRedisOnlyAfterCommit() {
+    void shouldFailClosedWithoutFallingBackToMysqlWhenRedisReadFails() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
-        SlotCacheProperties properties = properties();
-        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
-                redisTemplate,
-                mock(SlotMapper.class),
-                properties,
-                bloomFilterService,
-                mock(SlotMysqlCircuitBreaker.class),
-                new SlotCacheLockManager(properties));
-        SlotEntity slot = enabledSlot();
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-        TransactionSynchronizationManager.initSynchronization();
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(values);
+        when(values.get(any())).thenThrow(new DataAccessResourceFailureException("redis down"));
+        SlotMapper slotMapper = mock(SlotMapper.class);
 
-        service.refreshSlotCache(slot, null);
+        SlotLookupResult result = service(redisTemplate, slotMapper, new SimpleMeterRegistry())
+                .getEnabledSlotIdByCode("HOME_BANNER");
 
-        verify(bloomFilterService).addSlotFilter("HOME_BANNER");
-        verify(valueOperations, never()).set(
-                DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
-
-        List<TransactionSynchronization> synchronizations =
-                TransactionSynchronizationManager.getSynchronizations();
-        synchronizations.forEach(TransactionSynchronization::afterCommit);
-
-        verify(bloomFilterService, times(1)).addSlotFilter("HOME_BANNER");
-        verify(valueOperations).set(
-                DeliveryRedisKeys.slotCodeToId("HOME_BANNER"), "1", Duration.ofDays(1));
+        assertEquals(SlotLookupResult.cacheUnavailable(), result);
+        verify(slotMapper, never()).selectOne(any());
     }
 
     @Test
-    void shouldKeepSafeBloomFalsePositiveButNotWriteRedisWhenTransactionRollsBack() {
+    void shouldExposeWriteFailureForOutboxRetry() {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
-        SlotCacheProperties properties = properties();
-        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
-                redisTemplate,
-                mock(SlotMapper.class),
-                properties,
-                bloomFilterService,
-                mock(SlotMysqlCircuitBreaker.class),
-                new SlotCacheLockManager(properties));
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-        TransactionSynchronizationManager.initSynchronization();
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(values);
+        org.mockito.Mockito.doThrow(new DataAccessResourceFailureException("redis down"))
+                .when(values).set(any(), any(), any(Duration.class));
 
-        service.refreshSlotCache(enabledSlot(), null);
+        SlotCacheAccessException failure = assertThrows(
+                SlotCacheAccessException.class,
+                () -> service(redisTemplate, mock(SlotMapper.class), new SimpleMeterRegistry())
+                        .writeSlotToRedis("HOME_BANNER", 1L));
 
-        TransactionSynchronizationManager.getSynchronizations()
-                .forEach(synchronization -> synchronization.afterCompletion(
-                        TransactionSynchronization.STATUS_ROLLED_BACK));
-        verify(bloomFilterService).addSlotFilter("HOME_BANNER");
-        verify(redisTemplate, never()).opsForValue();
+        assertEquals("write", failure.getOperation());
+        assertEquals("HOME_BANNER", failure.getSlotCode());
     }
 
     @Test
-    void shouldNotRegisterDisabledSlotInBloomFilter() {
-        SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
-        SlotCacheProperties properties = properties();
-        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
-                mock(StringRedisTemplate.class),
-                mock(SlotMapper.class),
-                properties,
-                bloomFilterService,
-                mock(SlotMysqlCircuitBreaker.class),
-                new SlotCacheLockManager(properties));
-        SlotEntity slot = enabledSlot();
-        slot.setStatus(CommonStatus.DISABLED);
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-        TransactionSynchronizationManager.initSynchronization();
+    void shouldEvictPreviousAndCurrentCodesWhenLatestSlotIsDisabled() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        SlotMapper slotMapper = mock(SlotMapper.class);
+        SlotEntity disabled = new SlotEntity();
+        disabled.setId(1L);
+        disabled.setSlotCode("NEW_CODE");
+        disabled.setStatus(CommonStatus.DISABLED);
+        when(slotMapper.selectOne(any())).thenReturn(disabled);
 
-        service.refreshSlotCache(slot, slot.getSlotCode());
+        service(redisTemplate, slotMapper, new SimpleMeterRegistry())
+                .reconcileSlot("slot_1", "OLD_CODE");
 
-        verify(bloomFilterService, never()).addSlotFilter(slot.getSlotCode());
+        verify(redisTemplate).delete(DeliveryRedisKeys.slotCodeToId("OLD_CODE"));
+        verify(redisTemplate).delete(DeliveryRedisKeys.slotCodeToId("NEW_CODE"));
     }
 
-    private SlotEntity enabledSlot() {
-        SlotEntity slot = new SlotEntity();
-        slot.setId(1L);
-        slot.setSlotCode("HOME_BANNER");
-        slot.setStatus(CommonStatus.ENABLED);
-        return slot;
-    }
-
-    private SlotCacheProperties properties() {
+    private SlotCacheServiceImpl service(
+            StringRedisTemplate redisTemplate,
+            SlotMapper slotMapper,
+            SimpleMeterRegistry meterRegistry) {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
-        properties.getLock().setStripes(1_024);
-        properties.getLock().setReadWaitTimeout(Duration.ofMillis(100));
-        return properties;
+        properties.getLock().setStripes(32);
+        properties.getLock().setReadWaitTimeout(Duration.ofMillis(50));
+        SlotMysqlCircuitBreaker mysqlCircuitBreaker = mock(SlotMysqlCircuitBreaker.class);
+        when(mysqlCircuitBreaker.execute(any())).thenAnswer(invocation ->
+                ((Supplier<?>) invocation.getArgument(0)).get());
+        return new SlotCacheServiceImpl(
+                redisTemplate,
+                slotMapper,
+                properties,
+                mock(SlotBloomOperationsService.class),
+                mysqlCircuitBreaker,
+                new SlotRedisCircuitBreaker(new SlotRedisCircuitBreakerProperties(), meterRegistry),
+                new SlotCacheLockManager(properties),
+                meterRegistry,
+                new SlotCacheFailureLogLimiter(properties, meterRegistry));
     }
 }

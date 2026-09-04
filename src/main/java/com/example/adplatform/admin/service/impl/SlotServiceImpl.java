@@ -9,7 +9,6 @@ import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.slot.SlotCachePort;
 import com.example.adplatform.admin.service.SlotService;
 import com.example.adplatform.admin.response.AvailableSlotResponse;
 import com.example.adplatform.admin.response.SlotResponse;
@@ -19,17 +18,16 @@ import com.example.adplatform.common.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.id.PublicIdGenerator;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
+import com.example.adplatform.admin.event.SlotCacheImmediateEvent;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
+import com.example.adplatform.search.outbox.service.SlotCacheOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -47,11 +45,10 @@ public class SlotServiceImpl implements SlotService {
 
     private final SlotMapper slotMapper;
     private final SlotConverter slotConverter;
-    private final SlotCachePort slotCacheService;
     private final SlotFilterPort slotFilterService;
     private final SearchOutboxService searchOutboxService;
+    private final SlotCacheOutboxService slotCacheOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final SlotCacheLockManager lockManager;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -66,10 +63,10 @@ public class SlotServiceImpl implements SlotService {
         }
         if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
             slotFilterService.addSlotFilter(slotCode);
-            executeAfterCommitWithLock(()->{
-                slotCacheService.writeSlotToRedis(slotCode, slotEntity.getId());
-            },slotEntity.getSlotCode());
+            applicationEventPublisher.publishEvent(new SlotCacheImmediateEvent(
+                    SlotCacheImmediateEvent.Action.WRITE, slotCode, slotEntity.getId()));
         }
+        slotCacheOutboxService.append(slotEntity.getPublicId(), null);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, slotEntity.getPublicId());
         return slotConverter.toRef(slotEntity);
     }
@@ -91,12 +88,14 @@ public class SlotServiceImpl implements SlotService {
         }
         SlotEntity newEntity = slotMapper.selectById(internalId);
         String newSlotCode = newEntity.getSlotCode();
+        boolean slotCodeChanged = !Objects.equals(oldSlotCode, newSlotCode);
         if (Objects.equals(newEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
             slotFilterService.addSlotFilter(newSlotCode);
-            executeAfterCommitWithLock(()->{
-                slotCacheService.evictSlotCodeFromRedis(oldSlotCode);
-                slotCacheService.writeSlotToRedis(newSlotCode,internalId);
-            },oldSlotCode,newSlotCode);
+        }
+        if (slotCodeChanged) {
+            applicationEventPublisher.publishEvent(new SlotCacheImmediateEvent(
+                    SlotCacheImmediateEvent.Action.EVICT, oldSlotCode, internalId));
+            slotCacheOutboxService.append(publicId, oldSlotCode);
         }
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         return slotConverter.toResponse(newEntity);
@@ -116,13 +115,13 @@ public class SlotServiceImpl implements SlotService {
         if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)){
             slotFilterService.addSlotFilter(slotCode);
         }
-        executeAfterCommitWithLock(() -> {
-            if (Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)){
-                slotCacheService.writeSlotToRedis(slotCode, slotEntity.getId());
-            }else {
-                slotCacheService.evictSlotCodeFromRedis(slotCode);
-            }
-        }, slotCode);
+        applicationEventPublisher.publishEvent(new SlotCacheImmediateEvent(
+                Objects.equals(slotEntity.getStatus(), CommonStatus.ENABLED)
+                        ? SlotCacheImmediateEvent.Action.WRITE
+                        : SlotCacheImmediateEvent.Action.EVICT,
+                slotCode,
+                slotEntity.getId()));
+        slotCacheOutboxService.append(publicId, null);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
                 ConfigAggregateType.SLOT,
@@ -150,17 +149,5 @@ public class SlotServiceImpl implements SlotService {
                 .stream()
                 .map(slotConverter::toAvailableResponse)
                 .toList();
-    }
-    private void executeAfterCommitWithLock(Runnable action,String... slotCode){
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit(){
-                        try(SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(slotCode)) {
-                           action.run();
-                        }
-                    }
-                }
-        );
     }
 }

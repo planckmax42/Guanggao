@@ -106,15 +106,15 @@ curl http://127.0.0.1:8080/api/health
 应用会把 `ERROR` 日志写入 `logs/ad-platform-error.log`，Grafana Alloy 异步采集该文件并发送到 Loki。这条链路与广告业务请求隔离，Loki 暂时不可用不会拖慢接口。
 
 同一套 Compose 还会启动 Prometheus 和 Kafka Exporter。Prometheus 每 5 秒采集宿主机应用的
-`/actuator/prometheus` 与 Kafka Exporter，指标持久化保留 7 天；Exporter 只读取广告平台的三个
-Topic 和两个 Consumer Group，避免内部 Topic 干扰看板。
+`/actuator/prometheus` 与 Kafka Exporter，指标持久化保留 7 天；Exporter 只读取广告平台业务
+Topic 和 Consumer Group，避免内部 Topic 干扰看板。
 
 ```bash
 docker compose -f docker/docker-compose.logging.yml up -d
 ```
 
 打开 `http://127.0.0.1:3000`，默认账号密码是 `admin/admin`。`Ad Platform` 目录中的
-**Kafka Event Pipeline** Dashboard 与五条基础告警会自动加载。Dashboard 默认显示
+**Kafka Event Pipeline** 和 **Slot Cache Reliability** Dashboard 及其告警规则会自动加载。事件看板默认显示
 `event-topic` / `event-archive-consumer`，并可切换查看独立的
 `event-billing-consumer`、`event-statistics-consumer`，或配置同步链路的
 `candidate-index-consumer`。
@@ -162,10 +162,24 @@ curl -X POST http://127.0.0.1:8080/api/delivery/ads \
 - 候选索引：`ad-candidate-yyyyMMddHHmmssSSS`，读写分别经过 `ad-candidate-read` / `ad-candidate-write` 别名。
 - 重建：新索引完成批量写入和 refresh 后，再原子切换别名，旧索引保留以便回滚。Redis 锁防止并发重建。
 - 增量同步：配置变更与 Outbox 在同一 MySQL 事务提交，Debezium 从 Binlog 捕获 Outbox INSERT 并写 Kafka，再由消费者更新 ES。紧急停投会先写 Redis stopped set，避免在最终一致窗口内继续投放。
+- 广告位缓存同步：创建、改编码、启用和停用也会在同一事务写入 Outbox。提交后立即尝试一次 Redis，失败由异步消费者指数退避重试；Redis 不可用时，投放接口返回 HTTP 200 和空广告列表，避免投放旧映射。
 - Debezium/Kafka Connect 持久化 Binlog offset 并支持断点恢复；候选同步消费失败进入 `ad-config-change-dlt`。消费者保持幂等，因为 CDC 恢复时仍可能重复投递。
 
 应用默认配置为 `OUTBOX_TRANSPORT=debezium`，不会定时扫描 Outbox。若调试环境暂时不运行
 Kafka Connect，可显式设置 `OUTBOX_TRANSPORT=polling` 使用保留的轮询回退实现；同一环境不能同时启用两种发布方式。
+
+### 广告位缓存 DLT 处理
+
+`ad-slot-cache-sync` 遇到 Redis/MySQL 瞬时故障会持续退避重试；只有格式错误等不可重试消息会进入
+`ad-slot-cache-sync-dlt`。处理步骤：
+
+1. 通过 **Slot Cache Reliability** 看板和应用 ERROR 日志确认 key、异常及受影响广告位。
+2. 先修复数据或程序问题，不要在根因仍存在时重放。
+3. 保留原 key，将 DLT 消息重放至 `ad-slot-cache-sync`。对账会读取 MySQL 最新状态，Redis `SET`/`DELETE` 幂等，因此可安全重复消费。
+4. 确认 DLT 不再增长、消费延迟归零，且 `ad.slot.cache.sync{result="success"}` 持续增加。
+
+少量消息可使用 Kafka console consumer 开启 key 输出，检查 payload 后用开启
+`parse.key=true` 的 console producer 写回。批量重放前应停止其他手工重放任务，并记录重放的分区和 offset 范围。
 
 ## 测试与压测
 

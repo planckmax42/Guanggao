@@ -204,12 +204,12 @@ class SlotBloomOperationsServiceTests {
                 .collect(Collectors.toSet());
         assertEquals(Set.of(
                 "definiteNotContain",
-                "addSlotBloomFilter",
+                "addSlotFilter",
                 "recordDefiniteNotContain",
                 "recordFalsePositive",
                 "regularRebuild",
                 "expandRebuild",
-                "getBloomFilterSnapshot"), publicMethods);
+                "getBloomSnapshot"), publicMethods);
     }
 
     private SlotBloomOperationsService createService(SlotMapper slotMapper) {

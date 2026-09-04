@@ -20,6 +20,8 @@ management:
         spring.kafka.template: true
         spring.kafka.listener: true
         ad.event.consumer.processing: true
+        ad.slot.cache.operation.duration: true
+        ad.slot.cache.sync.delay: true
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -37,7 +39,8 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DATABASE:0}
-      timeout: 3000ms
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${REDIS_COMMAND_TIMEOUT:300ms}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
     producer:
@@ -69,6 +72,8 @@ app:
     redis-timeout-ms: 2000
   slot-cache:
     redis-ttl: 1d
+    failure-policy: ${SLOT_CACHE_FAILURE_POLICY:FAIL_CLOSED}
+    failure-log-interval: 30s
     lock:
       stripes: 1024
       read-wait-timeout: 100ms
@@ -89,6 +94,14 @@ app:
       failure-rate-threshold: 50
       slow-call-rate-threshold: 50
       slow-call-duration-threshold: 200ms
+      open-state-wait-duration: 10s
+      permitted-calls-in-half-open-state: 3
+    redis-circuit-breaker:
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+      failure-rate-threshold: 50
+      slow-call-rate-threshold: 50
+      slow-call-duration-threshold: 100ms
       open-state-wait-duration: 10s
       permitted-calls-in-half-open-state: 3
   event-metadata-cache:
@@ -131,11 +144,14 @@ app:
       event: event-topic
       config-change: ad-config-change
       config-change-dlt: ad-config-change-dlt
+      slot-cache-sync: ad-slot-cache-sync
+      slot-cache-sync-dlt: ad-slot-cache-sync-dlt
     consumer-groups:
       legacy: tracking-consumer
       archive: event-archive-consumer
       billing: event-billing-consumer
       statistics: event-statistics-consumer
+      slot-cache-sync: slot-cache-sync-consumer
   elasticsearch:
     enabled: ${ELASTICSEARCH_ENABLED:true}
     candidate:

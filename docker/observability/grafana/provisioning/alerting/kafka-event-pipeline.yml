@@ -78,7 +78,7 @@ groups:
                 type: prometheus
                 uid: ad-platform-prometheus
               editorMode: code
-              expr: 'max by (consumergroup, topic) (kafka_consumergroup_lag_sum{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer",topic=~"event-topic|ad-config-change|ad-config-change-dlt"})'
+              expr: 'max by (consumergroup, topic) (kafka_consumergroup_lag_sum{consumergroup=~"event-archive-consumer|event-billing-consumer|event-statistics-consumer|candidate-index-consumer|slot-cache-sync-consumer",topic=~"event-topic|ad-config-change|ad-config-change-dlt|ad-slot-cache-sync|ad-slot-cache-sync-dlt"})'
               instant: true
               intervalMs: 1000
               legendFormat: '{{consumergroup}} / {{topic}}'

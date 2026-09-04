@@ -15,6 +15,7 @@ import com.example.adplatform.search.candidate.model.AdCandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallResult;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
 import com.example.adplatform.search.candidate.service.CandidateTargetingMatcher;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -52,13 +53,20 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final BudgetAvailabilityPort budgetRedisService;
     private final FrequencyControlPort frequencyRedisService;
     private final DailyReportMapper dailyReportMapper;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-
-        Long slotId = slotCacheService.getEnabledSlotIdByCode(request.slotCode())// 先通过广告位缓存校验入口有效性，避免无效广告位请求继续访问 ES，其中包含条带锁，双布隆过滤器，熔断保护器等机制
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在"));
+        SlotLookupResult slotLookup = slotCacheService.getEnabledSlotIdByCode(request.slotCode());
+        if (slotLookup.status() == SlotLookupResult.Status.CACHE_UNAVAILABLE) {
+            meterRegistry.counter("ad.delivery.no.fill", "reason", "slot_cache_unavailable").increment();
+            return new AdDeliveryResponse(requestId, 0, 0, List.of());
+        }
+        if (slotLookup.status() == SlotLookupResult.Status.NOT_FOUND) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
+        }
+        Long slotId = slotLookup.slotId();// 仅当 Redis 健康且广告位有效时继续投放链路
 
         // 第一阶段：ES 多维粗召回。只有异常/超时/熔断才回源，合法空结果不会查询 MySQL。
         List<AdCandidateDocument> recalled = candidateRecallPort.recall(request);//粗召回，当ES不可以用或者熔断时降级进入mysql
@@ -138,7 +146,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         return new AdDeliveryResponse(requestId, recalled.size(), ads.size(), ads);
     }
 
-    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricRow metric) { //todo:后续接入XGboost算法
+    private ScoredCandidate score(AdCandidateDocument candidate, PlanDailyMetricRow metric) { //todo:后续接入XGboost算法/提供算法接口服务，
         long impressions = metric == null || metric.getImpressionCount() == null ? 0L : metric.getImpressionCount();
         long clicks = metric == null || metric.getClickCount() == null ? 0L : metric.getClickCount();
         // 冷启动候选使用 2% 先验 CTR，避免零曝光素材永远排不到前面。

@@ -1,0 +1,187 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: slot-cache-reliability
+    folder: Ad Platform
+    interval: 1m
+    rules:
+      - uid: slot-cache-circuit-open
+        title: 广告位 Redis 熔断器打开
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: {from: 120, to: 0}
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource: {type: prometheus, uid: ad-platform-prometheus}
+              editorMode: code
+              expr: 'max(ad_slot_cache_circuit_state)'
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange: {from: 0, to: 0}
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0.9], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: '广告位 Redis 熔断已持续 1 分钟'
+          description: '投放链路正在对广告位执行安全 no-fill。'
+        labels: {severity: critical, service: slot-cache}
+        isPaused: false
+
+      - uid: slot-cache-operation-failure-rate
+        title: 广告位 Redis 操作失败率过高
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource: {type: prometheus, uid: ad-platform-prometheus}
+              editorMode: code
+              expr: '100 * sum(rate(ad_slot_cache_operation_total{result=~"failure|rejected"}[5m])) / clamp_min(sum(rate(ad_slot_cache_operation_total[5m])), 0.000001)'
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange: {from: 0, to: 0}
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [5], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: '广告位 Redis 操作失败率超过 5%'
+          description: '请检查 Redis 连接、命令延迟和熔断状态。'
+        labels: {severity: warning, service: slot-cache}
+        isPaused: false
+
+      - uid: slot-cache-sync-dlt
+        title: 广告位缓存同步进入 DLT
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource: {type: prometheus, uid: ad-platform-prometheus}
+              editorMode: code
+              expr: 'sum(increase(ad_slot_cache_sync_total{result="dlt"}[5m]))'
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange: {from: 0, to: 0}
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          summary: '存在无法自动重试的广告位缓存消息'
+          description: '修复数据或程序后，按原 key 重放 ad-slot-cache-sync-dlt。'
+        labels: {severity: critical, service: slot-cache}
+        isPaused: false
+
+      - uid: slot-cache-no-fill-high
+        title: Redis 异常导致的安全停投比例过高
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource: {type: prometheus, uid: ad-platform-prometheus}
+              editorMode: code
+              expr: '100 * sum(rate(ad_delivery_no_fill_total{reason="slot_cache_unavailable"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri="/api/delivery/ads"}[5m])), 0.000001)'
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange: {from: 0, to: 0}
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [1], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: '广告位缓存故障 no-fill 超过投放请求的 1%'
+          description: '当前为停投优先策略，故障期间会降低填充率。'
+        labels: {severity: warning, service: slot-cache}
+        isPaused: false
+
+      - uid: slot-cache-sync-delay-high
+        title: 广告位缓存同步延迟过高
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: ad-platform-prometheus
+            model:
+              datasource: {type: prometheus, uid: ad-platform-prometheus}
+              editorMode: code
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(ad_slot_cache_sync_delay_seconds_bucket[5m])))'
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange: {from: 0, to: 0}
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [60], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: '广告位缓存同步 P95 延迟超过 60 秒'
+          description: '请检查 Outbox 发布、Kafka Lag 和 Redis 重试状态。'
+        labels: {severity: warning, service: slot-cache}
+        isPaused: false

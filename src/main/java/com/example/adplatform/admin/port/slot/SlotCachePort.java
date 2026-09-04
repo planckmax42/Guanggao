@@ -10,6 +10,9 @@ public interface SlotCachePort {
 
     void evictSlotCodeFromRedis(String slotCode);
 
+    /** 根据 MySQL 最新状态幂等收敛广告位缓存。 */
+    void reconcileSlot(String slotPublicId, String previousSlotCode);
+
     /**
      * 根据广告位编码重新查询权威数据并刷新 Redis 缓存。
      *
