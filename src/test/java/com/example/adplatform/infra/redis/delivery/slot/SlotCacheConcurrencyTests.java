@@ -12,7 +12,7 @@ import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBre
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreakerProperties;
 import com.example.adplatform.infra.warmup.SlotWarmUpTask;
-import com.example.adplatform.delivery.port.SlotLookupResult;
+import com.example.adplatform.delivery.port.SlotIdResult;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -60,16 +60,16 @@ class SlotCacheConcurrencyTests {
             }
             return slot(1L, "NEW_CODE", CommonStatus.ENABLED);
         });
-        SlotCacheServiceImpl service = service(redisTemplate, slotMapper);
+        SlotCacheAdminDeliveryServiceImpl service = service(redisTemplate, slotMapper);
 
-        CompletableFuture<SlotLookupResult> olderRead = CompletableFuture.supplyAsync(
-                () -> service.getEnabledSlotIdByCode("OLD_CODE"));
+        CompletableFuture<SlotIdResult> olderRead = CompletableFuture.supplyAsync(
+                () -> service.getEnabledIdByCode("OLD_CODE"));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
         CompletableFuture<Void> committedRefresh = CompletableFuture.runAsync(
                 () -> service.reconcileSlot("slot_1", "OLD_CODE"));
 
         allowMysqlReturn.countDown();
-        assertEquals(SlotLookupResult.enabled(1L), olderRead.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotIdResult.enabled(1L), olderRead.get(1, TimeUnit.SECONDS));
         committedRefresh.get(1, TimeUnit.SECONDS);
 
         assertFalse(redis.containsKey(DeliveryRedisKeys.slotCodeToId("OLD_CODE")));
@@ -88,20 +88,20 @@ class SlotCacheConcurrencyTests {
             assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
             return slot(1L, "HOME_BANNER", CommonStatus.ENABLED);
         });
-        SlotCacheServiceImpl service = service(
+        SlotCacheAdminDeliveryServiceImpl service = service(
                 redisTemplate(redis, distinctReadersMissedRedis),
                 slotMapper);
 
-        CompletableFuture<SlotLookupResult> first = CompletableFuture.supplyAsync(
-                () -> service.getEnabledSlotIdByCode("HOME_BANNER"));
+        CompletableFuture<SlotIdResult> first = CompletableFuture.supplyAsync(
+                () -> service.getEnabledIdByCode("HOME_BANNER"));
         assertEquals(true, mysqlReadStarted.await(1, TimeUnit.SECONDS));
-        CompletableFuture<SlotLookupResult> second = CompletableFuture.supplyAsync(
-                () -> service.getEnabledSlotIdByCode("HOME_BANNER"));
+        CompletableFuture<SlotIdResult> second = CompletableFuture.supplyAsync(
+                () -> service.getEnabledIdByCode("HOME_BANNER"));
         assertEquals(true, distinctReadersMissedRedis.await(1, TimeUnit.SECONDS));
         allowMysqlReturn.countDown();
 
-        assertEquals(SlotLookupResult.enabled(1L), first.get(1, TimeUnit.SECONDS));
-        assertEquals(SlotLookupResult.enabled(1L), second.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotIdResult.enabled(1L), first.get(1, TimeUnit.SECONDS));
+        assertEquals(SlotIdResult.enabled(1L), second.get(1, TimeUnit.SECONDS));
         verify(slotMapper, times(1)).selectOne(any());
     }
 
@@ -117,7 +117,7 @@ class SlotCacheConcurrencyTests {
                      fixture.lockManager().acquireForWrite("BUSY_CODE")) {
             CompletableFuture<Throwable> attempt = CompletableFuture.supplyAsync(() -> {
                 try {
-                    fixture.service().getEnabledSlotIdByCode("BUSY_CODE");
+                    fixture.service().getEnabledIdByCode("BUSY_CODE");
                     return null;
                 } catch (Throwable ex) {
                     return ex;
@@ -139,7 +139,7 @@ class SlotCacheConcurrencyTests {
         SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
-        SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
+        SlotCacheAdminDeliveryServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
         when(bloomFilterService.regularRebuild()).thenReturn(new BloomRebuildResult(
                 SUCCESS, Optional.of(List.of("OLD_CODE")), 10_000L));
         SlotWarmUpTask warmUpTask = new SlotWarmUpTask(bloomFilterService, service);
@@ -149,16 +149,16 @@ class SlotCacheConcurrencyTests {
         assertFalse(redis.containsKey(DeliveryRedisKeys.slotCodeToId("OLD_CODE")));
     }
 
-    private SlotCacheServiceImpl service(StringRedisTemplate redisTemplate, SlotMapper slotMapper) {
+    private SlotCacheAdminDeliveryServiceImpl service(StringRedisTemplate redisTemplate, SlotMapper slotMapper) {
         return fixture(redisTemplate, slotMapper, Duration.ofMillis(100)).service();
     }
 
-    private SlotCacheServiceImpl service(
+    private SlotCacheAdminDeliveryServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             SlotBloomOperationsService bloomFilterService) {
         SlotCacheProperties properties = properties(Duration.ofMillis(100));
-        return new SlotCacheServiceImpl(
+        return new SlotCacheAdminDeliveryServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
@@ -181,7 +181,7 @@ class SlotCacheConcurrencyTests {
         when(circuitBreaker.execute(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
         SlotCacheLockManager lockManager = new SlotCacheLockManager(properties);
-        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
+        SlotCacheAdminDeliveryServiceImpl service = new SlotCacheAdminDeliveryServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
@@ -252,7 +252,7 @@ class SlotCacheConcurrencyTests {
     }
 
     private record Fixture(
-            SlotCacheServiceImpl service,
+            SlotCacheAdminDeliveryServiceImpl service,
             SlotCacheLockManager lockManager) {
     }
 }

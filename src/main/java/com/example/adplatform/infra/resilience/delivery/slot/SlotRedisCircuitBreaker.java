@@ -40,7 +40,7 @@ public class SlotRedisCircuitBreaker {
                 .register(meterRegistry);
     }
 
-    public <T> T execute(Supplier<T> supplier) {
+    public <T> T executeSupplier(Supplier<T> supplier) {
         return circuitBreaker.executeSupplier(supplier);
     }
 

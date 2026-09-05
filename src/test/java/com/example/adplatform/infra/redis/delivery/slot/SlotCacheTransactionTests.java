@@ -3,7 +3,7 @@ package com.example.adplatform.infra.redis.delivery.slot;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.delivery.port.SlotLookupResult;
+import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
@@ -37,10 +37,10 @@ class SlotCacheTransactionTests {
         when(values.get(any())).thenThrow(new DataAccessResourceFailureException("redis down"));
         SlotMapper slotMapper = mock(SlotMapper.class);
 
-        SlotLookupResult result = service(redisTemplate, slotMapper, new SimpleMeterRegistry())
-                .getEnabledSlotIdByCode("HOME_BANNER");
+        SlotIdResult result = service(redisTemplate, slotMapper, new SimpleMeterRegistry())
+                .getEnabledIdByCode("HOME_BANNER");
 
-        assertEquals(SlotLookupResult.cacheUnavailable(), result);
+        assertEquals(SlotIdResult.cacheUnavailable(), result);
         verify(slotMapper, never()).selectOne(any());
     }
 
@@ -79,7 +79,7 @@ class SlotCacheTransactionTests {
         verify(redisTemplate).delete(DeliveryRedisKeys.slotCodeToId("NEW_CODE"));
     }
 
-    private SlotCacheServiceImpl service(
+    private SlotCacheAdminDeliveryServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             SimpleMeterRegistry meterRegistry) {
@@ -90,7 +90,7 @@ class SlotCacheTransactionTests {
         SlotMysqlCircuitBreaker mysqlCircuitBreaker = mock(SlotMysqlCircuitBreaker.class);
         when(mysqlCircuitBreaker.execute(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
-        return new SlotCacheServiceImpl(
+        return new SlotCacheAdminDeliveryServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,

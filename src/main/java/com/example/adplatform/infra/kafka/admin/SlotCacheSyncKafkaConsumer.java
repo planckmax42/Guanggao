@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
-import com.example.adplatform.admin.port.slot.SlotCachePort;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.search.outbox.message.SlotCacheSyncMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -17,7 +17,7 @@ import java.time.Duration;
 public class SlotCacheSyncKafkaConsumer {
 
     private final ObjectMapper objectMapper;
-    private final SlotCachePort slotCachePort;
+    private final SlotCacheAdminPort slotCacheAdminPort;
     private final MeterRegistry meterRegistry;
 
     @KafkaListener(
@@ -27,7 +27,7 @@ public class SlotCacheSyncKafkaConsumer {
     public void consume(ConsumerRecord<String, String> record) throws Exception {
         SlotCacheSyncMessage message = objectMapper.readValue(record.value(), SlotCacheSyncMessage.class);
         validate(message);
-        slotCachePort.reconcileSlot(message.slotPublicId(), message.previousSlotCode());
+        slotCacheAdminPort.reconcileSlot(message.slotPublicId(), message.previousSlotCode());
         meterRegistry.counter("ad.slot.cache.sync", "stage", "consumer", "result", "success")
                 .increment();
         long delayMillis = Math.max(0L, System.currentTimeMillis() - record.timestamp());

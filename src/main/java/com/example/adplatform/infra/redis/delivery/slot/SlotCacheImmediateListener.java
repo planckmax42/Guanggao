@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.redis.delivery.slot;
 
 import com.example.adplatform.admin.event.SlotCacheImmediateEvent;
-import com.example.adplatform.admin.port.slot.SlotCachePort;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class SlotCacheImmediateListener {
 
-    private final SlotCachePort slotCachePort;
+    private final SlotCacheAdminPort slotCacheAdminPort;
     private final SlotCacheLockManager lockManager;
     private final MeterRegistry meterRegistry;
     private final SlotCacheFailureLogLimiter failureLogLimiter;
@@ -24,9 +24,9 @@ public class SlotCacheImmediateListener {
     public void afterCommit(SlotCacheImmediateEvent event) {
         try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(event.slotCode())) {
             if (event.action() == SlotCacheImmediateEvent.Action.WRITE) {
-                slotCachePort.writeSlotToRedis(event.slotCode(), event.slotId());
+                slotCacheAdminPort.writeSlotToRedis(event.slotCode(), event.slotId());
             } else {
-                slotCachePort.evictSlotCodeFromRedis(event.slotCode());
+                slotCacheAdminPort.evictSlotCodeFromRedis(event.slotCode());
             }
             meterRegistry.counter("ad.slot.cache.sync", "stage", "immediate", "result", "success")
                     .increment();

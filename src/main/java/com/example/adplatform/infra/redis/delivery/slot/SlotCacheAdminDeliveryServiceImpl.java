@@ -3,12 +3,12 @@ package com.example.adplatform.infra.redis.delivery.slot;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.slot.SlotCachePort;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.delivery.port.SlotLookupPort;
-import com.example.adplatform.delivery.port.SlotLookupResult;
+import com.example.adplatform.delivery.port.SlotCacheDeliveryPort;
+import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
@@ -30,13 +30,13 @@ import java.util.concurrent.TimeUnit;
  * 广告位编码缓存的默认实现。
  *
  * <p>Redis 健康时允许缓存未命中回源 MySQL；Redis 访问异常或熔断时返回
- * {@link SlotLookupResult.Status#CACHE_UNAVAILABLE}，由投放层按 no-fill 停投。</p>
+ * {@link SlotIdResult.Status#CACHE_UNAVAILABLE}，由投放层按 no-fill 停投。</p>
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
+public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort {
 
-    private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(SlotCacheAdminDeliveryServiceImpl.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final SlotMapper slotMapper;
@@ -49,19 +49,19 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
     private final SlotCacheFailureLogLimiter failureLogLimiter;
 
     @Override
-    public SlotLookupResult getEnabledSlotIdByCode(String slotCode) {
+    public SlotIdResult getEnabledIdByCode(String slotCode) {
         RedisReadResult firstRead = readSlotId(slotCode);
         if (firstRead.status() == RedisReadStatus.HIT) {
-            return SlotLookupResult.enabled(firstRead.slotId());
+            return SlotIdResult.enabled(firstRead.slotId());
         }
         if (firstRead.status() == RedisReadStatus.UNAVAILABLE) {
-            return SlotLookupResult.cacheUnavailable();
+            return SlotIdResult.cacheUnavailable();
         }
 
         // Redis 先于本地布隆过滤器，避免多实例布隆快照延迟导致新广告位假阴性。
         if (slotBloomOperationsService.definiteNotContain(slotCode)) {
             slotBloomOperationsService.recordDefiniteNotContain();
-            return SlotLookupResult.notFound();
+            return SlotIdResult.notFound();
         }
 
         SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
@@ -74,10 +74,10 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
             }
             RedisReadResult retryRead = readSlotId(slotCode);
             if (retryRead.status() == RedisReadStatus.HIT) {
-                return SlotLookupResult.enabled(retryRead.slotId());
+                return SlotIdResult.enabled(retryRead.slotId());
             }
             if (retryRead.status() == RedisReadStatus.UNAVAILABLE) {
-                return SlotLookupResult.cacheUnavailable();
+                return SlotIdResult.cacheUnavailable();
             }
             log.warn("广告位缓存回源锁等待超时，slotCode={}", slotCode);
             throw new DependencyException(
@@ -88,20 +88,20 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
         try (readLock) {
             RedisReadResult retryRead = readSlotId(slotCode);
             if (retryRead.status() == RedisReadStatus.HIT) {
-                return SlotLookupResult.enabled(retryRead.slotId());
+                return SlotIdResult.enabled(retryRead.slotId());
             }
             if (retryRead.status() == RedisReadStatus.UNAVAILABLE) {
-                return SlotLookupResult.cacheUnavailable();
+                return SlotIdResult.cacheUnavailable();
             }
             if (slotBloomOperationsService.definiteNotContain(slotCode)) {
                 slotBloomOperationsService.recordDefiniteNotContain();
-                return SlotLookupResult.notFound();
+                return SlotIdResult.notFound();
             }
             return loadEnabledSlotFromMysql(slotCode);
         }
     }
 
-    private SlotLookupResult loadEnabledSlotFromMysql(String slotCode) {
+    private SlotIdResult loadEnabledSlotFromMysql(String slotCode) {
         SlotEntity slot;
         try {
             slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
@@ -122,7 +122,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
             if (slotBloomOperationsService.getBloomSnapshot().bloomFilterReady()) {
                 slotBloomOperationsService.recordFalsePositive();
             }
-            return SlotLookupResult.notFound();
+            return SlotIdResult.notFound();
         }
         try {
             cacheSlot(slot);
@@ -132,7 +132,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
                 log.warn("广告位回源后写入 Redis 失败，slotCode={}", slotCode, ex);
             }
         }
-        return SlotLookupResult.enabled(slot.getId());
+        return SlotIdResult.enabled(slot.getId());
     }
 
     public void cacheSlot(SlotEntity slot) {
@@ -199,7 +199,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
         long startNanos = System.nanoTime();
         String value;
         try {
-            value = redisCircuitBreaker.execute(() -> stringRedisTemplate.opsForValue()
+            value = redisCircuitBreaker.executeSupplier(() -> stringRedisTemplate.opsForValue()
                     .get(DeliveryRedisKeys.slotCodeToId(slotCode)));
         } catch (DataAccessException | CallNotPermittedException ex) {
             recordOperation("read", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
@@ -231,9 +231,9 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
 
     @Override
     public void writeSlotToRedis(String slotCode, Long slotId) {
-        long startNanos = System.nanoTime();
+        long startNanos = System.nanoTime();//todo:原先的锁机制被删除，后续考虑要不要重建
         try {
-            redisCircuitBreaker.execute(() -> {
+            redisCircuitBreaker.executeSupplier(() -> {
                 stringRedisTemplate.opsForValue().set(
                         DeliveryRedisKeys.slotCodeToId(slotCode),
                         String.valueOf(slotId),
@@ -252,7 +252,7 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
         long startNanos = System.nanoTime();
         try {
             // false 表示键已不存在，删除的最终目标已达成，仍视为成功。
-            redisCircuitBreaker.execute(() ->
+            redisCircuitBreaker.executeSupplier(() ->
                     stringRedisTemplate.delete(DeliveryRedisKeys.slotCodeToId(slotCode)));
             recordOperation("evict", "success", startNanos);
         } catch (DataAccessException | CallNotPermittedException ex) {
@@ -278,13 +278,16 @@ public class SlotCacheServiceImpl implements SlotLookupPort, SlotCachePort {
         private static RedisReadResult hit(Long slotId) {
             return new RedisReadResult(RedisReadStatus.HIT, slotId);
         }
-
         private static RedisReadResult miss() {
             return new RedisReadResult(RedisReadStatus.MISS, null);
         }
-
         private static RedisReadResult unavailable() {
             return new RedisReadResult(RedisReadStatus.UNAVAILABLE, null);
         }
+    }
+
+    @Override
+    public String getSlotIdFromCache(String slotCode){
+        return stringRedisTemplate.opsForValue().get(DeliveryRedisKeys.slotCodeToId(slotCode));
     }
 }

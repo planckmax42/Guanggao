@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.redis.delivery.slot;
 
 import com.example.adplatform.admin.event.SlotCacheImmediateEvent;
-import com.example.adplatform.admin.port.slot.SlotCachePort;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +16,7 @@ class SlotCacheImmediateListenerTests {
 
     @Test
     void shouldAttemptOnceAndSwallowFailureAfterCommit() {
-        SlotCachePort cachePort = mock(SlotCachePort.class);
+        SlotCacheAdminPort cachePort = mock(SlotCacheAdminPort.class);
         SlotCacheProperties properties = properties();
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         SlotCacheAccessException failure = new SlotCacheAccessException(

@@ -5,8 +5,8 @@ import com.example.adplatform.delivery.port.BudgetAvailabilityPort;
 import com.example.adplatform.delivery.port.CandidateRecallPort;
 import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
 import com.example.adplatform.delivery.port.FrequencyControlPort;
-import com.example.adplatform.delivery.port.SlotLookupPort;
-import com.example.adplatform.delivery.port.SlotLookupResult;
+import com.example.adplatform.delivery.port.SlotCacheDeliveryPort;
+import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.report.mapper.DailyReportMapper;
@@ -25,10 +25,10 @@ class AdDeliveryServiceImplTests {
 
     @Test
     void shouldReturnSuccessfulNoFillWhenSlotCacheIsUnavailable() {
-        SlotLookupPort slotLookup = mock(SlotLookupPort.class);
+        SlotCacheDeliveryPort slotLookup = mock(SlotCacheDeliveryPort.class);
         CandidateRecallPort candidateRecall = mock(CandidateRecallPort.class);
-        when(slotLookup.getEnabledSlotIdByCode("HOME_BANNER"))
-                .thenReturn(SlotLookupResult.cacheUnavailable());
+        when(slotLookup.getEnabledIdByCode("HOME_BANNER"))
+                .thenReturn(SlotIdResult.cacheUnavailable());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         AdDeliveryServiceImpl service = service(slotLookup, candidateRecall, registry);
 
@@ -43,9 +43,9 @@ class AdDeliveryServiceImplTests {
 
     @Test
     void shouldKeepNotFoundDistinctFromInfrastructureNoFill() {
-        SlotLookupPort slotLookup = mock(SlotLookupPort.class);
-        when(slotLookup.getEnabledSlotIdByCode("HOME_BANNER"))
-                .thenReturn(SlotLookupResult.notFound());
+        SlotCacheDeliveryPort slotLookup = mock(SlotCacheDeliveryPort.class);
+        when(slotLookup.getEnabledIdByCode("HOME_BANNER"))
+                .thenReturn(SlotIdResult.notFound());
 
         assertThrows(BusinessException.class,
                 () -> service(slotLookup, mock(CandidateRecallPort.class), new SimpleMeterRegistry())
@@ -53,7 +53,7 @@ class AdDeliveryServiceImplTests {
     }
 
     private AdDeliveryServiceImpl service(
-            SlotLookupPort slotLookup,
+            SlotCacheDeliveryPort slotLookup,
             CandidateRecallPort candidateRecall,
             SimpleMeterRegistry registry) {
         return new AdDeliveryServiceImpl(

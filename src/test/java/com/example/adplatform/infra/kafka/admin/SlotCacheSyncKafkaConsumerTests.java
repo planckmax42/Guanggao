@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
-import com.example.adplatform.admin.port.slot.SlotCachePort;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.search.outbox.message.SlotCacheSyncMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -16,7 +16,7 @@ class SlotCacheSyncKafkaConsumerTests {
 
     @Test
     void shouldReconcileLatestMysqlStateAndRecordSuccess() throws Exception {
-        SlotCachePort cachePort = mock(SlotCachePort.class);
+        SlotCacheAdminPort cachePort = mock(SlotCacheAdminPort.class);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ObjectMapper objectMapper = new ObjectMapper();
         SlotCacheSyncMessage message = new SlotCacheSyncMessage("event_1", "slot_1", "OLD_CODE");
@@ -34,7 +34,7 @@ class SlotCacheSyncKafkaConsumerTests {
 
     @Test
     void shouldRejectMalformedPayloadBeforeTouchingCache() {
-        SlotCachePort cachePort = mock(SlotCachePort.class);
+        SlotCacheAdminPort cachePort = mock(SlotCacheAdminPort.class);
         SlotCacheSyncKafkaConsumer consumer = new SlotCacheSyncKafkaConsumer(
                 new ObjectMapper(), cachePort, new SimpleMeterRegistry());
 

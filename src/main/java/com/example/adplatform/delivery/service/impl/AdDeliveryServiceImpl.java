@@ -9,26 +9,25 @@ import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.delivery.response.AdItemResponse;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.query.PlanDailyMetricRow;
 import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.search.candidate.service.CandidateRecallResult;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
 import com.example.adplatform.search.candidate.service.CandidateTargetingMatcher;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -47,26 +46,28 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final int MAX_FREQUENCY_PER_USER_DAY = 5;
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
-    private final SlotLookupPort slotCacheService;
+    private final SlotCacheDeliveryPort slotCacheService;
     private final CandidateRecallPort candidateRecallPort;
     private final DeliveryStopGuardQueryPort stopGuardService;
     private final BudgetAvailabilityPort budgetRedisService;
     private final FrequencyControlPort frequencyRedisService;
     private final DailyReportMapper dailyReportMapper;
     private final MeterRegistry meterRegistry;
+    private final SlotRedisCircuitBreaker redisCircuitBreaker;
+    private final SlotBloomOperationsService slotBloomOperationsService;
 
-    @Override
+    @Override//todo:增加CI/CD机制
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        SlotLookupResult slotLookup = slotCacheService.getEnabledSlotIdByCode(request.slotCode());
-        if (slotLookup.status() == SlotLookupResult.Status.CACHE_UNAVAILABLE) {
+        SlotIdResult slotIdResult = slotCacheService.getEnabledIdByCode(request.slotCode());
+        if (slotIdResult.status() == SlotIdResult.Status.CACHE_UNAVAILABLE) {
             meterRegistry.counter("ad.delivery.no.fill", "reason", "slot_cache_unavailable").increment();
             return new AdDeliveryResponse(requestId, 0, 0, List.of());
         }
-        if (slotLookup.status() == SlotLookupResult.Status.NOT_FOUND) {
+        if (slotIdResult.status() == SlotIdResult.Status.NOT_FOUND) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "启用中的广告位不存在");
         }
-        Long slotId = slotLookup.slotId();// 仅当 Redis 健康且广告位有效时继续投放链路
+        Long slotId = slotIdResult.slotId();// 仅当 Redis 健康且广告位有效时继续投放链路
 
         // 第一阶段：ES 多维粗召回。只有异常/超时/熔断才回源，合法空结果不会查询 MySQL。
         List<AdCandidateDocument> recalled = candidateRecallPort.recall(request);//粗召回，当ES不可以用或者熔断时降级进入mysql
@@ -189,4 +190,29 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     }
 
     private record ScoredCandidate(AdCandidateDocument candidate, double score) { }
+
+//    private enum Status{
+//        SUCCESS,
+//        CACHE_UNAVAILABLE,
+//        NOT_FOUND
+//    }
+//    private record Result (Status status,String slotId){
+//    }
+    private Optional<String> GetSlotIdByCode(String slotCode){
+        if (slotBloomOperationsService.definiteNotContain(slotCode)) {
+            slotBloomOperationsService.recordDefiniteNotContain();
+            return Optional.empty();
+        }
+        String slotId = null;
+        try {
+            slotId = redisCircuitBreaker.executeSupplier(()-> slotCacheService.getSlotIdFromCache(slotCode));
+        }catch (DataAccessException exception){
+            meterRegistry.counter("delivery.slotId.cacheUnavailable");
+        }
+        catch (CallNotPermittedException exception){
+            meterRegistry.counter("delivery.slotId.cacheFusing");
+        }
+        if(StringUtils.hasText(slotId)) return Optional.of(slotId);
+        return Optional.empty();
+    }
 }

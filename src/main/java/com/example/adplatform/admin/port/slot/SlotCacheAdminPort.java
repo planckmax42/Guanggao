@@ -2,7 +2,7 @@ package com.example.adplatform.admin.port.slot;
 
 
 /** 广告位缓存维护端口，由基础设施层提供具体实现。 */
-public interface SlotCachePort {
+public interface SlotCacheAdminPort {
 
 
 

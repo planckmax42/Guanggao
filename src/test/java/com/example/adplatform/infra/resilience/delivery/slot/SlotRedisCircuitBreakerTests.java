@@ -28,13 +28,13 @@ class SlotRedisCircuitBreakerTests {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         SlotRedisCircuitBreaker breaker = new SlotRedisCircuitBreaker(properties, registry);
 
-        assertThrows(DataAccessResourceFailureException.class, () -> breaker.execute(this::failedCall));
-        assertThrows(DataAccessResourceFailureException.class, () -> breaker.execute(this::failedCall));
+        assertThrows(DataAccessResourceFailureException.class, () -> breaker.executeSupplier(this::failedCall));
+        assertThrows(DataAccessResourceFailureException.class, () -> breaker.executeSupplier(this::failedCall));
 
         assertEquals(CircuitBreaker.State.OPEN, breaker.currentState());
         assertEquals(1D, registry.get("ad.slot.cache.circuit.state").gauge().value());
         AtomicBoolean executed = new AtomicBoolean(false);
-        assertThrows(CallNotPermittedException.class, () -> breaker.execute(() -> {
+        assertThrows(CallNotPermittedException.class, () -> breaker.executeSupplier(() -> {
             executed.set(true);
             return "unexpected";
         }));
