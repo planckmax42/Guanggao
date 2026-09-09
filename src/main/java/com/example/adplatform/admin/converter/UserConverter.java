@@ -13,7 +13,7 @@ public interface UserConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
+    @Mapping(target = "lockAcquireResult", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     UserEntity toEntity(CreateUserRequest request);

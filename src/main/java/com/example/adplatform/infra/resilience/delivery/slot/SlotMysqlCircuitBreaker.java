@@ -75,7 +75,7 @@ public class SlotMysqlCircuitBreaker {
      * @throws io.github.resilience4j.circuitbreaker.CallNotPermittedException 熔断器当前拒绝调用时抛出
      * @throws RuntimeException supplier 执行失败时原样向上抛出
      */
-    public <T> T execute(Supplier<T> supplier) {
+    public <T> T executeSupplier(Supplier<T> supplier) {
         return circuitBreaker.executeSupplier(supplier);
     }
 
@@ -83,6 +83,7 @@ public class SlotMysqlCircuitBreaker {
      * 返回熔断器当前状态，可用于健康检查或监控。
      *
      * @return Resilience4j 熔断器当前状态
+     *
      */
     public CircuitBreaker.State currentState() {
         return circuitBreaker.getState();

@@ -22,7 +22,7 @@ public class SlotCacheImmediateListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(SlotCacheImmediateEvent event) {
-        try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(event.slotCode())) {
+        try (LockAcquireAttempt ignored = lockManager.acquireForWrite(event.slotCode())) {
             if (event.action() == SlotCacheImmediateEvent.Action.WRITE) {
                 slotCacheAdminPort.writeSlotToRedis(event.slotCode(), event.slotId());
             } else {

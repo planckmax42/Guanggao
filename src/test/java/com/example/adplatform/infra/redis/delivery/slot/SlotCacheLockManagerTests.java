@@ -16,8 +16,8 @@ class SlotCacheLockManagerTests {
     void shouldTimeOutReadLockWhileWriterOwnsStripe() throws Exception {
         SlotCacheLockManager manager = new SlotCacheLockManager(properties(Duration.ofMillis(30)));
 
-        try (SlotCacheLockManager.LockHandle ignored = manager.acquireForWrite("HOME_BANNER")) {
-            CompletableFuture<Optional<SlotCacheLockManager.LockHandle>> attempt =
+        try (LockAcquireAttempt ignored = manager.acquireForWrite("HOME_BANNER")) {
+            CompletableFuture<Optional<LockAcquireAttempt>> attempt =
                     CompletableFuture.supplyAsync(() -> tryAcquire(manager, "HOME_BANNER"));
 
             assertTrue(attempt.get(1, TimeUnit.SECONDS).isEmpty());
@@ -28,12 +28,12 @@ class SlotCacheLockManagerTests {
     void shouldRestoreInterruptStatusWhenReadWaitIsInterrupted() throws Exception {
         SlotCacheLockManager manager = new SlotCacheLockManager(properties(Duration.ofSeconds(1)));
 
-        try (SlotCacheLockManager.LockHandle ignored = manager.acquireForWrite("HOME_BANNER")) {
+        try (LockAcquireAttempt ignored = manager.acquireForWrite("HOME_BANNER")) {
             CompletableFuture<Boolean> interrupted = new CompletableFuture<>();
             Thread thread = new Thread(() -> {
                 Thread.currentThread().interrupt();
-                Optional<SlotCacheLockManager.LockHandle> handle = manager.tryAcquireForRead("HOME_BANNER");
-                handle.ifPresent(SlotCacheLockManager.LockHandle::close);
+                Optional<LockAcquireAttempt> handle = manager.tryAcquireForRead("HOME_BANNER");
+                handle.ifPresent(LockAcquireAttempt::close);
                 interrupted.complete(Thread.currentThread().isInterrupted());
             });
             thread.start();
@@ -43,7 +43,7 @@ class SlotCacheLockManagerTests {
         }
     }
 
-    private Optional<SlotCacheLockManager.LockHandle> tryAcquire(
+    private Optional<LockAcquireAttempt> tryAcquire(
             SlotCacheLockManager manager,
             String slotCode) {
         return manager.tryAcquireForRead(slotCode);

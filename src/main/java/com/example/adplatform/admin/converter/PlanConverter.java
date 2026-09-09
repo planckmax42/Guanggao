@@ -18,7 +18,7 @@ public interface PlanConverter {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
-    @Mapping(target = "status", expression = "java(PlanStatus.DRAFT.name())")
+    @Mapping(target = "lockAcquireResult", expression = "java(PlanStatus.DRAFT.name())")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     PlanEntity toEntity(CreatePlanRequest request);
@@ -27,7 +27,7 @@ public interface PlanConverter {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
-    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "lockAcquireResult", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdatePlanRequest request, @MappingTarget PlanEntity entity);

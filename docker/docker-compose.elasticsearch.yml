@@ -11,7 +11,7 @@ services:
       GROUP_ID: ad-platform-connect
       CONFIG_STORAGE_TOPIC: ad-platform-connect-configs
       OFFSET_STORAGE_TOPIC: ad-platform-connect-offsets
-      STATUS_STORAGE_TOPIC: ad-platform-connect-status
+      STATUS_STORAGE_TOPIC: ad-platform-connect-lockAcquireResult
       REST_HOST_NAME: 127.0.0.1
       ADVERTISED_HOST_NAME: 127.0.0.1
       ADVERTISED_PORT: 8083

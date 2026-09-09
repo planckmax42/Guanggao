@@ -16,14 +16,14 @@ public interface SlotConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
+    @Mapping(target = "lockAcquireResult", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     SlotEntity toEntity(CreateSlotRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "lockAcquireResult", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);

@@ -34,9 +34,9 @@ import java.util.concurrent.TimeUnit;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort {
+public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort {
 
-    private static final Logger log = LoggerFactory.getLogger(SlotCacheAdminDeliveryServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final SlotMapper slotMapper;
@@ -64,7 +64,7 @@ public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort,
             return SlotIdResult.notFound();
         }
 
-        SlotCacheLockManager.LockHandle readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
+        LockAcquireAttempt readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
         if (readLock == null) {
             if (Thread.currentThread().isInterrupted()) {
                 log.warn("广告位缓存回源锁等待被中断，slotCode={}", slotCode);
@@ -104,7 +104,7 @@ public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort,
     private SlotIdResult loadEnabledSlotFromMysql(String slotCode) {
         SlotEntity slot;
         try {
-            slot = mysqlCircuitBreaker.execute(() -> selectEnabledSlotByCode(slotCode));
+            slot = mysqlCircuitBreaker.executeSupplier(() -> selectEnabledSlotByCode(slotCode));
         } catch (CallNotPermittedException ex) {
             throw new DependencyException(
                     ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,
@@ -152,7 +152,7 @@ public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort,
         if (!StringUtils.hasText(slotCode)) {
             return;
         }
-        try (SlotCacheLockManager.LockHandle ignored = lockManager.acquireForWrite(slotCode)) {
+        try (LockAcquireAttempt ignored = lockManager.acquireForWrite(slotCode)) {
             SlotEntity current = selectEnabledSlotByCode(slotCode);
             if (current == null) {
                 evictSlotCodeFromRedis(slotCode);
@@ -169,7 +169,7 @@ public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort,
             SlotEntity current = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                     .eq(SlotEntity::getPublicId, slotPublicId));
             String currentSlotCode = current == null ? null : current.getSlotCode();
-            try (SlotCacheLockManager.LockHandle ignored =
+            try (LockAcquireAttempt ignored =
                          lockManager.acquireForWrite(previousSlotCode, currentSlotCode)) {
                 if (StringUtils.hasText(previousSlotCode)
                         && !Objects.equals(previousSlotCode, currentSlotCode)) {
@@ -287,7 +287,9 @@ public class SlotCacheAdminDeliveryServiceImpl implements SlotCacheDeliveryPort,
     }
 
     @Override
-    public String getSlotIdFromCache(String slotCode){
-        return stringRedisTemplate.opsForValue().get(DeliveryRedisKeys.slotCodeToId(slotCode));
+    public Long getSlotIdFromCache(String slotCode){
+        String slotId = stringRedisTemplate.opsForValue().get(DeliveryRedisKeys.slotCodeToId(slotCode));
+        if(slotId == null ) return null;
+        return Long.valueOf(slotId);
     }
 }

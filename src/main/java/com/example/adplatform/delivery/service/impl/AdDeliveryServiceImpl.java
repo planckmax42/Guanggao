@@ -1,8 +1,13 @@
 package com.example.adplatform.delivery.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.entity.SlotEntity;
+import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.*;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
@@ -10,6 +15,9 @@ import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.delivery.response.AdItemResponse;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
+import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.query.PlanDailyMetricRow;
@@ -21,8 +29,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,7 +52,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private static final int MAX_FREQUENCY_PER_USER_DAY = 5;
     private static final double DEFAULT_QUALITY_SCORE = 50D;
 
-    private final SlotCacheDeliveryPort slotCacheService;
+    private final SlotCacheDeliveryPort slotCacheDeliveryPort;
     private final CandidateRecallPort candidateRecallPort;
     private final DeliveryStopGuardQueryPort stopGuardService;
     private final BudgetAvailabilityPort budgetRedisService;
@@ -55,11 +61,14 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final MeterRegistry meterRegistry;
     private final SlotRedisCircuitBreaker redisCircuitBreaker;
     private final SlotBloomOperationsService slotBloomOperationsService;
+    private final SlotCacheLockManager slotCacheLockManager;
+    private final SlotMysqlCircuitBreaker slotMysqlCircuitBreaker;
+    private final SlotMapper slotMapper;
 
     @Override//todo:增加CI/CD机制
     public AdDeliveryResponse deliver(AdDeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
-        SlotIdResult slotIdResult = slotCacheService.getEnabledIdByCode(request.slotCode());
+        SlotIdResult slotIdResult = slotCacheDeliveryPort.getEnabledIdByCode(request.slotCode());
         if (slotIdResult.status() == SlotIdResult.Status.CACHE_UNAVAILABLE) {
             meterRegistry.counter("ad.delivery.no.fill", "reason", "slot_cache_unavailable").increment();
             return new AdDeliveryResponse(requestId, 0, 0, List.of());
@@ -191,28 +200,55 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
 
     private record ScoredCandidate(AdCandidateDocument candidate, double score) { }
 
-//    private enum Status{
-//        SUCCESS,
-//        CACHE_UNAVAILABLE,
-//        NOT_FOUND
-//    }
-//    private record Result (Status status,String slotId){
-//    }
-    private Optional<String> GetSlotIdByCode(String slotCode){
+
+    private Optional<Long> GetSlotIdByCode(String slotCode){
         if (slotBloomOperationsService.definiteNotContain(slotCode)) {
             slotBloomOperationsService.recordDefiniteNotContain();
             return Optional.empty();
         }
-        String slotId = null;
+        Long slotId;
         try {
-            slotId = redisCircuitBreaker.executeSupplier(()-> slotCacheService.getSlotIdFromCache(slotCode));
+            slotId = redisCircuitBreaker.executeSupplier(()-> slotCacheDeliveryPort.getSlotIdFromCache(slotCode));
         }catch (DataAccessException exception){
             meterRegistry.counter("delivery.slotId.cacheUnavailable");
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存服务不可用",exception);
         }
         catch (CallNotPermittedException exception){
             meterRegistry.counter("delivery.slotId.cacheFusing");
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存熔断器已熔断",exception);
         }
-        if(StringUtils.hasText(slotId)) return Optional.of(slotId);
-        return Optional.empty();
+        if(slotId != null) return Optional.of(slotId);
+        LockAcquireAttempt lockAcquireAttempt = slotCacheLockManager.acquireStripLock(slotCode);
+        if(lockAcquireAttempt.isTimeOut()){
+            meterRegistry.counter("delivery.slotId.lockTimeOut");
+            slotId = slotCacheDeliveryPort.getSlotIdFromCache(slotCode);
+            if (slotId!=null){
+                return Optional.of(slotId);
+            }
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存回源锁超时");
+        }
+        if (lockAcquireAttempt.isInterrupted()){
+            meterRegistry.counter("delivery.slotId.lockInterrupted");
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存回源锁被中断");
+        }
+        SlotEntity slotEntity;
+        try (lockAcquireAttempt){
+            try {
+                slotEntity = slotMysqlCircuitBreaker.executeSupplier(()-> slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                        .eq(SlotEntity::getSlotCode, slotCode)
+                        .eq(SlotEntity::getStatus, CommonStatus.ENABLED)));
+            }
+            catch (DataAccessException exception){
+                meterRegistry.counter("delivery.slotId.mysqlUnavailable");
+                throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位MYSQL服务不可用",exception);
+            }
+            catch (CallNotPermittedException exception){
+                meterRegistry.counter("delivery.slotId.mysqlFusing");
+                throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位MYSQL熔断器已熔断",exception);
+            }
+        }
+        slotCacheDeliveryPort.writeSlotToRedis(slotEntity.getSlotCode(),slotEntity.getId());
+
+        return Optional.of(slotEntity.getId());
     }
 }

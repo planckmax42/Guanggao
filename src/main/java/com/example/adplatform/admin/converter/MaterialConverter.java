@@ -17,7 +17,7 @@ public interface MaterialConverter {
     @Mapping(target = "planId", ignore = true)
     @Mapping(target = "slotId", ignore = true)
     @Mapping(target = "auditStatus", expression = "java(MaterialAuditStatus.PENDING.name())")
-    @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
+    @Mapping(target = "lockAcquireResult", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     MaterialEntity toEntity(CreateMaterialRequest request);

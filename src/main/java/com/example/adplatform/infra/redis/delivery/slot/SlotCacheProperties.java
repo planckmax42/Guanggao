@@ -1,6 +1,5 @@
 package com.example.adplatform.infra.redis.delivery.slot;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -32,35 +31,21 @@ public class SlotCacheProperties {
     @NotNull
     private Duration failureLogInterval = Duration.ofSeconds(30);
 
-    /** 单实例内协调缓存回填与提交后刷新的条带锁参数。 */
-    @Valid
+    @Min(1)
+    private int stripes;
+
+    /** 缓存未命中后等待同编码回填锁的最长时间。 */
     @NotNull
-    private Lock lock = new Lock();
+    private Duration readWaitTimeout;
 
-    /** Slot 编码条带锁数量和缓存未命中读请求的最长等待时间。 */
-    @Getter
-    @Setter
-    public static class Lock {
-
-        /** 固定条带数量；编码哈希碰撞时共享同一把非公平互斥锁。 */
-        @Min(1)
-        private int stripes;
-
-        /** 缓存未命中后等待同编码回填锁的最长时间。 */
-        @NotNull
-        private Duration readWaitTimeout;
-
-        @AssertTrue(message = "readWaitTimeout must be greater than zero")
-        public boolean isReadWaitTimeoutPositive() {
-            return readWaitTimeout != null
-                    && !readWaitTimeout.isZero()
-                    && !readWaitTimeout.isNegative();
-        }
+    @AssertTrue(message = "readWaitTimeout must be greater than zero")
+    public boolean isReadWaitTimeoutPositive() {
+        return readWaitTimeout != null
+                && !readWaitTimeout.isZero()
+                && !readWaitTimeout.isNegative();
     }
-
     public enum FailurePolicy {
         FAIL_CLOSED,
         FAIL_OPEN
     }
-
 }

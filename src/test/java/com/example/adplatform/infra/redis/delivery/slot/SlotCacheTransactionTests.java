@@ -79,7 +79,7 @@ class SlotCacheTransactionTests {
         verify(redisTemplate).delete(DeliveryRedisKeys.slotCodeToId("NEW_CODE"));
     }
 
-    private SlotCacheAdminDeliveryServiceImpl service(
+    private SlotCacheServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             SimpleMeterRegistry meterRegistry) {
@@ -90,7 +90,7 @@ class SlotCacheTransactionTests {
         SlotMysqlCircuitBreaker mysqlCircuitBreaker = mock(SlotMysqlCircuitBreaker.class);
         when(mysqlCircuitBreaker.execute(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
-        return new SlotCacheAdminDeliveryServiceImpl(
+        return new SlotCacheServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
