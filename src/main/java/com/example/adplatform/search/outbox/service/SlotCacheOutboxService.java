@@ -23,9 +23,6 @@ public class SlotCacheOutboxService {
     private String topic;
 
     public void append(String slotPublicId, String previousSlotCode) {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("Slot cache outbox must be appended in a transaction");
-        }
         String eventId = PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX);
         SlotCacheSyncMessage message = new SlotCacheSyncMessage(eventId, slotPublicId, previousSlotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
@@ -36,7 +33,7 @@ public class SlotCacheOutboxService {
         try {
             entity.setPayload(objectMapper.writeValueAsString(message));
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Cannot serialize slot cache outbox message", ex);
+            throw new IllegalStateException("序列化失败", ex);
         }
         outboxMessageMapper.insert(entity);
     }

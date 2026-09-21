@@ -29,7 +29,7 @@ public class SlotWarmUpTask {
         int processedCount = 0;
         for (String slotCode : enabledSlotNames.get()) {
             try {
-                slotCacheAdminPort.refreshSlotByCode(slotCode);
+                slotCacheAdminPort. refreshSlotByCode(slotCode);
                 processedCount++;
             } catch (RuntimeException ex) {
                 log.warn("广告位 Redis 预热失败，已停止本次预热，slotCode={}", slotCode, ex);

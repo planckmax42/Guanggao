@@ -1,9 +1,12 @@
 package com.example.adplatform.common.id;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.Set;
 import java.util.UUID;
 
 /** 生成不可枚举、带资源类型前缀的对外公开标识。 */
+@RequiredArgsConstructor
 public final class PublicIdGenerator {
 
     public static final String ADVERTISER_PREFIX = "adv";
@@ -27,9 +30,6 @@ public final class PublicIdGenerator {
             MATERIAL_PREFIX,
             RULE_PREFIX,
             EVENT_PREFIX);
-
-    private PublicIdGenerator() {
-    }
 
     /** 生成“业务前缀 + 128 位 UUIDv4 随机值”。 */
     public static String generate(String prefix) {

@@ -12,7 +12,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class SlotCacheImmediateListenerTests {
+class SlotCacheCreateListenerTests {
 
     @Test
     void shouldAttemptOnceAndSwallowFailureAfterCommit() {
@@ -22,7 +22,7 @@ class SlotCacheImmediateListenerTests {
         SlotCacheAccessException failure = new SlotCacheAccessException(
                 "evict", "OLD_CODE", new IllegalStateException("redis down"));
         doThrow(failure).when(cachePort).evictSlotCodeFromRedis("OLD_CODE");
-        SlotCacheImmediateListener listener = new SlotCacheImmediateListener(
+        SlotCacheCreateListener listener = new SlotCacheCreateListener(
                 cachePort,
                 new SlotCacheLockManager(properties),
                 registry,
