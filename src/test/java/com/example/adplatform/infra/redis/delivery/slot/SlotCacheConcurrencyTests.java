@@ -178,7 +178,7 @@ class SlotCacheConcurrencyTests {
         SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         when(bloomFilterService.definiteNotContain(anyString())).thenReturn(false);
         SlotMysqlCircuitBreaker circuitBreaker = mock(SlotMysqlCircuitBreaker.class);
-        when(circuitBreaker.execute(any())).thenAnswer(invocation ->
+        when(circuitBreaker.executeSupplier(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
         SlotCacheLockManager lockManager = new SlotCacheLockManager(properties);
         SlotCacheServiceImpl service = new SlotCacheServiceImpl(
@@ -197,8 +197,8 @@ class SlotCacheConcurrencyTests {
     private SlotCacheProperties properties(Duration readWaitTimeout) {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
-        properties.getLock().setStripes(1_024);
-        properties.getLock().setReadWaitTimeout(readWaitTimeout);
+        properties.setStripes(1_024);
+        properties.setReadWaitTimeout(readWaitTimeout);
         return properties;
     }
 

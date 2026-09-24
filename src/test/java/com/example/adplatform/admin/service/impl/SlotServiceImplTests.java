@@ -3,14 +3,14 @@ package com.example.adplatform.admin.service.impl;
 import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.admin.port.slot.SlotFilterPort;
-import com.example.adplatform.admin.event.SlotCacheImmediateEvent;
 import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.common.enums.CommonStatus;
+import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
-import com.example.adplatform.search.outbox.service.SlotCacheOutboxService;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -35,8 +35,8 @@ class SlotServiceImplTests {
 
         verify(fixture.slotCacheOutbox()).append(entity.getPublicId(), null);
         verify(fixture.searchOutbox()).appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
-        verify(fixture.eventPublisher()).publishEvent(new SlotCacheImmediateEvent(
-                SlotCacheImmediateEvent.Action.WRITE, "HOME_BANNER", 1L));
+        verify(fixture.eventPublisher()).publishEvent(
+                new SlotServiceImpl.SlotCacheCreateEvent("HOME_BANNER", 1L));
         assertThat(entity.getPublicId()).matches("^slot_[0-9a-f]{32}$");
     }
 
@@ -55,8 +55,8 @@ class SlotServiceImplTests {
         fixture.service().update(existing.getPublicId(), request);
 
         verify(fixture.slotCacheOutbox()).append(existing.getPublicId(), "OLD_BANNER");
-        verify(fixture.eventPublisher()).publishEvent(new SlotCacheImmediateEvent(
-                SlotCacheImmediateEvent.Action.EVICT, "OLD_BANNER", 1L));
+        verify(fixture.eventPublisher()).publishEvent(
+                new SlotServiceImpl.SlotCacheUpdateEvent("OLD_BANNER", 1L));
     }
 
     @Test
@@ -87,7 +87,9 @@ class SlotServiceImplTests {
                 slotFilter,
                 searchOutbox,
                 slotCacheOutbox,
-                eventPublisher);
+                eventPublisher,
+                mock(SlotCacheAdminPort.class),
+                mock(SlotCacheLockManager.class));
         return new Fixture(service, mapper, converter, searchOutbox, slotCacheOutbox, eventPublisher);
     }
 

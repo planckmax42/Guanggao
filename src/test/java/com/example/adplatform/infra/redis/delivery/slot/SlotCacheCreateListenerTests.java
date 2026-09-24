@@ -1,46 +1,44 @@
 package com.example.adplatform.infra.redis.delivery.slot;
 
-import com.example.adplatform.admin.event.SlotCacheImmediateEvent;
+import com.example.adplatform.admin.converter.SlotConverter;
+import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.example.adplatform.admin.port.slot.SlotFilterPort;
+import com.example.adplatform.admin.service.impl.SlotServiceImpl;
+import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 class SlotCacheCreateListenerTests {
 
     @Test
-    void shouldAttemptOnceAndSwallowFailureAfterCommit() {
+    void shouldWriteSlotToRedisAfterCreateCommit() {
         SlotCacheAdminPort cachePort = mock(SlotCacheAdminPort.class);
-        SlotCacheProperties properties = properties();
-        SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        SlotCacheAccessException failure = new SlotCacheAccessException(
-                "evict", "OLD_CODE", new IllegalStateException("redis down"));
-        doThrow(failure).when(cachePort).evictSlotCodeFromRedis("OLD_CODE");
-        SlotCacheCreateListener listener = new SlotCacheCreateListener(
+        SlotServiceImpl service = new SlotServiceImpl(
+                mock(SlotMapper.class),
+                mock(SlotConverter.class),
+                mock(SlotFilterPort.class),
+                mock(SearchOutboxService.class),
+                mock(SlotCacheOutboxService.class),
+                mock(ApplicationEventPublisher.class),
                 cachePort,
-                new SlotCacheLockManager(properties),
-                registry,
-                new SlotCacheFailureLogLimiter(properties, registry));
+                new SlotCacheLockManager(properties()));
 
-        listener.afterCommit(new SlotCacheImmediateEvent(
-                SlotCacheImmediateEvent.Action.EVICT, "OLD_CODE", 1L));
+        service.afterCommit(new SlotServiceImpl.SlotCacheCreateEvent("HOME_BANNER", 1L));
 
-        verify(cachePort).evictSlotCodeFromRedis("OLD_CODE");
-        assertEquals(1D, registry.counter(
-                "ad.slot.cache.sync", "stage", "immediate", "result", "failure").count());
+        verify(cachePort).writeSlotToRedis(1L, "HOME_BANNER");
     }
 
     private SlotCacheProperties properties() {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
-        properties.getLock().setStripes(32);
-        properties.getLock().setReadWaitTimeout(Duration.ofMillis(50));
+        properties.setStripes(32);
+        properties.setReadWaitTimeout(Duration.ofMillis(50));
         return properties;
     }
 }

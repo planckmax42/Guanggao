@@ -144,14 +144,16 @@ app:
       event: event-topic
       config-change: ad-config-change
       config-change-dlt: ad-config-change-dlt
-      slot-cache-sync: ad-slot-cache-sync
+      slot-cache-write: ad-slot-write
+      slot-cache-update: ad-slot-update
       slot-cache-sync-dlt: ad-slot-cache-sync-dlt
     consumer-groups:
       legacy: tracking-consumer
       archive: event-archive-consumer
       billing: event-billing-consumer
       statistics: event-statistics-consumer
-      slot-cache-sync: slot-cache-sync-consumer
+      slot-cache-write: slot-cache-write-consumer
+      slot-cache-update: slot_cache-update-consumer
   elasticsearch:
     enabled: ${ELASTICSEARCH_ENABLED:true}
     candidate:

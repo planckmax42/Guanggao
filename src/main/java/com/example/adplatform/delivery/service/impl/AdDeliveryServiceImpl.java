@@ -29,10 +29,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -85,7 +83,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         }
 
         LocalDate today = LocalDate.now();
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
 
         // 第二阶段（静态防御校验）：防止索引最终一致窗口或脏数据导致不合规候选进入排序。
         List<AdCandidateDocument> staticallyValid = recalled.stream()//一段鸡毛用没有的代码（手动鄙视）,todo:后续把这部分拦截普通停投的代码并入redis停投
@@ -188,14 +186,10 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         plan.setBudgetDaily(candidate.getBudgetDaily());
         plan.setBidPrice(candidate.getBidPrice());
         plan.setBillingType(candidate.getBillingType());
-        plan.setStartTime(toLocalDateTime(candidate.getStartTime()));
-        plan.setEndTime(toLocalDateTime(candidate.getEndTime()));
+        plan.setStartTime(candidate.getStartTime());
+        plan.setEndTime(candidate.getEndTime());
         plan.setStatus(candidate.getPlanStatus());
         return plan;
-    }
-
-    private LocalDateTime toLocalDateTime(Instant value) {
-        return value == null ? null : LocalDateTime.ofInstant(value, ZoneId.systemDefault());
     }
 
     private record ScoredCandidate(AdCandidateDocument candidate, double score) { }
@@ -247,7 +241,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位MYSQL熔断器已熔断",exception);
             }
         }
-        slotCacheDeliveryPort.writeSlotToRedis(slotEntity.getSlotCode(),slotEntity.getId());
+        slotCacheDeliveryPort.writeSlotToRedis(slotEntity.getId(), slotEntity.getSlotCode());
 
         return Optional.of(slotEntity.getId());
     }

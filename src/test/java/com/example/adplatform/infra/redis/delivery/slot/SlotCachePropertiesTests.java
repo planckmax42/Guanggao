@@ -22,10 +22,8 @@ class SlotCachePropertiesTests {
     void shouldAcceptCompleteConfiguration() {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
-
-        SlotCacheProperties.Lock lock = properties.getLock();
-        lock.setStripes(1_024);
-        lock.setReadWaitTimeout(Duration.ofMillis(100));
+        properties.setStripes(1_024);
+        properties.setReadWaitTimeout(Duration.ofMillis(100));
 
         assertTrue(validator.validate(properties).isEmpty());
     }

@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class SlotCacheSyncKafkaConsumerTests {
+class SlotCacheConsumerTests {
 
     @Test
     void shouldReconcileLatestMysqlStateAndRecordSuccess() throws Exception {
@@ -22,10 +22,10 @@ class SlotCacheSyncKafkaConsumerTests {
         SlotCacheSyncMessage message = new SlotCacheSyncMessage("event_1", "slot_1", "OLD_CODE");
         ConsumerRecord<String, String> record = new ConsumerRecord<>(
                 "ad-slot-cache-sync", 0, 1L, "SLOT:slot_1", objectMapper.writeValueAsString(message));
-        SlotCacheSyncKafkaConsumer consumer = new SlotCacheSyncKafkaConsumer(
+        SlotCacheConsumer consumer = new SlotCacheConsumer(
                 objectMapper, cachePort, registry);
 
-        consumer.consume(record);
+        consumer.consumeWrite(record);
 
         verify(cachePort).reconcileSlot("slot_1", "OLD_CODE");
         assertEquals(1D, registry.counter(
@@ -35,10 +35,10 @@ class SlotCacheSyncKafkaConsumerTests {
     @Test
     void shouldRejectMalformedPayloadBeforeTouchingCache() {
         SlotCacheAdminPort cachePort = mock(SlotCacheAdminPort.class);
-        SlotCacheSyncKafkaConsumer consumer = new SlotCacheSyncKafkaConsumer(
+        SlotCacheConsumer consumer = new SlotCacheConsumer(
                 new ObjectMapper(), cachePort, new SimpleMeterRegistry());
 
-        assertThrows(Exception.class, () -> consumer.consume(new ConsumerRecord<>(
+        assertThrows(Exception.class, () -> consumer.consumeWrite(new ConsumerRecord<>(
                 "ad-slot-cache-sync", 0, 1L, "bad", "{}")));
     }
 }

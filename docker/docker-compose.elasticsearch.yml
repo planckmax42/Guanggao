@@ -1,5 +1,31 @@
 name: guanggao
 services:
+  kafbat-ui:
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    container_name: ad-platform-kafbat-ui
+    # Kafka 公布 localhost:9092，沿用 host 网络访问宿主机 Kafka 和 Connect。
+    network_mode: host
+    environment:
+      SERVER_ADDRESS: 127.0.0.1
+      SERVER_PORT: 8084
+      KAFKA_CLUSTERS_0_NAME: ad-platform
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 127.0.0.1:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://127.0.0.1:8083
+      DYNAMIC_CONFIG_ENABLED: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8084/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    restart: unless-stopped
+
   debezium-connect:
     image: quay.io/debezium/connect:3.6.0.Final
     container_name: ad-platform-debezium-connect

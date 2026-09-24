@@ -10,9 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
@@ -34,28 +31,30 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysqlæŸ¥è¯
     @Override
     public AdCandidateDocument from(CandidateSourceRow row) {
         AdCandidateDocument document = new AdCandidateDocument();
+
         document.setId(row.getMaterialPublicId());
         document.setMaterialId(row.getMaterialId());
         document.setMaterialPublicId(row.getMaterialPublicId());
-        document.setPlanId(row.getPlanId());
-        document.setPlanPublicId(row.getPlanPublicId());
-        document.setUserId(row.getUserId());
-        document.setSlotId(row.getSlotId());
-        document.setSlotPublicId(row.getSlotPublicId());
-        document.setSlotCode(normalize(row.getSlotCode(), String::toUpperCase));
         document.setTitle(row.getTitle());
         document.setDescription(row.getDescription());
         document.setImageUrl(row.getImageUrl());
         document.setLandingPageUrl(row.getLandingPageUrl());
-        document.setMaterialStatus(CommonStatus.ENABLED == row.getMaterialStatus() ? "ENABLED" : "DISABLED");
         document.setAuditStatus(row.getAuditStatus());
-        document.setPlanStatus(row.getPlanStatus());
+        document.setMaterialStatus(CommonStatus.ENABLED == row.getMaterialStatus() ? "ENABLED" : "DISABLED");
+
+        document.setPlanId(row.getPlanId());
+        document.setPlanPublicId(row.getPlanPublicId());
         document.setBudgetTotal(row.getBudgetTotal());
         document.setBudgetDaily(row.getBudgetDaily());
         document.setBidPrice(row.getBidPrice());
         document.setBillingType(row.getBillingType());
-        document.setStartTime(toInstant(row.getStartTime()));
-        document.setEndTime(toInstant(row.getEndTime()));
+        document.setStartTime(row.getStartTime());
+        document.setEndTime(row.getEndTime());
+        document.setPlanStatus(row.getPlanStatus());
+
+        document.setSlotId(row.getSlotId());
+        document.setSlotPublicId(row.getSlotPublicId());
+        document.setSlotCode(row.getSlotCode());
 
         List<String> regions = parseList(row.getRegion(), value -> value.toUpperCase(Locale.ROOT));
         document.setRegionAll(regions.isEmpty());
@@ -64,19 +63,17 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysqlæŸ¥è¯
         document.setDeviceAll(devices.isEmpty());
         document.setDeviceTypes(devices);
         document.setGenderAll(!StringUtils.hasText(row.getGender()));
-        document.setGender(normalize(row.getGender(), value -> value.toUpperCase(Locale.ROOT)));
+        document.setGender(row.getGender());
         document.setAgeAll(row.getAgeMin() == null && row.getAgeMax() == null);
         document.setAgeMin(row.getAgeMin() == null ? 0 : row.getAgeMin());
         document.setAgeMax(row.getAgeMax() == null ? 120 : row.getAgeMax());
         List<String> tags = parseList(row.getUserTags(), value -> value.toLowerCase(Locale.ROOT));
         document.setTagAll(tags.isEmpty());
         document.setTags(tags);
-        document.setUpdatedAt(toInstant(row.getUpdatedAt()));
-        return document;
-    }
+        document.setUpdatedAt(row.getUpdatedAt());
 
-    private Instant toInstant(LocalDateTime value) {
-        return value == null ? null : value.atZone(ZoneId.systemDefault()).toInstant();
+        document.setUserId(row.getUserId());
+        return document;
     }
 
     private List<String> parseList(String json, UnaryOperator<String> normalizer) {
@@ -95,7 +92,4 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysqlæŸ¥è¯
         }
     }
 
-    private String normalize(String value, UnaryOperator<String> normalizer) {
-        return StringUtils.hasText(value) ? normalizer.apply(value) : null;
-    }
 }

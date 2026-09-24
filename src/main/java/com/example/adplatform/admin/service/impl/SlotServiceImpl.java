@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
+import com.example.adplatform.admin.port.slot.SlotDebeziumPort;
 import com.example.adplatform.admin.port.slot.SlotFilterPort;
 import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
@@ -24,7 +25,6 @@ import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
-import com.example.adplatform.search.outbox.service.SlotCacheOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -36,8 +36,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 /**
  * 广告位管理服务，同时维护 Redis 广告位缓存和 ES 配置同步 Outbox。
@@ -53,30 +52,28 @@ public class SlotServiceImpl implements SlotService {
     private final SlotConverter slotConverter;
     private final SlotFilterPort slotFilterService;
     private final SearchOutboxService searchOutboxService;
-    private final SlotCacheOutboxService slotCacheOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final SlotCacheAdminPort slotCacheAdminPort;
     private final SlotCacheLockManager lockManager;
+    private final SlotDebeziumPort slotDebeziumPort;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ResourceRefResponse create(CreateSlotRequest request) {
+        if (slotMapper.exists(new LambdaQueryWrapper<SlotEntity>().eq(SlotEntity::getSlotCode,request.slotCode()))){
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,"广告位编码已存在");
+        }
         SlotEntity slotEntity = slotConverter.toEntity(request);
         slotEntity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
             slotMapper.insert(slotEntity);
         } catch (DuplicateKeyException ex) {
-            switch (resolveIndexName(ex)){
-                case "uk_slot_code" -> throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
-                case "uk_slot_public_id" -> {
-                    slotEntity.refreshPublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
-                    try{
-                        slotMapper.insert(slotEntity);
-                    }catch (DuplicateKeyException exception)
-                    {
-                        throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位生成PublicId再次重复");
-                    }
-                }
+            slotEntity.refreshPublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
+            try{
+                slotMapper.insert(slotEntity);
+            }catch (DuplicateKeyException exception)
+            {
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位生成PublicId再次重复,请刷新后重试");
             }
         }
         String slotCode = slotEntity.getSlotCode();
@@ -84,7 +81,7 @@ public class SlotServiceImpl implements SlotService {
             slotFilterService.addSlotFilter(slotCode);
             applicationEventPublisher.publishEvent(new SlotCacheCreateEvent(slotCode, slotEntity.getId()));
         }
-        slotCacheOutboxService.append(slotEntity.getPublicId(), null);
+        slotDebeziumPort.writeRedisWithRetry(slotEntity.getId(),slotCode);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, slotEntity.getPublicId());
         return slotConverter.toRef(slotEntity);
     }
@@ -96,23 +93,20 @@ public class SlotServiceImpl implements SlotService {
         if (oldEntity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
-        Long internalId = oldEntity.getId();
         String oldSlotCode = oldEntity.getSlotCode();
-        slotConverter.updateEntity(request, oldEntity);
+        SlotEntity newEntity = slotConverter.updateEntity(request, oldEntity);
         try {
-            slotMapper.updateById(oldEntity);
+            slotMapper.updateById(newEntity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }
-        SlotEntity newEntity = slotMapper.selectById(internalId);
-        String newSlotCode = newEntity.getSlotCode();
-        boolean slotCodeChanged = !Objects.equals(oldSlotCode, newSlotCode);
-        if (Objects.equals(newEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
-            slotFilterService.addSlotFilter(newSlotCode);
+        String newSlotCode = request.slotCode();
+        if (Objects.equals(oldEntity.getStatus(), CommonStatus.ENABLED)) {// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
+            slotFilterService.addSlotFilter(newSlotCode);//todo：如何删除？重建机制？
         }
-        if (slotCodeChanged) {
-            applicationEventPublisher.publishEvent(new SlotCacheUpdateEvent(oldSlotCode, internalId));
-            slotCacheOutboxService.append(publicId, oldSlotCode);
+        if (!Objects.equals(oldSlotCode, newSlotCode)) {
+            applicationEventPublisher.publishEvent(new SlotCacheUpdateEvent(oldSlotCode,newSlotCode,newEntity.getId()));
+            slotDebeziumPort.updateRedisWithRetry(newEntity.getId(),oldSlotCode,newSlotCode);
         }
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         return slotConverter.toResponse(newEntity);
@@ -133,7 +127,7 @@ public class SlotServiceImpl implements SlotService {
             slotFilterService.addSlotFilter(slotCode);
         }
         applicationEventPublisher.publishEvent(new SlotCacheUpdateStatusEvent(slotCode,slotEntity.getId(),slotEntity.getStatus()));
-        slotCacheOutboxService.append(publicId, null);
+        slotDebeziumPort.writeRedisWithRetry(slotEntity.getId(),slotCode);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
                 ConfigAggregateType.SLOT,
@@ -162,31 +156,25 @@ public class SlotServiceImpl implements SlotService {
                 .map(slotConverter::toAvailableResponse)
                 .toList();
     }
-    private static final Pattern PATTERN = Pattern.compile("for key '([^']+)'\\\\s*$");
 
-    private String resolveIndexName(DuplicateKeyException exception){
-        String message = exception.getMostSpecificCause().getMessage();
-        Matcher matcher = PATTERN.matcher(message);
-        String key = matcher.group(1);
-        return key.substring(key.lastIndexOf(".")+1);
-    }
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(SlotCacheCreateEvent event) {
-        slotCacheAdminPort.writeSlotToRedis(event.slotCode(), event.slotId());
+        slotCacheAdminPort.writeSlotToRedis(event.slotId(), event.slotCode());
     }
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void afterCommit(SlotCacheUpdateEvent event) {
-        try (LockAcquireAttempt ignored = lockManager.acquireForWrite(event.slotCode())) {
-            slotCacheAdminPort.evictSlotCodeFromRedis(event.slotCode());
+    public void afterCommit(SlotCacheUpdateEvent event) {//todo:锁机制
+        try (LockAcquireAttempt ignored = lockManager.acquireForWrite(event.oldSlotCode)) {
+            slotCacheAdminPort.evictSlotCodeFromRedis(event.oldSlotCode);
+            slotCacheAdminPort.writeSlotToRedis(event.Id,event.newSlotCode);
         }
     }
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(SlotCacheUpdateStatusEvent event){
         if(event.status==CommonStatus.ENABLED){
-            slotCacheAdminPort.writeSlotToRedis(event.slotCode(), event.slotId());
+            slotCacheAdminPort.writeSlotToRedis(event.slotId(), event.slotCode());
         }else slotCacheAdminPort.evictSlotCodeFromRedis(event.slotCode());
     }
-    public record SlotCacheUpdateEvent( String slotCode, long slotId) {
+    public record SlotCacheUpdateEvent( String oldSlotCode,String newSlotCode,Long Id) {
     }
     public record SlotCacheCreateEvent(String slotCode,long slotId) {
     }

@@ -18,13 +18,13 @@ class SlotMysqlCircuitBreakerTests {
         SlotMysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofSeconds(1));
 
         assertThrows(IllegalStateException.class,
-                () -> circuitBreaker.execute(() -> failedQuery("第一次查询失败")));
+                () -> circuitBreaker.executeSupplier(() -> failedQuery("第一次查询失败")));
         assertThrows(IllegalStateException.class,
-                () -> circuitBreaker.execute(() -> failedQuery("第二次查询失败")));
+                () -> circuitBreaker.executeSupplier(() -> failedQuery("第二次查询失败")));
 
         assertEquals(CircuitBreaker.State.OPEN, circuitBreaker.currentState());
         AtomicBoolean queryExecuted = new AtomicBoolean(false);
-        assertThrows(CallNotPermittedException.class, () -> circuitBreaker.execute(() -> {
+        assertThrows(CallNotPermittedException.class, () -> circuitBreaker.executeSupplier(() -> {
             queryExecuted.set(true);
             return 1L;
         }));
@@ -35,8 +35,8 @@ class SlotMysqlCircuitBreakerTests {
     void shouldCountSlowDatabaseQueriesAndOpen() {
         SlotMysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofMillis(1));
 
-        circuitBreaker.execute(this::slowQuery);
-        circuitBreaker.execute(this::slowQuery);
+        circuitBreaker.executeSupplier(this::slowQuery);
+        circuitBreaker.executeSupplier(this::slowQuery);
 
         assertEquals(CircuitBreaker.State.OPEN, circuitBreaker.currentState());
     }

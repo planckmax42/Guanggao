@@ -73,24 +73,39 @@ src/main/resources/sql/99-seed-demo-data.sql
   --bootstrap-server 127.0.0.1:9092 --list
 ```
 
-3. 启动 Elasticsearch 和 Debezium：
+3. 启动 Elasticsearch、Debezium 和 Kafbat UI：
 
 ```bash
 docker compose -f docker/docker-compose.elasticsearch.yml up -d
 ```
 
-Compose 不会创建 Kafka 容器；它会启动 Elasticsearch、Debezium Kafka Connect，并通过 Connect
+Compose 不会创建 Kafka 容器；它会启动 Elasticsearch、Debezium Kafka Connect、Kafbat UI，并通过 Connect
 REST API 幂等注册 `ad-platform-outbox` Connector。该本地编排面向 Linux，Connect 使用 host 网络
 访问宿主机的 MySQL `127.0.0.1:3306` 和 Kafka `127.0.0.1:9092`。
 
 检查 Connector：
 
 ```bash
-curl http://127.0.0.1:8083/connectors/ad-platform-outbox/bloomSnapshot
+curl http://127.0.0.1:8083/connectors/ad-platform-outbox/status
 ```
 
 `connector.state` 和所有 `tasks[].state` 均应为 `RUNNING`。MySQL 必须启用 `log_bin=ON`、
 `binlog_format=ROW`、`binlog_row_image=FULL`。
+
+Kafbat UI 访问地址：<http://127.0.0.1:8084>。本地开发无需登录，仅监听本机地址。
+选择 `ad-platform` 集群，在 **Kafka Connect** 中进入 `debezium` 下的
+`ad-platform-outbox`，即可查看状态、编辑配置和管理 Connector；在 **Topics** 中可查看消息。
+Kafbat UI 同样使用 host 网络连接 Kafka `127.0.0.1:9092` 和 Connect `127.0.0.1:8083`。
+
+已有 Kafka 和 Debezium 时，可以单独启动界面：
+
+```bash
+docker compose -f docker/docker-compose.elasticsearch.yml up -d kafbat-ui
+```
+
+界面修改 Connector 配置后，应将需要保留的配置同步到 `docker/debezium/outbox-connector.json`。
+`debezium-init` 再次执行时会用该文件覆盖 Connector 配置。界面自身的集群连接配置由 Compose 管理，
+`DYNAMIC_CONFIG_ENABLED=false` 不影响编辑 Connector 配置。
 
 4. 启动应用：
 
@@ -130,6 +145,7 @@ docker compose -f docker/docker-compose.logging.yml up -d
 ```text
 Grafana                 http://127.0.0.1:3000
 Prometheus Targets      http://127.0.0.1:9090/targets
+Kafbat UI               http://127.0.0.1:8084
 Kafka Exporter Metrics  http://127.0.0.1:9308/metrics
 应用 Prometheus Metrics http://127.0.0.1:8080/actuator/prometheus
 Loki Ready              http://127.0.0.1:3100/ready
@@ -146,7 +162,7 @@ POST /api/delivery/ads                         广告投放
 POST /api/tracking/events                      曝光/点击/转化事件上报
 POST /api/platform/search/candidates/rebuild   候选索引无停机重建
 GET  /actuator/metrics/ad.candidate.recall.duration
-GET  http://127.0.0.1:8083/connectors/ad-platform-outbox/bloomSnapshot
+GET  http://127.0.0.1:8083/connectors/ad-platform-outbox/status
 ```
 
 投放示例：

@@ -51,8 +51,8 @@ class SlotCacheLockManagerTests {
 
     private SlotCacheProperties properties(Duration timeout) {
         SlotCacheProperties properties = new SlotCacheProperties();
-        properties.getLock().setStripes(1_024);
-        properties.getLock().setReadWaitTimeout(timeout);
+        properties.setStripes(1_024);
+        properties.setReadWaitTimeout(timeout);
         return properties;
     }
 }

@@ -56,7 +56,7 @@ class SlotCacheTransactionTests {
         SlotCacheAccessException failure = assertThrows(
                 SlotCacheAccessException.class,
                 () -> service(redisTemplate, mock(SlotMapper.class), new SimpleMeterRegistry())
-                        .writeSlotToRedis("HOME_BANNER", 1L));
+                        .writeSlotToRedis(1L, "HOME_BANNER"));
 
         assertEquals("write", failure.getOperation());
         assertEquals("HOME_BANNER", failure.getSlotCode());
@@ -85,10 +85,10 @@ class SlotCacheTransactionTests {
             SimpleMeterRegistry meterRegistry) {
         SlotCacheProperties properties = new SlotCacheProperties();
         properties.setRedisTtl(Duration.ofDays(1));
-        properties.getLock().setStripes(32);
-        properties.getLock().setReadWaitTimeout(Duration.ofMillis(50));
+        properties.setStripes(32);
+        properties.setReadWaitTimeout(Duration.ofMillis(50));
         SlotMysqlCircuitBreaker mysqlCircuitBreaker = mock(SlotMysqlCircuitBreaker.class);
-        when(mysqlCircuitBreaker.execute(any())).thenAnswer(invocation ->
+        when(mysqlCircuitBreaker.executeSupplier(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
         return new SlotCacheServiceImpl(
                 redisTemplate,

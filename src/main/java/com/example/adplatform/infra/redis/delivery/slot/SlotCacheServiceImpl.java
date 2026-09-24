@@ -10,6 +10,7 @@ import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.SlotCacheDeliveryPort;
 import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.kafka.admin.port.SlotCacheKafkaPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort {
+public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort, SlotCacheKafkaPort {
 
     private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
 
@@ -141,7 +142,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
         }
         if (Objects.equals(slot.getStatus(), CommonStatus.ENABLED)) {
             slotBloomOperationsService.addSlotFilter(slot.getSlotCode());
-            writeSlotToRedis(slot.getSlotCode(), slot.getId());
+            writeSlotToRedis(slot.getId(), slot.getSlotCode());
         } else {
             evictSlotCodeFromRedis(slot.getSlotCode());
         }
@@ -157,37 +158,12 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
             if (current == null) {
                 evictSlotCodeFromRedis(slotCode);
             } else {
-                writeSlotToRedis(current.getSlotCode(), current.getId());
+                writeSlotToRedis(current.getId(), current.getSlotCode());
             }
         }
     }
 
-    @Override
-    public void reconcileSlot(String slotPublicId, String previousSlotCode) {
-        long startNanos = System.nanoTime();
-        try {
-            SlotEntity current = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                    .eq(SlotEntity::getPublicId, slotPublicId));
-            String currentSlotCode = current == null ? null : current.getSlotCode();
-            try (LockAcquireAttempt ignored =
-                         lockManager.acquireForWrite(previousSlotCode, currentSlotCode)) {
-                if (StringUtils.hasText(previousSlotCode)
-                        && !Objects.equals(previousSlotCode, currentSlotCode)) {
-                    evictSlotCodeFromRedis(previousSlotCode);
-                }
-                if (current != null && Objects.equals(current.getStatus(), CommonStatus.ENABLED)) {
-                    slotBloomOperationsService.addSlotFilter(currentSlotCode);
-                    writeSlotToRedis(currentSlotCode, current.getId());
-                } else if (current != null) {
-                    evictSlotCodeFromRedis(currentSlotCode);
-                }
-            }
-            recordOperation("reconcile", "success", startNanos);
-        } catch (RuntimeException ex) {
-            recordOperation("reconcile", "failure", startNanos);
-            throw ex;
-        }
-    }
+
 
     private SlotEntity selectEnabledSlotByCode(String slotCode) {
         return slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
@@ -230,7 +206,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
     }
 
     @Override
-    public void writeSlotToRedis(String slotCode, Long slotId) {
+    public void writeSlotToRedis(Long slotId, String slotCode) {
         long startNanos = System.nanoTime();//todo:原先的锁机制被删除，后续考虑要不要重建
         try {
             redisCircuitBreaker.executeSupplier(() -> {

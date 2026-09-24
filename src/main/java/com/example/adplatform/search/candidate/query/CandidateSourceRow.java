@@ -14,27 +14,30 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class CandidateSourceRow {
+
     private Long materialId;
     private String materialPublicId;
-    private Long planId;
-    private String planPublicId;
-    private Long userId;
-    private Long slotId;
-    private String slotPublicId;
-    private String slotCode;
     private String title;
     private String description;
     private String imageUrl;
     private String landingPageUrl;
-    private Integer materialStatus;
     private String auditStatus;
-    private String planStatus;
+    private Integer materialStatus;
+
+    private Long planId;
+    private String planPublicId;
     private Long budgetTotal;
     private Long budgetDaily;
     private Long bidPrice;
     private String billingType;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String planStatus;
+
+    private Long slotId;
+    private String slotPublicId;
+    private String slotCode;
+
     private String region;
     private String deviceType;
     private String gender;
@@ -42,4 +45,6 @@ public class CandidateSourceRow {
     private Integer ageMax;
     private String userTags;
     private LocalDateTime updatedAt;
+
+    private Long userId;
 }

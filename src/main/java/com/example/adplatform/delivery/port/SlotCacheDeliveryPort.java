@@ -15,5 +15,5 @@ public interface SlotCacheDeliveryPort {
 
     Long getSlotIdFromCache(String slotCode);
 
-    void writeSlotToRedis(String slotCode, Long slotId);
+    void writeSlotToRedis(Long slotId, String slotCode);
 }

@@ -1,6 +1,7 @@
 package com.example.adplatform.delivery.service.impl;
 
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.delivery.port.BudgetAvailabilityPort;
 import com.example.adplatform.delivery.port.CandidateRecallPort;
 import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
@@ -9,6 +10,10 @@ import com.example.adplatform.delivery.port.SlotCacheDeliveryPort;
 import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
+import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
+import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -63,7 +68,12 @@ class AdDeliveryServiceImplTests {
                 mock(BudgetAvailabilityPort.class),
                 mock(FrequencyControlPort.class),
                 mock(DailyReportMapper.class),
-                registry);
+                registry,
+                mock(SlotRedisCircuitBreaker.class),
+                mock(SlotBloomOperationsService.class),
+                mock(SlotCacheLockManager.class),
+                mock(SlotMysqlCircuitBreaker.class),
+                mock(SlotMapper.class));
     }
 
     private AdDeliveryRequest request() {

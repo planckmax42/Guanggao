@@ -27,7 +27,7 @@ class EventKafkaConsumerGroupTests {
 
     private void assertGroup(Class<?> consumerType, String expectedId, String expectedGroup) throws Exception {
         Method consume = consumerType.getMethod(
-                "consume",
+                "consumeWrite",
                 com.example.adplatform.tracking.message.EventMessage.class);
         KafkaListener listener = consume.getAnnotation(KafkaListener.class);
         assertEquals(expectedId, listener.id());
