@@ -40,8 +40,8 @@ public class PlanEntity {
     /**
      * 所属广告主 ID，一个广告主可以创建多个广告计划。
      */
-    @TableField("user_id")
-    private Long userId;
+    @TableField("advertiser_id")
+    private Long advertiserId;
     private String name;
 
     /**

@@ -4,7 +4,7 @@ import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.admin.entity.UserEntity;
+import com.example.adplatform.admin.entity.AdvertiserEntity;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -36,7 +36,7 @@ class PublicIdGeneratorTests {
     @Test
     void externallyAddressableEntitiesShouldNotExposePublicIdSetter() {
         List<Class<?>> entityTypes = List.of(
-                UserEntity.class,
+                AdvertiserEntity.class,
                 SlotEntity.class,
                 PlanEntity.class,
                 MaterialEntity.class,

@@ -59,6 +59,10 @@ src/main/resources/sql/99-seed-demo-data.sql
 
 `07-debezium-cdc.sql` 会创建仅供本地开发使用的 `debezium` CDC 账号。生产环境必须替换默认密码并限制连接来源。
 
+已有 `user` 表的环境，更新代码前执行 `src/main/resources/sql/11-rename-user-to-advertiser.sql`，
+将表名及 `plan.user_id` 改为 `advertiser`、`advertiser_id`，保留原有数据。
+更新代码后调用 `POST /api/platform/search/candidates/rebuild`，将候选索引中的 `userId` 更新为 `advertiserId`。
+
 2. 先启动仓库中已有的本地 Kafka（宿主机进程）：
 
 ```bash

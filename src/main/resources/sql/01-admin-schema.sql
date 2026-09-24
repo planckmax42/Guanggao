@@ -1,6 +1,6 @@
 USE ad_platform;
 
-CREATE TABLE IF NOT EXISTS `user` (
+CREATE TABLE IF NOT EXISTS advertiser (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     public_id VARCHAR(40) NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS `user` (
     bloomSnapshot TINYINT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_user_name (name),
-    UNIQUE KEY uk_user_public_id (public_id),
-    KEY idx_user_status (bloomSnapshot)
+    UNIQUE KEY uk_advertiser_name (name),
+    UNIQUE KEY uk_advertiser_public_id (public_id),
+    KEY idx_advertiser_status (bloomSnapshot)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS slot (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS slot (
 CREATE TABLE IF NOT EXISTS plan (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     public_id VARCHAR(40) NOT NULL,
-    user_id BIGINT NOT NULL,
+    advertiser_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
     budget_total BIGINT NOT NULL,
     budget_daily BIGINT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS plan (
     bloomSnapshot VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_plan_user_status (user_id, bloomSnapshot),
+    KEY idx_plan_advertiser_status (advertiser_id, bloomSnapshot),
     UNIQUE KEY uk_plan_public_id (public_id),
     KEY idx_plan_time_status (start_time, end_time, bloomSnapshot)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;

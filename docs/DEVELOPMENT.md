@@ -244,7 +244,7 @@ ad-platform
 
 核心表：
 
-- `user`
+- `advertiser`
 - `slot`
 - `plan`
 - `material`

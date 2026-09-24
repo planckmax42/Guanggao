@@ -19,8 +19,8 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-@TableName("`user`")
-public class UserEntity {
+@TableName("advertiser")
+public class AdvertiserEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;

@@ -5,10 +5,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.PlanConverter;
 import com.example.adplatform.admin.request.CreatePlanRequest;
 import com.example.adplatform.admin.request.UpdatePlanRequest;
-import com.example.adplatform.admin.entity.UserEntity;
+import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
-import com.example.adplatform.admin.mapper.UserMapper;
+import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.service.PlanService;
@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 public class PlanServiceImpl implements PlanService {
 
     private final PlanMapper planMapper;
-    private final UserMapper userMapper;
+    private final AdvertiserMapper advertiserMapper;
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -53,11 +53,11 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ResourceRefResponse create(CreatePlanRequest request) {
-        UserEntity advertiser = getEnabledAdvertiser(request.advertiserPublicId());
+        AdvertiserEntity advertiser = getEnabledAdvertiser(request.advertiserPublicId());
 
         PlanEntity entity = planConverter.toEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.PLAN_PREFIX));
-        entity.setUserId(advertiser.getId());
+        entity.setAdvertiserId(advertiser.getId());
         planMapper.insert(entity);
         searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, entity.getPublicId());
         return planConverter.toRef(entity);
@@ -83,7 +83,7 @@ public class PlanServiceImpl implements PlanService {
     public PlanResponse online(String publicId) {
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
-        ensureUserEnabled(entity.getUserId());
+        ensureAdvertiserEnabled(entity.getAdvertiserId());
         if (entity.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "广告计划结束时间已过期");
         }
@@ -127,23 +127,23 @@ public class PlanServiceImpl implements PlanService {
             long size,
             String advertiserPublicId,
             String status) {
-        Long userId = advertiserPublicId == null ? null : getAdvertiser(advertiserPublicId).getId();
+        Long advertiserId = advertiserPublicId == null ? null : getAdvertiser(advertiserPublicId).getId();
         Page<PlanEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<PlanEntity> query = new LambdaQueryWrapper<PlanEntity>()
-                .eq(userId != null, PlanEntity::getUserId, userId)
+                .eq(advertiserId != null, PlanEntity::getAdvertiserId, advertiserId)
                 .eq(StringUtils.hasText(status), PlanEntity::getStatus, status)
                 .orderByDesc(PlanEntity::getId);
         Page<PlanEntity> result = planMapper.selectPage(page, query);
         List<Long> advertiserIds = result.getRecords().stream()
-                .map(PlanEntity::getUserId)
+                .map(PlanEntity::getAdvertiserId)
                 .distinct()
                 .toList();
         Map<Long, String> advertiserPublicIds = advertiserIds.isEmpty()
                 ? Map.of()
-                : userMapper.selectBatchIds(advertiserIds).stream()
-                        .collect(Collectors.toMap(UserEntity::getId, UserEntity::getPublicId));
+                : advertiserMapper.selectBatchIds(advertiserIds).stream()
+                        .collect(Collectors.toMap(AdvertiserEntity::getId, AdvertiserEntity::getPublicId));
         List<PlanResponse> records = result.getRecords().stream()
-                .map(entity -> planConverter.toResponse(entity, advertiserPublicIds.get(entity.getUserId())))
+                .map(entity -> planConverter.toResponse(entity, advertiserPublicIds.get(entity.getAdvertiserId())))
                 .toList();
         return PageResponse.of(result, records);
     }
@@ -158,31 +158,31 @@ public class PlanServiceImpl implements PlanService {
     }
 
     private PlanResponse toResponse(PlanEntity entity) {
-        UserEntity advertiser = userMapper.selectById(entity.getUserId());
+        AdvertiserEntity advertiser = advertiserMapper.selectById(entity.getAdvertiserId());
         return planConverter.toResponse(entity, advertiser == null ? null : advertiser.getPublicId());
     }
 
-    private UserEntity getAdvertiser(String publicId) {
-        UserEntity advertiser = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
-                .eq(UserEntity::getPublicId, publicId));
+    private AdvertiserEntity getAdvertiser(String publicId) {
+        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, publicId));
         if (advertiser == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
         }
         return advertiser;
     }
 
-    private UserEntity getEnabledAdvertiser(String publicId) {
-        UserEntity advertiser = getAdvertiser(publicId);
-        ensureUserEnabled(advertiser.getId());
+    private AdvertiserEntity getEnabledAdvertiser(String publicId) {
+        AdvertiserEntity advertiser = getAdvertiser(publicId);
+        ensureAdvertiserEnabled(advertiser.getId());
         return advertiser;
     }
 
-    private void ensureUserEnabled(Long userId) {
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
+    private void ensureAdvertiserEnabled(Long advertiserId) {
+        AdvertiserEntity advertiser = advertiserMapper.selectById(advertiserId);
+        if (advertiser == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
         }
-        if (user.getStatus() == null || user.getStatus() != CommonStatus.ENABLED) {
+        if (advertiser.getStatus() == null || advertiser.getStatus() != CommonStatus.ENABLED) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
         }
     }

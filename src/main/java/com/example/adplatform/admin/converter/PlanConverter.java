@@ -16,7 +16,7 @@ public interface PlanConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "advertiserId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
     @Mapping(target = "lockAcquireResult", expression = "java(PlanStatus.DRAFT.name())")
     @Mapping(target = "createdAt", ignore = true)
@@ -25,7 +25,7 @@ public interface PlanConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "advertiserId", ignore = true)
     @Mapping(target = "billingType", expression = "java(BillingType.normalizeOrDefault(request.billingType()))")
     @Mapping(target = "lockAcquireResult", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

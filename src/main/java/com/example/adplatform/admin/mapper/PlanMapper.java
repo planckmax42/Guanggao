@@ -14,7 +14,7 @@ public interface PlanMapper extends BaseMapper<PlanEntity> {
             <script>
             SELECT
                 p.id AS planId,
-                p.user_id AS userId,
+                p.advertiser_id AS advertiserId,
                 p.name AS planName,
                 p.budget_total AS budgetTotal,
                 p.budget_daily AS budgetDaily,

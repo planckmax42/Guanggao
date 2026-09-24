@@ -4,10 +4,10 @@ USE ad_platform;
 -- 使用 information_schema + 动态 DDL，兼容不支持 ADD COLUMN IF NOT EXISTS 的 MySQL 版本。
 SET @column_exists := (
     SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'public_id'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser' AND COLUMN_NAME = 'public_id'
 );
 SET @sql := IF(@column_exists = 0,
-    'ALTER TABLE `user` ADD COLUMN public_id VARCHAR(40) NULL AFTER id', 'SELECT 1');
+    'ALTER TABLE advertiser ADD COLUMN public_id VARCHAR(40) NULL AFTER id', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @column_exists := (
@@ -43,13 +43,13 @@ SET @sql := IF(@column_exists = 0,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- RANDOM_BYTES 避免 MySQL UUID() 的时间型 UUID 透出时间和节点信息。
-UPDATE `user` SET public_id = CONCAT('adv_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
+UPDATE advertiser SET public_id = CONCAT('adv_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
 UPDATE slot SET public_id = CONCAT('slot_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
 UPDATE plan SET public_id = CONCAT('plan_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
 UPDATE material SET public_id = CONCAT('mat_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
 UPDATE `rule` SET public_id = CONCAT('rule_', LOWER(HEX(RANDOM_BYTES(16)))) WHERE public_id IS NULL;
 
-ALTER TABLE `user` MODIFY public_id VARCHAR(40) NOT NULL;
+ALTER TABLE advertiser MODIFY public_id VARCHAR(40) NOT NULL;
 ALTER TABLE slot MODIFY public_id VARCHAR(40) NOT NULL;
 ALTER TABLE plan MODIFY public_id VARCHAR(40) NOT NULL;
 ALTER TABLE material MODIFY public_id VARCHAR(40) NOT NULL;
@@ -57,10 +57,10 @@ ALTER TABLE `rule` MODIFY public_id VARCHAR(40) NOT NULL;
 
 SET @index_exists := (
     SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND INDEX_NAME = 'uk_user_public_id'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser' AND INDEX_NAME = 'uk_advertiser_public_id'
 );
 SET @sql := IF(@index_exists = 0,
-    'CREATE UNIQUE INDEX uk_user_public_id ON `user` (public_id)', 'SELECT 1');
+    'CREATE UNIQUE INDEX uk_advertiser_public_id ON advertiser (public_id)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @index_exists := (

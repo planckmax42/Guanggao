@@ -181,7 +181,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private PlanEntity toPlanEntity(AdCandidateDocument candidate) {
         PlanEntity plan = new PlanEntity();
         plan.setId(candidate.getPlanId());
-        plan.setUserId(candidate.getUserId());
+        plan.setAdvertiserId(candidate.getAdvertiserId());
         plan.setBudgetTotal(candidate.getBudgetTotal());
         plan.setBudgetDaily(candidate.getBudgetDaily());
         plan.setBidPrice(candidate.getBidPrice());

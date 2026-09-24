@@ -8,9 +8,9 @@ DELETE FROM `rule`;
 DELETE FROM material;
 DELETE FROM plan;
 DELETE FROM slot;
-DELETE FROM `user`;
+DELETE FROM advertiser;
 
-ALTER TABLE `user` AUTO_INCREMENT = 1;
+ALTER TABLE advertiser AUTO_INCREMENT = 1;
 ALTER TABLE slot AUTO_INCREMENT = 1;
 ALTER TABLE plan AUTO_INCREMENT = 1;
 ALTER TABLE material AUTO_INCREMENT = 1;
@@ -20,7 +20,7 @@ ALTER TABLE daily_report AUTO_INCREMENT = 1;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
-INSERT INTO `user`
+INSERT INTO advertiser
     (id, public_id, name, industry, contact_name, contact_email, bloomSnapshot, created_at, updated_at)
 VALUES
     (1, 'adv_00000000000000000000000000000001', '鲜果优选', '生鲜电商', '张经理', 'fresh@example.com', 1, NOW(), NOW()),
@@ -39,7 +39,7 @@ VALUES
 -- 金额字段统一按“分”存储：
 -- budget_total=1000000 表示总预算 10000 元，bid_price=150 表示出价 1.5 元。
 INSERT INTO plan
-    (id, public_id, user_id, name, budget_total, budget_daily, bid_price, billing_type, start_time, end_time, bloomSnapshot, created_at, updated_at)
+    (id, public_id, advertiser_id, name, budget_total, budget_daily, bid_price, billing_type, start_time, end_time, bloomSnapshot, created_at, updated_at)
 VALUES
     (1, 'plan_00000000000000000000000000000001', 1, '鲜果优选-华东拉新计划', 1000000, 200000, 150, 'CPM', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY), 'ONLINE', NOW(), NOW()),
     (2, 'plan_00000000000000000000000000000002', 2, '编程学院-Java课程转化计划', 800000, 120000, 260, 'CPC', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 20 DAY), 'ONLINE', NOW(), NOW()),

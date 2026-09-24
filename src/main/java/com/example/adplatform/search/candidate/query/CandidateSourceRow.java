@@ -46,5 +46,5 @@ public class CandidateSourceRow {
     private String userTags;
     private LocalDateTime updatedAt;
 
-    private Long userId;
+    private Long advertiserId;
 }

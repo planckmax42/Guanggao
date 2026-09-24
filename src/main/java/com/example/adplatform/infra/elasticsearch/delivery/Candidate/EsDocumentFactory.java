@@ -72,7 +72,7 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysqlæŸ¥è¯
         document.setTags(tags);
         document.setUpdatedAt(row.getUpdatedAt());
 
-        document.setUserId(row.getUserId());
+        document.setAdvertiserId(row.getAdvertiserId());
         return document;
     }
 

@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class PlanRuleJoinRow {
 
     private Long planId;
-    private Long userId;
+    private Long advertiserId;
     private String planName;
     private Long budgetTotal;
     private Long budgetDaily;

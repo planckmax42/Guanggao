@@ -10,14 +10,14 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 表名迁移。
 SET @old_table_exists := (
     SELECT COUNT(*) FROM information_schema.TABLES
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user'
 );
 SET @new_table_exists := (
     SELECT COUNT(*) FROM information_schema.TABLES
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser'
 );
 SET @sql := IF(@old_table_exists = 1 AND @new_table_exists = 0,
-    'RENAME TABLE advertiser TO `user`',
+    'RENAME TABLE `user` TO advertiser',
     'SELECT 1'
 );
 PREPARE stmt FROM @sql;
@@ -123,14 +123,14 @@ DEALLOCATE PREPARE stmt;
 -- 字段名迁移。
 SET @old_column_exists := (
     SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND COLUMN_NAME = 'advertiser_id'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND COLUMN_NAME = 'user_id'
 );
 SET @new_column_exists := (
     SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND COLUMN_NAME = 'user_id'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND COLUMN_NAME = 'advertiser_id'
 );
 SET @sql := IF(@old_column_exists = 1 AND @new_column_exists = 0,
-    'ALTER TABLE plan RENAME COLUMN advertiser_id TO user_id',
+    'ALTER TABLE plan RENAME COLUMN user_id TO advertiser_id',
     'SELECT 1'
 );
 PREPARE stmt FROM @sql;
@@ -300,18 +300,18 @@ DEALLOCATE PREPARE stmt;
 -- 索引名迁移。索引名本身不影响数据，但统一后更方便排查 SQL。
 SET @index_exists := (
     SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND INDEX_NAME = 'uk_advertiser_name'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser' AND INDEX_NAME = 'uk_user_name'
 );
-SET @sql := IF(@index_exists > 0, 'ALTER TABLE `user` DROP INDEX uk_advertiser_name', 'SELECT 1');
+SET @sql := IF(@index_exists > 0, 'ALTER TABLE advertiser DROP INDEX uk_user_name', 'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 SET @index_exists := (
     SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND INDEX_NAME = 'uk_user_name'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'advertiser' AND INDEX_NAME = 'uk_advertiser_name'
 );
-SET @sql := IF(@index_exists = 0, 'ALTER TABLE `user` ADD UNIQUE KEY uk_user_name (name)', 'SELECT 1');
+SET @sql := IF(@index_exists = 0, 'ALTER TABLE advertiser ADD UNIQUE KEY uk_advertiser_name (name)', 'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -345,9 +345,9 @@ DEALLOCATE PREPARE stmt;
 
 SET @index_exists := (
     SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND INDEX_NAME = 'idx_plan_user_status'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND INDEX_NAME = 'idx_plan_advertiser_status'
 );
-SET @sql := IF(@index_exists = 0, 'ALTER TABLE plan ADD INDEX idx_plan_user_status (user_id, bloomSnapshot)', 'SELECT 1');
+SET @sql := IF(@index_exists = 0, 'ALTER TABLE plan ADD INDEX idx_plan_advertiser_status (advertiser_id, bloomSnapshot)', 'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

@@ -17,7 +17,7 @@ public interface CandidateSourceMapper {
     /** 与 {@link CandidateSourceRow} 字段一一对应的去范式化投影。 */
     String COLUMNS = """
             m.id AS materialId, m.public_id AS materialPublicId,
-            m.plan_id AS planId, p.public_id AS planPublicId, p.user_id AS userId,
+            m.plan_id AS planId, p.public_id AS planPublicId, p.advertiser_id AS advertiserId,
             m.slot_id AS slotId, s.public_id AS slotPublicId, s.slot_code AS slotCode,
             m.title, m.description, m.image_url AS imageUrl,
             m.landing_page_url AS landingPageUrl, m.bloomSnapshot AS materialStatus,

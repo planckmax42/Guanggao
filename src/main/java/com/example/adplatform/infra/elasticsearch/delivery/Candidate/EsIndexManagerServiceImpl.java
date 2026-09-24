@@ -128,7 +128,7 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
         keyword(fields, "id", "materialPublicId", "planPublicId", "slotPublicId", "slotCode",
                 "materialStatus", "auditStatus", "planStatus", "billingType", "gender");
         keyword(fields, "regions", "deviceTypes", "tags");
-        longs(fields, "materialId", "planId", "userId", "slotId", "budgetTotal", "budgetDaily", "bidPrice");
+        longs(fields, "materialId", "planId", "advertiserId", "slotId", "budgetTotal", "budgetDaily", "bidPrice");
         integers(fields, "ageMin", "ageMax");
         booleans(fields, "regionAll", "deviceAll", "genderAll", "ageAll", "tagAll");
         dates(fields, "startTime", "endTime", "updatedAt");

@@ -74,5 +74,5 @@ public class AdCandidateDocument {
     @ValueConverter(LocalDateTimeEpochMillisConverter.class)
     private LocalDateTime updatedAt;
 
-    private Long userId;
+    private Long advertiserId;
 }

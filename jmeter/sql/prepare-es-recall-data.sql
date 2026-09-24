@@ -27,9 +27,9 @@ DELETE FROM `rule` WHERE id BETWEEN 900001 AND 910000;
 DELETE FROM material WHERE id BETWEEN 900001 AND 910000;
 DELETE FROM plan WHERE id BETWEEN 900001 AND 910000;
 DELETE FROM slot WHERE id BETWEEN 900001 AND 900003;
-DELETE FROM `user` WHERE id = 900000;
+DELETE FROM advertiser WHERE id = 900000;
 
-INSERT INTO `user`
+INSERT INTO advertiser
     (id, public_id, name, industry, contact_name, contact_email, bloomSnapshot, created_at, updated_at)
 VALUES
     (900000, 'adv_00000000000000000000000000900000', 'ES召回压测广告主', '性能测试', '压测管理员', 'es-load-test@example.com', 1, NOW(), NOW());
@@ -42,7 +42,7 @@ VALUES
     (900003, 'slot_00000000000000000000000000900003', 'ES_LOAD_SEARCH', 'ES压测搜索广告位', 640, 120, 'LOAD_TEST', 1, NOW(), NOW());
 
 INSERT INTO plan
-    (id, public_id, user_id, name, budget_total, budget_daily, bid_price, billing_type,
+    (id, public_id, advertiser_id, name, budget_total, budget_daily, bid_price, billing_type,
      start_time, end_time, bloomSnapshot, created_at, updated_at)
 SELECT
     900000 + n,
