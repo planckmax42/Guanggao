@@ -146,6 +146,7 @@ app:
       config-change-dlt: ad-config-change-dlt
       slot-cache-write: ad-slot-write
       slot-cache-update: ad-slot-update
+      slot-es-sync: ad-slot-es-sync
       slot-cache-sync-dlt: ad-slot-cache-sync-dlt
     consumer-groups:
       legacy: tracking-consumer

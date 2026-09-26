@@ -15,36 +15,24 @@ import java.time.LocalDateTime;
 @Setter
 public class CandidateSourceRow {
 
-    private Long materialId;
     private String materialPublicId;
-    private String title;
-    private String description;
-    private String imageUrl;
-    private String landingPageUrl;
-    private String auditStatus;
+    private String materialAuditStatus;
     private Integer materialStatus;
 
-    private Long planId;
     private String planPublicId;
-    private Long budgetTotal;
-    private Long budgetDaily;
     private Long bidPrice;
     private String billingType;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String planStatus;
 
-    private Long slotId;
-    private String slotPublicId;
     private String slotCode;
 
+    private String rulePublicId;
     private String region;
     private String deviceType;
     private String gender;
     private Integer ageMin;
     private Integer ageMax;
-    private String userTags;
-    private LocalDateTime updatedAt;
 
-    private Long advertiserId;
 }

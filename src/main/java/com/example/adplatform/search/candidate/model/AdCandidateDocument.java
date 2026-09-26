@@ -30,19 +30,11 @@ public class AdCandidateDocument {
 
     @Id
     private String id;
-    private Long materialId;
     private String materialPublicId;
-    private String title;
-    private String description;
-    private String imageUrl;
-    private String landingPageUrl;
     private String auditStatus;
     private String materialStatus;
 
-    private Long planId;
     private String planPublicId;
-    private Long budgetTotal;
-    private Long budgetDaily;
     private Long bidPrice;
     private String billingType;
     @Field(type = FieldType.Date, format = DateFormat.epoch_millis)
@@ -53,26 +45,13 @@ public class AdCandidateDocument {
     private LocalDateTime endTime;
     private String planStatus;
 
-    private Long slotId;
-    private String slotPublicId;
     private String slotCode;
 
-    // “All=true”明确表示该维度不限制；不能仅依赖空数组，因为空 terms 查询不会命中。
+    private String rulePublicId;
     private List<String> regions;
-    private boolean regionAll;
     private List<String> deviceTypes;
-    private boolean deviceAll;
     private String gender;
-    private boolean genderAll;
     private Integer ageMin;
     private Integer ageMax;
-    private boolean ageAll;
-    private List<String> tags;
-    private boolean tagAll;
-    // 仅用于排查索引新旧程度，不参与召回排序。
-    @Field(type = FieldType.Date, format = DateFormat.epoch_millis)
-    @ValueConverter(LocalDateTimeEpochMillisConverter.class)
-    private LocalDateTime updatedAt;
 
-    private Long advertiserId;
 }

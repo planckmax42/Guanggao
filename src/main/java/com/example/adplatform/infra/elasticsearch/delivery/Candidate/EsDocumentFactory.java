@@ -32,47 +32,28 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysqlæŸ¥è¯
     public AdCandidateDocument from(CandidateSourceRow row) {
         AdCandidateDocument document = new AdCandidateDocument();
 
-        document.setId(row.getMaterialPublicId());
-        document.setMaterialId(row.getMaterialId());
+//        document.setId(row.getMaterialPublicId());
         document.setMaterialPublicId(row.getMaterialPublicId());
-        document.setTitle(row.getTitle());
-        document.setDescription(row.getDescription());
-        document.setImageUrl(row.getImageUrl());
-        document.setLandingPageUrl(row.getLandingPageUrl());
-        document.setAuditStatus(row.getAuditStatus());
+        document.setMaterialPublicId(row.getMaterialPublicId());
+        document.setAuditStatus(row.getMaterialAuditStatus());
         document.setMaterialStatus(CommonStatus.ENABLED == row.getMaterialStatus() ? "ENABLED" : "DISABLED");
 
-        document.setPlanId(row.getPlanId());
         document.setPlanPublicId(row.getPlanPublicId());
-        document.setBudgetTotal(row.getBudgetTotal());
-        document.setBudgetDaily(row.getBudgetDaily());
         document.setBidPrice(row.getBidPrice());
         document.setBillingType(row.getBillingType());
         document.setStartTime(row.getStartTime());
         document.setEndTime(row.getEndTime());
         document.setPlanStatus(row.getPlanStatus());
 
-        document.setSlotId(row.getSlotId());
-        document.setSlotPublicId(row.getSlotPublicId());
         document.setSlotCode(row.getSlotCode());
 
         List<String> regions = parseList(row.getRegion(), value -> value.toUpperCase(Locale.ROOT));
-        document.setRegionAll(regions.isEmpty());
         document.setRegions(regions);
         List<String> devices = parseList(row.getDeviceType(), value -> value.toUpperCase(Locale.ROOT));
-        document.setDeviceAll(devices.isEmpty());
         document.setDeviceTypes(devices);
-        document.setGenderAll(!StringUtils.hasText(row.getGender()));
         document.setGender(row.getGender());
-        document.setAgeAll(row.getAgeMin() == null && row.getAgeMax() == null);
         document.setAgeMin(row.getAgeMin() == null ? 0 : row.getAgeMin());
         document.setAgeMax(row.getAgeMax() == null ? 120 : row.getAgeMax());
-        List<String> tags = parseList(row.getUserTags(), value -> value.toLowerCase(Locale.ROOT));
-        document.setTagAll(tags.isEmpty());
-        document.setTags(tags);
-        document.setUpdatedAt(row.getUpdatedAt());
-
-        document.setAdvertiserId(row.getAdvertiserId());
         return document;
     }
 

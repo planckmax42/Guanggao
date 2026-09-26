@@ -73,7 +73,7 @@ public class SlotServiceImpl implements SlotService {
                 slotMapper.insert(slotEntity);
             }catch (DuplicateKeyException exception)
             {
-                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位生成PublicId再次重复,请刷新后重试");
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位生成PublicId重复,请刷新后重试");
             }
         }
         String slotCode = slotEntity.getSlotCode();
@@ -81,8 +81,7 @@ public class SlotServiceImpl implements SlotService {
             slotFilterService.addSlotFilter(slotCode);
             applicationEventPublisher.publishEvent(new SlotCacheCreateEvent(slotCode, slotEntity.getId()));
         }
-        slotDebeziumPort.writeRedisWithRetry(slotEntity.getId(),slotCode);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, slotEntity.getPublicId());
+        slotDebeziumPort.writeCacheWithRetry(slotEntity.getId(),slotCode);
         return slotConverter.toRef(slotEntity);
     }
     @Override
@@ -106,9 +105,9 @@ public class SlotServiceImpl implements SlotService {
         }
         if (!Objects.equals(oldSlotCode, newSlotCode)) {
             applicationEventPublisher.publishEvent(new SlotCacheUpdateEvent(oldSlotCode,newSlotCode,newEntity.getId()));
-            slotDebeziumPort.updateRedisWithRetry(newEntity.getId(),oldSlotCode,newSlotCode);
+            slotDebeziumPort.updateCacheWithRetry(newEntity.getId(),oldSlotCode,newSlotCode);
         }
-        searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
+        slotDebeziumPort.syncElasticsearchWithRetry(newSlotCode);
         return slotConverter.toResponse(newEntity);
     }
 
@@ -127,7 +126,7 @@ public class SlotServiceImpl implements SlotService {
             slotFilterService.addSlotFilter(slotCode);
         }
         applicationEventPublisher.publishEvent(new SlotCacheUpdateStatusEvent(slotCode,slotEntity.getId(),slotEntity.getStatus()));
-        slotDebeziumPort.writeRedisWithRetry(slotEntity.getId(),slotCode);
+        slotDebeziumPort.writeCacheWithRetry(slotEntity.getId(),slotCode);
         searchOutboxService.appendConfigChange(ConfigAggregateType.SLOT, publicId);
         applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
                 ConfigAggregateType.SLOT,

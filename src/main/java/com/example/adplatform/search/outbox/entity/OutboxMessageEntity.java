@@ -18,7 +18,6 @@ public class OutboxMessageEntity {
     private String eventId;
     private String topic;
     private String messageKey;
-    private String messageType;
     private String payload;
     private String status;
     private Integer retryCount;
