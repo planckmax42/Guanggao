@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.redis.delivery.stopguard;
 
+import com.example.adplatform.admin.port.slot.SlotCacheStopGuardPort;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
 import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
@@ -28,11 +29,11 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, DeliveryStopGuardWritePort {
+public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, DeliveryStopGuardWritePort, SlotCacheStopGuardPort {
 
-    private static final String STOPPED_PLANS = "delivery:stopped:plans";
-    private static final String STOPPED_MATERIALS = "delivery:stopped:materials";
-    private static final String STOPPED_SLOTS = "delivery:stopped:slots";
+    private static final String STOPPED_PLANS = "ad-platform:stopguard:plans";
+    private static final String STOPPED_MATERIALS = "ad-platform:stopguard:materials";
+    private static final String STOPPED_SLOTS = "ad-platform:stopguard:slots";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final MeterRegistry meterRegistry;
@@ -58,7 +59,15 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
             }
         }
     }
-
+    public void writeToStopGuardCache(String slotCode){
+        stringRedisTemplate.opsForSet().add(STOPPED_SLOTS,slotCode);
+    }
+    public void evictFromStopGuardCache(String slotCode){
+        stringRedisTemplate.opsForSet().remove(STOPPED_SLOTS,slotCode);
+    }
+    public boolean isMemberStopGuardCache(String slotCode){
+        return Boolean.TRUE.equals(stringRedisTemplate.opsForSet().isMember(STOPPED_SLOTS, slotCode));
+    }
     @Override
     public Set<Long> findStoppedPlans(Collection<Long> planIds) {
         return findMembers(STOPPED_PLANS, planIds, false);
@@ -80,7 +89,7 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
         }
         List<Object> results;
         try {
-            // 一条 Redis pipeline 承载全部 SISMEMBER，返回顺序与 ids 遍历顺序一致。
+            // 一条 Redis pipeline 承载全部 DISMEMBER，返回顺序与 ids 遍历顺序一致。
             results = stringRedisTemplate.executePipelined(//批量调用集合成员存在判断函数，减少网络开销
                     (RedisCallback<Object>) connection -> {
                 ids.forEach(id -> connection.setCommands().sIsMember(key.getBytes(), id.toString().getBytes()));

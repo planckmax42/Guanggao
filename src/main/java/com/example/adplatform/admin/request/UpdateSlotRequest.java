@@ -7,9 +7,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UpdateSlotRequest(
-        @NotBlank @Size(max = 64) String slotCode,
-        @NotBlank @Size(max = 128) String name,
-        @NotNull @Min(1) @Max(10000) Integer width,
-        @NotNull @Min(1) @Max(10000) Integer height,
-        @NotBlank @Size(max = 64) String scene) {
+        @NotBlank String publicId,
+         @Size(max = 64) String slotCode,
+         @Size(max = 128) String name,
+         @Min(1) @Max(10000) Integer width,
+         @Min(1) @Max(10000) Integer height,
+         @Size(max = 64) String scene) {
 }

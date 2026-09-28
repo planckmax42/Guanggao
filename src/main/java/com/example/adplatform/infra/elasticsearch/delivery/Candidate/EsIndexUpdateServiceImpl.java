@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
+import com.example.adplatform.infra.kafka.admin.port.SlotElasticsearchPort;
 import com.example.adplatform.infra.kafka.port.CandidateIndexUpdatePort;
 import com.example.adplatform.search.candidate.query.CandidateSourceRow;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
@@ -25,7 +26,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort {
+public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotElasticsearchPort {
 
     private final EsProperties properties;
     private final CandidateSourceMapper sourceMapper;
@@ -39,6 +40,10 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort {
      *
      * @param message 仅包含聚合定位信息的配置变更消息
      */
+    @Override
+    public void SlotElasticSearchUpdate(String SlotCode){
+
+    }
     @Override
     public void update(ConfigChangeMessage message) {
 

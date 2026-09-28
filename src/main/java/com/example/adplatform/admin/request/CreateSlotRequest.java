@@ -11,5 +11,6 @@ public record CreateSlotRequest(
         @NotBlank @Size(max = 128) String name,
         @NotNull @Min(1) @Max(10000) Integer width,
         @NotNull @Min(1) @Max(10000) Integer height,
-        @NotBlank @Size(max = 64) String scene) {
+        @NotBlank @Size(max = 64) String scene,
+        @NotNull @Min(0) @Max(1)Integer status) {
 }

@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.debezium.admin;
 
+import com.example.adplatform.admin.port.slot.SlotElasticsearchDebeziumPort;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.id.PublicIdGenerator;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class SlotElasticsearchOutbox {
+public class SlotElasticsearchOutbox implements SlotElasticsearchDebeziumPort {
 
     private final ObjectMapper objectMapper;
 

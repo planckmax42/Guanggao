@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
+import com.example.adplatform.infra.debezium.admin.SlotCacheEvictPayload;
 import com.example.adplatform.infra.debezium.admin.SlotCacheUpdatePayload;
 import com.example.adplatform.infra.debezium.admin.SlotCacheWritePayload;
 import com.example.adplatform.infra.kafka.admin.port.SlotCacheKafkaPort;
@@ -41,6 +42,14 @@ public class SlotCacheConsumer {
         slotCacheKafkaPort.writeSlotToRedis(payload.Id(),payload.newSlotCode());
     }
 
+    @KafkaListener(
+            topics = "${app.kafka.topics.slot-cache-evict}",
+            groupId = "${app.kafka.consumer-groups.slot-cache-evict}",
+            containerFactory = "slotCacheKafkaListenerContainerFactory")
+    public void consumeEvict(ConsumerRecord<String, String> record) throws Exception {
+        SlotCacheEvictPayload payload = objectMapper.readValue(record.value(), SlotCacheEvictPayload.class);
+        slotCacheKafkaPort.evictSlotCodeFromRedis(payload.slotCode());
+    }
 }
 //    @Override
 //    public void reconcileSlot(String slotPublicId, String previousSlotCode) {

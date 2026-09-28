@@ -146,6 +146,7 @@ app:
       config-change-dlt: ad-config-change-dlt
       slot-cache-write: ad-slot-write
       slot-cache-update: ad-slot-update
+      slot-cache-evict: ad-slot-evict
       slot-es-sync: ad-slot-es-sync
       slot-cache-sync-dlt: ad-slot-cache-sync-dlt
     consumer-groups:
@@ -155,6 +156,7 @@ app:
       statistics: event-statistics-consumer
       slot-cache-write: slot-cache-write-consumer
       slot-cache-update: slot_cache-update-consumer
+      slot-cache-evict: slot_cache-update-evict
   elasticsearch:
     enabled: ${ELASTICSEARCH_ENABLED:true}
     candidate:

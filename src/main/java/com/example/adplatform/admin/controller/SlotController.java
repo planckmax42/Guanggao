@@ -48,7 +48,7 @@ public class SlotController {
     public Result<SlotResponse> update(
             @PathVariable @Pattern(regexp = SLOT_PATTERN) String publicId,
             @Valid @RequestBody UpdateSlotRequest request) {
-        return Result.success(slotService.update(publicId, request));
+        return Result.success(slotService.update(request));
     }
 
     /**
@@ -58,7 +58,7 @@ public class SlotController {
     public Result<SlotResponse> updateStatus(
             @PathVariable @Pattern(regexp = SLOT_PATTERN) String publicId,
             @Valid @RequestBody UpdateSlotStatusRequest request) {
-        return Result.success(slotService.updateStatus(publicId, request));
+        return Result.success(slotService.updateStatus(request));
     }
 
     /**

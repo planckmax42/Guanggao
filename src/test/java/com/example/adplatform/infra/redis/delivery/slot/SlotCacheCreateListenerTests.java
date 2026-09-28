@@ -29,7 +29,7 @@ class SlotCacheCreateListenerTests {
                 cachePort,
                 new SlotCacheLockManager(properties()));
 
-        service.afterCommit(new SlotServiceImpl.SlotCacheCreateEvent("HOME_BANNER", 1L));
+        service.afterCommit(new SlotServiceImpl.SlotCacheWriteEvent("HOME_BANNER", 1L));
 
         verify(cachePort).writeSlotToRedis(1L, "HOME_BANNER");
     }

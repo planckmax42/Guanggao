@@ -26,14 +26,6 @@ public class SlotEntity {
     @Setter(AccessLevel.NONE)
     @TableField(updateStrategy = FieldStrategy.NEVER)
     private String publicId;
-    public void initializePublicId(String publicId) {
-        if (this.publicId != null) {
-            throw new IllegalStateException("广告位 publicId 创建后不允许修改");
-        }
-        this.publicId = Objects.requireNonNull(publicId, "publicId");}
-    public void refreshPublicId(String publicId){
-        this.publicId = Objects.requireNonNull(publicId, "publicId");
-    }
     private String slotCode;
     private String name;
     private Integer width;
@@ -44,4 +36,7 @@ public class SlotEntity {
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+    public void initializePublicId(String publicId) {
+        this.publicId = Objects.requireNonNull(publicId, "publicId");
+    }
 }

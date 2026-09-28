@@ -29,14 +29,14 @@ class SlotServiceImplTests {
         CreateSlotRequest request = new CreateSlotRequest(
                 "HOME_BANNER", "首页 Banner", 1080, 300, "APP_HOME");
         SlotEntity entity = slot(1L, "HOME_BANNER");
-        when(fixture.converter().toEntity(request)).thenReturn(entity);
+        when(fixture.converter().toCreateEntity(request)).thenReturn(entity);
 
         fixture.service().create(request);
 
         verify(fixture.slotCacheOutbox()).append(entity.getPublicId(), null);
         verify(fixture.searchOutbox()).appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
         verify(fixture.eventPublisher()).publishEvent(
-                new SlotServiceImpl.SlotCacheCreateEvent("HOME_BANNER", 1L));
+                new SlotServiceImpl.SlotCacheWriteEvent("HOME_BANNER", 1L));
         assertThat(entity.getPublicId()).matches("^slot_[0-9a-f]{32}$");
     }
 
@@ -52,7 +52,7 @@ class SlotServiceImplTests {
         when(fixture.mapper().selectOne(any())).thenReturn(existing);
         when(fixture.mapper().selectById(1L)).thenReturn(updated);
 
-        fixture.service().update(existing.getPublicId(), request);
+        fixture.service().update(request);
 
         verify(fixture.slotCacheOutbox()).append(existing.getPublicId(), "OLD_BANNER");
         verify(fixture.eventPublisher()).publishEvent(
@@ -69,7 +69,7 @@ class SlotServiceImplTests {
         when(fixture.mapper().selectOne(any())).thenReturn(existing);
         when(fixture.mapper().selectById(1L)).thenReturn(existing);
 
-        fixture.service().update(existing.getPublicId(), request);
+        fixture.service().update(request);
 
         verify(fixture.slotCacheOutbox(), never()).append(any(), any());
     }
