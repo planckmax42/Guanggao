@@ -3,7 +3,7 @@ package com.example.adplatform.admin.controller;
 import com.example.adplatform.admin.request.CreateMaterialRequest;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.MaterialResponse;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;

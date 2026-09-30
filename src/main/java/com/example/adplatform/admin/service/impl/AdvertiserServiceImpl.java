@@ -10,7 +10,7 @@ import com.example.adplatform.admin.service.AdvertiserService;
 import com.example.adplatform.admin.response.AdvertiserResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;

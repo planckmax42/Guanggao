@@ -2,7 +2,7 @@ package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.search.port.CandidateSearchPort;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class CandidateRecallServiceTests {
 
     @Test
     void shouldFallBackToMysqlWhenElasticsearchThrows() {
-        AdCandidateDocument fallback = new AdCandidateDocument();
+        CandidateDocument fallback = new CandidateDocument();
         fallback.setMaterialId(11L);
         elasticsearchRecall.failure = new IllegalStateException("timeout");
         mysqlRecall.result = List.of(fallback);
@@ -49,7 +49,7 @@ class CandidateRecallServiceTests {
         CandidateRecallResult result = recallService.recall(request);
 
         assertThat(result.source()).isEqualTo("MYSQL_FALLBACK");
-        assertThat(result.candidates()).extracting(AdCandidateDocument::getMaterialId).containsExactly(11L);
+        assertThat(result.candidates()).extracting(CandidateDocument::getMaterialId).containsExactly(11L);
     }
 
     @Test
@@ -64,7 +64,7 @@ class CandidateRecallServiceTests {
     }
 
     private static final class StubElasticsearchRecall implements CandidateSearchPort {
-        private List<AdCandidateDocument> result = List.of();
+        private List<CandidateDocument> result = List.of();
         private RuntimeException failure;
         private int calls;
         private boolean enabled = true;
@@ -75,7 +75,7 @@ class CandidateRecallServiceTests {
         }
 
         @Override
-        public List<AdCandidateDocument> recall(AdDeliveryRequest request) {
+        public List<CandidateDocument> recall(AdDeliveryRequest request) {
             calls++;
             if (failure != null) throw failure;
             return result;
@@ -83,7 +83,7 @@ class CandidateRecallServiceTests {
     }
 
     private static final class StubMysqlRecall extends MysqlCandidateRecallService {
-        private List<AdCandidateDocument> result = List.of();
+        private List<CandidateDocument> result = List.of();
         private int calls;
 
         private StubMysqlRecall() {
@@ -91,7 +91,7 @@ class CandidateRecallServiceTests {
         }
 
         @Override
-        public List<AdCandidateDocument> recall(AdDeliveryRequest request) {
+        public List<CandidateDocument> recall(AdDeliveryRequest request) {
             calls++;
             return result;
         }

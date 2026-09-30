@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -12,7 +12,7 @@ class CandidateTargetingMatcherTests {
 
     @Test
     void shouldMatchWhenEveryTargetingDimensionIsUnrestricted() {
-        AdCandidateDocument candidate = candidate(true, true, true, true, true);
+        CandidateDocument candidate = candidate(true, true, true, true, true);
         AdDeliveryRequest request = new AdDeliveryRequest(
                 1001L, "HOME_BANNER", null, null, null, null, List.of(), 3);
 
@@ -21,7 +21,7 @@ class CandidateTargetingMatcherTests {
 
     @Test
     void shouldMatchCaseInsensitivelyAndAcceptAnyIntersectingTag() {
-        AdCandidateDocument candidate = candidate(false, false, false, false, false);
+        CandidateDocument candidate = candidate(false, false, false, false, false);
         candidate.setRegions(List.of("BEIJING", "SHANGHAI"));
         candidate.setDeviceTypes(List.of("IOS", "ANDROID"));
         candidate.setGender("FEMALE");
@@ -37,7 +37,7 @@ class CandidateTargetingMatcherTests {
 
     @Test
     void shouldRejectMissingOrOutOfRangeTargetingContext() {
-        AdCandidateDocument candidate = candidate(false, false, false, false, false);
+        CandidateDocument candidate = candidate(false, false, false, false, false);
         candidate.setRegions(List.of("BEIJING"));
         candidate.setDeviceTypes(List.of("IOS"));
         candidate.setGender("FEMALE");
@@ -56,13 +56,13 @@ class CandidateTargetingMatcherTests {
                         "FEMALE", List.of(), 1))).isFalse();
     }
 
-    private AdCandidateDocument candidate(
+    private CandidateDocument candidate(
             boolean regionAll,
             boolean deviceAll,
             boolean genderAll,
             boolean ageAll,
             boolean tagAll) {
-        AdCandidateDocument candidate = new AdCandidateDocument();
+        CandidateDocument candidate = new CandidateDocument();
         candidate.setRegionAll(regionAll);
         candidate.setDeviceAll(deviceAll);
         candidate.setGenderAll(genderAll);

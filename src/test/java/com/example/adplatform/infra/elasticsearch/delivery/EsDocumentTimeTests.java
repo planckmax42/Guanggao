@@ -1,8 +1,8 @@
 package com.example.adplatform.infra.elasticsearch.delivery;
 
 import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsDocumentFactory;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
-import com.example.adplatform.search.candidate.query.CandidateSourceRow;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
+import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,13 +39,13 @@ class EsDocumentTimeTests {
 
     @Test
     void shouldKeepMysqlLocalTimesAndRoundTripThroughEpochMillis() {
-        CandidateSourceRow row = new CandidateSourceRow();
+        CandidateQueryResult row = new CandidateQueryResult();
         row.setMaterialStatus(1);
         LocalDateTime start = LocalDateTime.of(2026, 9, 23, 14, 0);
         row.setStartTime(start);
         row.setEndTime(start.plusHours(1));
         row.setUpdatedAt(start.minusHours(1));
-        AdCandidateDocument candidate = new EsDocumentFactory(new ObjectMapper()).from(row);
+        CandidateDocument candidate = new EsDocumentFactory(new ObjectMapper()).from(row);
 
         assertThat((Object) candidate.getStartTime()).isEqualTo(start);
         Document stored = Document.create();
@@ -54,7 +54,7 @@ class EsDocumentTimeTests {
         assertThat(stored.get("endTime").toString()).isEqualTo("1790146800000");
         assertThat(stored.get("updatedAt").toString()).isEqualTo("1790139600000");
 
-        AdCandidateDocument restored = converter.read(AdCandidateDocument.class, stored);
+        CandidateDocument restored = converter.read(CandidateDocument.class, stored);
         assertThat((Object) restored.getStartTime()).isEqualTo(start);
         assertThat((Object) restored.getEndTime()).isEqualTo(start.plusHours(1));
         assertThat((Object) restored.getUpdatedAt()).isEqualTo(start.minusHours(1));
@@ -66,7 +66,7 @@ class EsDocumentTimeTests {
                 "startTime", 1790143200000L,
                 "endTime", "1790146800000"));
 
-        AdCandidateDocument candidate = converter.read(AdCandidateDocument.class, stored);
+        CandidateDocument candidate = converter.read(CandidateDocument.class, stored);
 
         assertThat((Object) candidate.getStartTime()).isEqualTo(LocalDateTime.of(2026, 9, 23, 14, 0));
         assertThat((Object) candidate.getEndTime()).isEqualTo(LocalDateTime.of(2026, 9, 23, 15, 0));

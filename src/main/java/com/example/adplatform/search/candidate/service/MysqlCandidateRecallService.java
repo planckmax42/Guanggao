@@ -3,7 +3,7 @@ package com.example.adplatform.search.candidate.service;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.search.port.CandidateDocumentFactory;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ public class MysqlCandidateRecallService {
     private final CandidateDocumentFactory documentFactory;
 
     /** 从 MySQL 真实数据源构造并过滤候选快照。 */
-    public List<AdCandidateDocument> recall(AdDeliveryRequest request) {
+    public List<CandidateDocument> recall(AdDeliveryRequest request) {
         return sourceMapper.selectEligibleBySlotCode(request.slotCode()).stream()
                 .map(documentFactory::from)
                 .filter(candidate -> CandidateTargetingMatcher.matches(candidate, request))

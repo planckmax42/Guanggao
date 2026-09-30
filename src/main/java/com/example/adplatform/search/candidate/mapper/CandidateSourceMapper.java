@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.mapper;
 
-import com.example.adplatform.search.candidate.query.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -14,7 +14,7 @@ import java.util.List;
  */
 public interface CandidateSourceMapper {
 
-    /** 与 {@link CandidateSourceRow} 字段一一对应的去范式化投影。 */
+    /** 与 {@link CandidateQueryResult} 字段一一对应的去范式化投影。 */
     String COLUMNS = """
             m.id AS materialId, m.public_id AS materialPublicId,
             m.plan_id AS planId, p.public_id AS planPublicId, p.advertiser_id AS advertiserId,
@@ -44,16 +44,16 @@ public interface CandidateSourceMapper {
             """;
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " ORDER BY m.id")
-    List<CandidateSourceRow> selectAllEligible();
+    List<CandidateQueryResult> selectAllEligible();
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND m.public_id = #{materialPublicId}")
-    CandidateSourceRow selectEligibleByMaterialPublicId(@Param("materialPublicId") String materialPublicId);
+    CandidateQueryResult selectEligibleByMaterialPublicId(@Param("materialPublicId") String materialPublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND p.public_id = #{planPublicId} ORDER BY m.id")
-    List<CandidateSourceRow> selectEligibleByPlanPublicId(@Param("planPublicId") String planPublicId);
+    List<CandidateQueryResult> selectEligibleByPlanPublicId(@Param("planPublicId") String planPublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.public_id = #{slotPublicId} ORDER BY m.id")
-    List<CandidateSourceRow> selectEligibleBySlotPublicId(@Param("slotPublicId") String slotPublicId);
+    List<CandidateQueryResult> selectEligibleBySlotPublicId(@Param("slotPublicId") String slotPublicId);
 
     @Select("SELECT id FROM material WHERE public_id = #{publicId}")
     Long selectMaterialInternalId(@Param("publicId") String publicId);
@@ -73,5 +73,39 @@ public interface CandidateSourceMapper {
     String selectPlanPublicIdByRulePublicId(@Param("rulePublicId") String rulePublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.slot_code = #{slotCode} ORDER BY m.id DESC")
-    List<CandidateSourceRow> selectEligibleBySlotCode(@Param("slotCode") String slotCode);
+    List<CandidateQueryResult> selectEligibleBySlotCode(@Param("slotCode") String slotCode);
+
+    /** 查询计划、素材和规则的组合，不过滤投放状态；地域聚合为 JSON 数组，无地域时返回 []。 */
+    @Select("""
+            SELECT
+                a.public_id AS advertiserPublicId,
+                r.public_id AS rulePublicId,
+                r.device_type AS deviceType,
+                r.gender AS gender,
+                r.age_min AS ageMin,
+                r.age_max AS ageMax,
+                COALESCE(rg.regions, JSON_ARRAY()) AS region,
+                p.public_id AS planPublicId,
+                p.bid_price AS bidPrice,
+                p.billing_type AS billingType,
+                m.public_id AS materialPublicId,
+                s.public_id AS slotPublicId,
+                s.slot_code AS slotCode
+            FROM plan p
+            JOIN advertiser a ON a.id = p.advertiser_id
+            JOIN plan_material_relation pm ON pm.plan_id = p.id
+            JOIN material m ON m.id = pm.material_id
+            JOIN slot s ON s.id = m.slot_id
+            LEFT JOIN plan_rule_relation pr ON pr.plan_id = p.id
+            LEFT JOIN `rule` r ON r.id = pr.rule_id
+            LEFT JOIN (
+                SELECT
+                    rr.rule_id,
+                    JSON_ARRAYAGG(region.region_code) AS regions
+                FROM rule_region_relation rr
+                JOIN rule_region region ON region.id = rr.region_id
+                GROUP BY rr.rule_id
+            ) rg ON rg.rule_id = r.id
+            """)
+    List<CandidateQueryResult> selectAllCandidateCombinations();
 }

@@ -1,7 +1,7 @@
 package com.example.adplatform.search.port;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 
 import java.util.List;
 
@@ -10,5 +10,5 @@ public interface CandidateSearchPort {
 
     boolean isEnabled();
 
-    List<AdCandidateDocument> recall(AdDeliveryRequest request);
+    List<CandidateDocument> recall(AdDeliveryRequest request);
 }

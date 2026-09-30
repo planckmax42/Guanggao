@@ -17,7 +17,7 @@ import com.example.adplatform.admin.response.MaterialResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;

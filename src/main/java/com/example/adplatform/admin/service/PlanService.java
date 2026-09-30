@@ -3,7 +3,7 @@ package com.example.adplatform.admin.service;
 import com.example.adplatform.admin.request.CreatePlanRequest;
 import com.example.adplatform.admin.request.UpdatePlanRequest;
 import com.example.adplatform.admin.response.PlanResponse;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface PlanService {

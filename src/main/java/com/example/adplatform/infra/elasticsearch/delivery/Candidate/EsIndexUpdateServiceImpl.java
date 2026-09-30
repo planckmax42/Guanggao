@@ -1,10 +1,12 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
+import com.example.adplatform.common.exception.DependencyException;
+import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.kafka.admin.port.SlotElasticsearchPort;
 import com.example.adplatform.infra.kafka.port.CandidateIndexUpdatePort;
-import com.example.adplatform.search.candidate.query.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
 import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
@@ -34,15 +36,15 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
     private final ElasticsearchOperations operations;
     private final CandidateIndexRebuildGuard rebuildGuard;
     private final DeliveryStopGuardWritePort stopGuardService;
-
+    private final IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
     /**
      * 幂等同步素材、计划、定向规则或广告位的候选文档。
-     *
-     * @param message 仅包含聚合定位信息的配置变更消息
      */
     @Override
     public void SlotElasticSearchUpdate(String SlotCode){
-
+        if (rebuildGuard.isRebuilding()) {//如果正在重建中，则拒绝消费，抛出异常稍后重试，todo:后续加入补偿机制，过一段时间重试？
+            throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"Elasticsearch暂时不可用");
+        }
     }
     @Override
     public void update(ConfigChangeMessage message) {
@@ -50,7 +52,6 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
         if (rebuildGuard.isRebuilding()) {//如果正在重建中，则拒绝消费，抛出异常稍后重试，todo:后续加入补偿机制，过一段时间重试？
             throw new IllegalStateException("Candidate index is rebuilding");
         }
-        IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
         switch (message.aggregateType()) {
             case MATERIAL -> updateMaterial(message.aggregateId(), index);
             case PLAN -> updatePlan(message.aggregateId(), index);
@@ -66,7 +67,7 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
 
     private void updateMaterial(String materialPublicId, IndexCoordinates index) {//先删后写入保证幂等性
         operations.delete(materialPublicId, index);
-        CandidateSourceRow row = sourceMapper.selectEligibleByMaterialPublicId(materialPublicId);
+        CandidateQueryResult row = sourceMapper.selectEligibleByMaterialPublicId(materialPublicId);
         if (row != null) {
             operations.save(documentFactory.from(row), index);
         }
@@ -92,7 +93,7 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
     }
 
     private void deleteByField(String field, String value, IndexCoordinates index) {
-        operations.delete(new CriteriaQuery(new Criteria(field).is(value)), AdCandidateDocument.class, index);
+        operations.delete(new CriteriaQuery(new Criteria(field).is(value)), CandidateDocument.class, index);
     }
 
     private Long resolveInternalId(ConfigChangeMessage message) {
@@ -104,7 +105,7 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
         };
     }
 
-    private void saveAll(List<CandidateSourceRow> rows, IndexCoordinates index) {
+    private void saveAll(List<CandidateQueryResult> rows, IndexCoordinates index) {
         if (!rows.isEmpty()) {
             operations.save(rows.stream().map(documentFactory::from).toList(), index);
         }

@@ -1,23 +1,34 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch.indices.update_aliases.Action;
+import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.warmup.port.CandidateIndexInitialRebuildPort;
 import com.example.adplatform.infra.warmup.port.exception.CandidateIndexInitialRebuildException;
-import com.example.adplatform.search.candidate.query.CandidateSourceRow;
+import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import com.example.adplatform.search.port.CandidateIndexRebuildPort;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
 import com.example.adplatform.search.port.exception.CandidateIndexRebuildException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.elasticsearch.NoSuchIndexException;
+import org.springframework.data.elasticsearch.ResourceNotFoundException;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.IndexOperations;
+import org.springframework.data.elasticsearch.core.index.AliasAction;
+import org.springframework.data.elasticsearch.core.index.AliasActionParameters;
+import org.springframework.data.elasticsearch.core.index.AliasActions;
+import org.springframework.data.domain.Range;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +39,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 候选索引的全量重建与别名切换管理器。
@@ -50,6 +60,7 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
     private final CandidateIndexRebuildGuard rebuildGuard;
     private final CandidateSourceMapper candidateSourceMapper;
     private final EsDocumentFactory documentFactory;
+    private final ObjectMapper objectMapper;
 
     /** 判断候选读别名是否已经初始化。ES 不可达时按“不存在”处理并交由启动器降级。 */
     @Override
@@ -89,19 +100,17 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
         }
         String lockToken = rebuildGuard.acquire(properties.getCandidate().getRebuildLockTtl());
         String indexName = "ad-candidate-" + LocalDateTime.now().format(INDEX_SUFFIX);//生成新索引名称
-        int indexed = 0;
         try {
             // 1. 新建独立物理索引；在别名切换前，在线查询完全不受本次重建影响。
             createIndex(indexName);//这里建立的索引相当于mysql的表，不是倒排索引
-            List<CandidateSourceRow> rows = candidateSourceMapper.selectAllEligible();//从mysql中查询出所有数据，此次读取为完全读，todo：后续应该转换成游标读，防止一次读取撑爆JVM
+            List<CandidateQueryResult> rows = candidateSourceMapper.selectAllEligible();//从mysql中查询出所有数据，此次读取为完全读，todo：后续应该转换成游标读，防止一次读取撑爆JVM
             // 2. 分批写入，控制单次 bulk 请求大小和应用内存占用。
             for (int from = 0; from < rows.size(); from += 500) {//使用Bulk API批量写入，减少网络请求数
                 int to = Math.min(from + 500, rows.size());
-                List<AdCandidateDocument> documents = rows.subList(from, to).stream()
+                List<CandidateDocument> documents = rows.subList(from, to).stream()
                         .map(documentFactory::from)
                         .toList();
                 elasticsearchOperations.save(documents, IndexCoordinates.of(indexName));
-                indexed += documents.size();
             }
             // 3. refresh 后再切别名，确保切换瞬间所有文档已经可搜索。
             elasticsearchOperations.indexOps(IndexCoordinates.of(indexName)).refresh();//确保倒排索引构建完成，手动刷新保证数据的可见性
@@ -115,16 +124,24 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
         elasticsearchClient.indices().create(request -> request
                 .index(indexName)
                 .settings(settings -> settings
-                        .numberOfShards("1")
-                        .numberOfReplicas("0")
+                        .numberOfShards("2")
+                        .numberOfReplicas("1")
                         .refreshInterval(interval -> interval.time("1s")))
                 .mappings(mapping -> mapping
                         .dynamic(DynamicMapping.Strict)
                         .properties(candidateProperties())));
     }
 
+    private void createIndexWithSpringData(String indexName) {
+        IndexOperations indexOps = elasticsearchOperations.indexOps(IndexCoordinates.of(indexName));
+        indexOps.create(
+                indexOps.createSettings(CandidateDocument.class),
+                indexOps.createMapping(CandidateDocument.class)
+        );
+    }
+
     private Map<String, Property> candidateProperties() {
-        Map<String, Property> fields = new LinkedHashMap<>();
+        Map<String, Property> fields = new LinkedHashMap<>();//todo:系统的学习一下map
         keyword(fields, "id", "materialPublicId", "planPublicId", "slotPublicId", "slotCode",
                 "materialStatus", "auditStatus", "planStatus", "billingType", "gender");
         keyword(fields, "regions", "deviceTypes", "tags");
@@ -138,11 +155,27 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
         fields.put("landingPageUrl", nonIndexedKeyword());
         return fields;
     }
-
+    private Map<String,Property> new_candidateProperties(){
+        Map<String,Property> map = new LinkedHashMap<>();
+        map.put("advertiserPublicId",keyword());
+        map.put("rulePublicId",keyword());
+        map.put("deviceType",keyword());
+        map.put("gender",keyword());
+        map.put("ageMin",keyword());
+        map.put("ageMax",keyword());
+        map.put("regionCode",keyword());
+        map.put("planPublicId",keyword());
+        map.put("bidPrice",keyword());
+        map.put("billingType",keyword());
+        map.put("materialPublicId",keyword());
+        map.put("slotPublicId",keyword());
+        map.put("slotCode",keyword());
+        return map;
+    }
     private void switchIndex(String newIndex) throws IOException {
-        Set<String> oldIndices = currentAliasIndices();//得到当前别名对应的物理名称
+        String oldIndex = currentAliasIndex();//得到当前别名对应的物理名称
         List<Action> actions = new ArrayList<>();
-        for (String oldIndex : oldIndices) {//拼接移除别名操作，遍历集合中的所有操作
+        if (oldIndex != null) {
             actions.add(Action.of(action -> action.remove(remove -> remove
                     .index(oldIndex)
                     .aliases(properties.getCandidate().getReadAlias(), properties.getCandidate().getWriteAlias())
@@ -159,18 +192,36 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
         elasticsearchClient.indices().updateAliases(request -> request.actions(actions));
     }
 
-    private Set<String> currentAliasIndices() throws IOException {
-        try {
-            return elasticsearchClient.indices()
-                    .getAlias(request -> request.name(properties.getCandidate().getReadAlias()))
-                    .result()
-                    .keySet();
-        } catch (ElasticsearchException ex) {
-            if (ex.status() == 404) {
-                return Set.of();
-            }
-            throw ex;
-        }
+    private void switchIndexWithSpringData(String newIndex) throws IOException {
+        String alias = properties.getCandidate().getReadAlias();
+
+        String oldIndex = currentAliasIndex();
+
+        AliasActions actions = new AliasActions();
+        actions.add(new AliasAction.Remove(
+                AliasActionParameters.builder()
+                        .withIndices(oldIndex)
+                        .withAliases(alias)
+                        .build()
+        ));
+        actions.add(new AliasAction.Add(
+                AliasActionParameters.builder()
+                        .withIndices(newIndex)
+                        .withAliases(alias)
+                        .build()));
+        elasticsearchOperations
+                .indexOps(IndexCoordinates.of(newIndex))
+                .alias(actions);
+    }
+
+    private String currentAliasIndex() {
+        String alias = properties.getCandidate().getReadAlias();
+        return elasticsearchOperations
+                .indexOps(IndexCoordinates.of(alias))
+                .getAliases(alias)
+                .keySet()
+                .iterator()
+                .next();//todo:什么时候应该catch 什么时候应该不管
     }
 
     private void keyword(Map<String, Property> fields, String... names) {
@@ -206,5 +257,37 @@ public class EsIndexManagerServiceImpl implements CandidateIndexRebuildPort, Can
 
     private Property nonIndexedKeyword() {
         return Property.of(property -> property.keyword(keyword -> keyword.index(false)));
+    }
+    private Property keyword(){
+        return new KeywordProperty.Builder().build()._toProperty();
+    }
+
+    CandidateDocument fromQueryResultToDocument(CandidateQueryResult result){
+        CandidateDocument document = new CandidateDocument();
+        document.setId(result.getPlanPublicId() + ":" + result.getMaterialPublicId() + ":"
+                + (result.getRulePublicId() == null ? "" : result.getRulePublicId()));
+        document.setAdvertiserPublicId(result.getAdvertiserPublicId());
+        document.setRulePublicId(result.getRulePublicId());
+        document.setDeviceType(fromJsonToList(result.getDeviceType()));
+        document.setGender(result.getGender());
+        document.setAgeRange(Range.of(
+                result.getAgeMin() == null ? Range.Bound.unbounded() : Range.Bound.inclusive(result.getAgeMin()),
+                result.getAgeMax() == null ? Range.Bound.unbounded() : Range.Bound.inclusive(result.getAgeMax())));
+        document.setRegionCode(fromJsonToList(result.getRegionCode()));
+        document.setPlanPublicId(result.getPlanPublicId());
+        document.setBidPrice(result.getBidPrice());
+        document.setBillingType(result.getBillingType());
+        document.setMaterialPublicId(result.getMaterialPublicId());
+        document.setSlotPublicId(result.getSlotPublicId());
+        document.setSlotCode(result.getSlotCode());
+        return document;
+    }
+
+    private List<String> fromJsonToList(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.SERIALIZATION_FAILED,"JSON类型转化失败",ex);
+        }
     }
 }

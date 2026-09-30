@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
@@ -19,7 +19,7 @@ public final class CandidateTargetingMatcher {
     private CandidateTargetingMatcher() { }
 
     /** 判断候选是否满足请求画像；缺失的请求画像不能命中受限广告。 */
-    public static boolean matches(AdCandidateDocument candidate, AdDeliveryRequest request) {
+    public static boolean matches(CandidateDocument candidate, AdDeliveryRequest request) {
         if (!candidate.isRegionAll() && !containsIgnoreCase(candidate.getRegions(), request.region())) return false;
         if (!candidate.isDeviceAll() && !containsIgnoreCase(candidate.getDeviceTypes(), request.deviceType())) return false;
         if (!candidate.isGenderAll() && (!StringUtils.hasText(request.gender())

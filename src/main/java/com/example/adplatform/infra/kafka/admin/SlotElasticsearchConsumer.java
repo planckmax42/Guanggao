@@ -1,9 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
 import com.example.adplatform.infra.kafka.admin.port.SlotElasticsearchPort;
-import com.example.adplatform.infra.kafka.port.CandidateIndexUpdatePort;
-import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;

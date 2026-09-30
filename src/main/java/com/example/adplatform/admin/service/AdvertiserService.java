@@ -2,7 +2,7 @@ package com.example.adplatform.admin.service;
 
 import com.example.adplatform.admin.request.CreateAdvertiserRequest;
 import com.example.adplatform.admin.response.AdvertiserResponse;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface AdvertiserService {

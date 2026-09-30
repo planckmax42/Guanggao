@@ -1,6 +1,6 @@
 package com.example.adplatform.search;
 
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexUpdateServiceImpl;
 import com.example.adplatform.infra.redis.delivery.stopguard.DeliveryStopGuardService;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
@@ -164,7 +164,7 @@ class SearchPipelineIT {
         try {
             return elasticsearchOperations.get(
                     materialId,
-                    AdCandidateDocument.class,
+                    CandidateDocument.class,
                     IndexCoordinates.of("ad-candidate-read")) != null;
         } catch (RuntimeException ex) {
             return false;

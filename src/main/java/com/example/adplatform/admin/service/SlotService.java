@@ -4,8 +4,9 @@ import com.example.adplatform.admin.request.CreateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.response.AvailableSlotResponse;
-import com.example.adplatform.admin.response.SlotResponse;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.slot.SlotQueryResponse;
+import com.example.adplatform.admin.response.slot.SlotResponse;
+import com.example.adplatform.admin.response.PageResponse;
 
 import java.util.List;
 
@@ -17,7 +18,6 @@ public interface SlotService {
 
     SlotResponse updateStatus(UpdateSlotStatusRequest request);
 
-    PageResponse<SlotResponse> pageQuery(long current, long size, String slotCode, Integer status);
+    PageResponse<SlotQueryResponse> pageQuery(long current, long size, String slotCode, Integer status);
 
-    List<AvailableSlotResponse> listAvailable();
 }

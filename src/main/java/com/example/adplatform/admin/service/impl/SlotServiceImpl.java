@@ -11,12 +11,12 @@ import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.service.SlotService;
-import com.example.adplatform.admin.response.AvailableSlotResponse;
-import com.example.adplatform.admin.response.SlotResponse;
+import com.example.adplatform.admin.response.slot.SlotResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.response.PageResponse;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;
@@ -48,8 +48,6 @@ public class SlotServiceImpl implements SlotService {
     private final SlotConverter slotConverter;
     private final SlotFilterPort slotFilterService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final SlotCacheAdminPort slotCacheAdminPort;
-    private final SlotCacheLockManager lockManager;
     private final SlotCacheDebeziumPort slotCacheDebeziumPort;
     private final SlotElasticsearchDebeziumPort slotElasticsearchDebeziumPort;
     private final SlotCacheStopGuardPort slotCacheStopGuardPort;
@@ -130,43 +128,18 @@ public class SlotServiceImpl implements SlotService {
         return new SlotResponse(request.publicId());
      }
     @Override
-    public PageResponse<SlotResponse> pageQuery(long current, long size, String slotCode, Integer status) {
+    public PageResponse<SlotQueryResponse> pageQuery(long current, long size, String slotCode, Integer status) {
         Page<SlotEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<SlotEntity> query = new LambdaQueryWrapper<SlotEntity>()
                 .like(StringUtils.hasText(slotCode), SlotEntity::getSlotCode, slotCode)
                 .eq(status != null, SlotEntity::getStatus, status)
                 .orderByDesc(SlotEntity::getId);
         Page<SlotEntity> result = slotMapper.selectPage(page, query);
-        List<SlotResponse> records = result.getRecords().stream().map(slotConverter::toResponse).toList();
+        List<SlotQueryResponse> records = result.getRecords().stream().map(slotConverter::toQueryResponse).toList();
         return PageResponse.of(result, records);
     }
-    @Override
-    public List<AvailableSlotResponse> listAvailable() {
-        return slotMapper.selectList(new LambdaQueryWrapper<SlotEntity>()
-                        .eq(SlotEntity::getStatus, CommonStatus.ENABLED)
-                        .orderByAsc(SlotEntity::getSlotCode))
-                .stream()
-                .map(slotConverter::toAvailableResponse)
-                .toList();
-    }
-
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void afterCommit(SlotCacheWriteEvent event) {
-        slotCacheAdminPort.writeSlotToRedis(event.slotId(), event.slotCode());
-    }
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void afterCommit(SlotCacheUpdateEvent event) {//todo:锁机制
-        try (LockAcquireAttempt ignored = lockManager.acquireForWrite(event.oldSlotCode)) {
-            slotCacheAdminPort.evictSlotCodeFromRedis(event.oldSlotCode);
-            slotCacheAdminPort.writeSlotToRedis(event.Id,event.newSlotCode);
-        }
-    }
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void afterCommit(SlotCacheEvictEvent event){
-        slotCacheAdminPort.writeSlotToRedis(event.slotId(), event.slotCode());
-    }
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void afterCommit(SlotCacheStopGuardWriteEvent event){
+    public void afterCommit(SlotCacheStopGuardWriteEvent event){//需要重试机制吗
         slotCacheStopGuardPort.writeToStopGuardCache(event.slotCode);
     }
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -176,11 +149,5 @@ public class SlotServiceImpl implements SlotService {
     public record SlotCacheStopGuardWriteEvent(String slotCode){
     }
     public record SlotCacheStopGuardEvictEvent(String slotCode){
-    }
-    public record SlotCacheUpdateEvent( String oldSlotCode,String newSlotCode,Long Id) {
-    }
-    public record SlotCacheWriteEvent(String slotCode, long slotId) {
-    }
-    public record SlotCacheEvictEvent(String slotCode, long slotId){
     }
 }

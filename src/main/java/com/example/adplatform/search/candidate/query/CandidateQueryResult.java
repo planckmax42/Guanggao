@@ -3,8 +3,6 @@ package com.example.adplatform.search.candidate.query;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 /**
  * MySQL 候选联表查询结果，不作为外部接口 DTO。
  *
@@ -13,26 +11,25 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-public class CandidateSourceRow {
+public class CandidateQueryResult {
 
-    private String materialPublicId;
-    private String materialAuditStatus;
-    private Integer materialStatus;
-
-    private String planPublicId;
-    private Long bidPrice;
-    private String billingType;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private String planStatus;
-
-    private String slotCode;
+    private String advertiserPublicId;
 
     private String rulePublicId;
-    private String region;
     private String deviceType;
     private String gender;
     private Integer ageMin;
     private Integer ageMax;
+
+    private String regionCode;
+
+    private String planPublicId;
+    private Long bidPrice;
+    private String billingType;
+
+    private String materialPublicId;
+
+    private String slotPublicId;
+    private String slotCode;
 
 }

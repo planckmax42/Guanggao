@@ -1,8 +1,7 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
-import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.search.candidate.query.CandidateSourceRow;
-import com.example.adplatform.search.candidate.model.AdCandidateDocument;
+import com.example.adplatform.search.candidate.query.CandidateQueryResult;
+import com.example.adplatform.search.candidate.model.CandidateDocument;
 import com.example.adplatform.search.port.CandidateDocumentFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,31 +28,20 @@ public class EsDocumentFactory implements CandidateDocumentFactory {//mysql查�
 
     /** 根据数据库真实配置生成可直接索引的候选快照。 */
     @Override
-    public AdCandidateDocument from(CandidateSourceRow row) {
-        AdCandidateDocument document = new AdCandidateDocument();
+    public CandidateDocument from(CandidateQueryResult row) {
+        CandidateDocument document = new CandidateDocument();
 
 //        document.setId(row.getMaterialPublicId());
         document.setMaterialPublicId(row.getMaterialPublicId());
         document.setMaterialPublicId(row.getMaterialPublicId());
-        document.setAuditStatus(row.getMaterialAuditStatus());
-        document.setMaterialStatus(CommonStatus.ENABLED == row.getMaterialStatus() ? "ENABLED" : "DISABLED");
 
         document.setPlanPublicId(row.getPlanPublicId());
         document.setBidPrice(row.getBidPrice());
         document.setBillingType(row.getBillingType());
-        document.setStartTime(row.getStartTime());
-        document.setEndTime(row.getEndTime());
-        document.setPlanStatus(row.getPlanStatus());
 
         document.setSlotCode(row.getSlotCode());
 
-        List<String> regions = parseList(row.getRegion(), value -> value.toUpperCase(Locale.ROOT));
-        document.setRegions(regions);
         List<String> devices = parseList(row.getDeviceType(), value -> value.toUpperCase(Locale.ROOT));
-        document.setDeviceTypes(devices);
-        document.setGender(row.getGender());
-        document.setAgeMin(row.getAgeMin() == null ? 0 : row.getAgeMin());
-        document.setAgeMax(row.getAgeMax() == null ? 120 : row.getAgeMax());
         return document;
     }
 
