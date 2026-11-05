@@ -2,7 +2,7 @@ package com.example.adplatform.admin.response;
 
 import java.time.LocalDateTime;
 
-public record AdvertiserResponse(
+public record AdvertiserQueryResponse(
         String publicId,
         String name,
         String industry,

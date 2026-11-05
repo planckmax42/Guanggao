@@ -212,7 +212,7 @@
   "time": {"from": "now-30m", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
-  "title": "Kafka Event Pipeline",
+  "title": "卡夫卡事件管道",
   "uid": "kafka-event-pipeline",
   "version": 3,
   "weekStart": ""

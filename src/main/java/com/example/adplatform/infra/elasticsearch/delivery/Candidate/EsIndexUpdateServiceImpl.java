@@ -11,13 +11,18 @@ import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildG
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
 import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.RefreshPolicy;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
+import org.springframework.data.elasticsearch.core.query.ByQueryResponse;
 import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
+import org.springframework.data.elasticsearch.core.query.UpdateQuery;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 消费配置变更后，将单个聚合的最新 MySQL 状态同步到候选写别名。
@@ -36,15 +41,23 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
     private final ElasticsearchOperations operations;
     private final CandidateIndexRebuildGuard rebuildGuard;
     private final DeliveryStopGuardWritePort stopGuardService;
-    private final IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
     /**
      * 幂等同步素材、计划、定向规则或广告位的候选文档。
      */
     @Override
-    public void SlotElasticSearchUpdate(String SlotCode){
+    public void SlotElasticSearchUpdate(String oldSlotCode, String newSlotCode){
         if (rebuildGuard.isRebuilding()) {//如果正在重建中，则拒绝消费，抛出异常稍后重试，todo:后续加入补偿机制，过一段时间重试？
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"Elasticsearch暂时不可用");
         }
+        NativeQuery query = NativeQuery.builder()
+                .withQuery(queryBuilder -> queryBuilder.term(termBuilder -> termBuilder.field("slotCode").value(oldSlotCode)))
+                .build();
+        UpdateQuery updateQuery = UpdateQuery.builder(query)
+                .withScript("ctx._source.slotCode = params.newSlotCode")
+                .withParams(Map.of("newSlotCode", newSlotCode))
+                .withRefreshPolicy(RefreshPolicy.NONE)
+                .build();
+        operations.updateByQuery(updateQuery, IndexCoordinates.of(properties.getCandidate().getReadAlias()));
     }
     @Override
     public void update(ConfigChangeMessage message) {
@@ -52,6 +65,7 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
         if (rebuildGuard.isRebuilding()) {//如果正在重建中，则拒绝消费，抛出异常稍后重试，todo:后续加入补偿机制，过一段时间重试？
             throw new IllegalStateException("Candidate index is rebuilding");
         }
+        IndexCoordinates index = IndexCoordinates.of(properties.getCandidate().getWriteAlias());
         switch (message.aggregateType()) {
             case MATERIAL -> updateMaterial(message.aggregateId(), index);
             case PLAN -> updatePlan(message.aggregateId(), index);

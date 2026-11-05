@@ -28,6 +28,7 @@ public class EsProperties {
     @Setter
     public static class Candidate {
         /** 在线查询只使用读别名。 */
+        private String alias = "ad-candidate";
         private String readAlias = "ad-candidate-read";
         /** 增量同步只使用写别名。 */
         private String writeAlias = "ad-candidate-write";

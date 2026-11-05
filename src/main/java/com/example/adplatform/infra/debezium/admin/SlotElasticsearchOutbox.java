@@ -23,13 +23,14 @@ public class SlotElasticsearchOutbox implements SlotElasticsearchDebeziumPort {
     @Value("${app.kafka.topics.slot-es-sync}")
     private String topic;
 
-    public void syncElasticsearchWithRetry(String slotCode){
+    public void syncElasticsearchWithRetry(String oldSlotCode, String newSlotCode){
+        SlotElasticSearchUpdatePayload payload = new SlotElasticSearchUpdatePayload(oldSlotCode,newSlotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
         entity.setEventId(PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX));
         entity.setTopic(topic);
-        entity.setMessageKey("SlotElasticsearchSync:" + slotCode);
+        entity.setMessageKey("SlotElasticsearchSync:" + oldSlotCode);
         try {
-            entity.setPayload(objectMapper.writeValueAsString(slotCode));
+            entity.setPayload(objectMapper.writeValueAsString(payload));
         } catch (JsonProcessingException ex) {
             throw new BusinessException(ErrorCode.SERIALIZATION_FAILED,"广告位ES同步序列化失败",ex);
         }

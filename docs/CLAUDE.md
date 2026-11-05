@@ -23,8 +23,8 @@ mvn -Dtest=SearchPipelineIT test   # 集成测试，需本地 MySQL + Redis + ES
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 # Docker 服务
-docker compose -f docker/docker-compose.elasticsearch.yml up -d   # ES + Debezium Connect
-docker compose -f docker/docker-compose.logging.yml up -d          # Grafana + Prometheus + Loki
+docker compose -f docker/docker-es.yml up -d   # ES + Debezium Connect
+docker compose -f docker/docker-log.yml up -d          # Grafana + Prometheus + Loki
 ```
 
 健康检查：`curl http://127.0.0.1:8080/api/health`

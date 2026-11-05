@@ -5,7 +5,7 @@ import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.response.AvailableSlotResponse;
 import com.example.adplatform.admin.response.slot.SlotQueryResponse;
-import com.example.adplatform.admin.response.slot.SlotResponse;
+import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import org.mapstruct.*;
 
@@ -26,7 +26,7 @@ public interface SlotConverter {
     @Mapping(target = "updatedAt", ignore = true)
     SlotEntity toUpdateEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
 
-    SlotResponse toResponse(SlotEntity entity);
+    SlotOperationResponse toResponse(SlotEntity entity);
 
     SlotQueryResponse toQueryResponse(SlotEntity entity);
 

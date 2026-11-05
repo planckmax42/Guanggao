@@ -1,8 +1,8 @@
-name: guanggao
+name: es
 services:
   kafbat-ui:
     image: ghcr.io/kafbat/kafka-ui:v1.5.0
-    container_name: ad-platform-kafbat-ui
+    container_name: KafbatUi
     # Kafka 公布 localhost:9092，沿用 host 网络访问宿主机 Kafka 和 Connect。
     network_mode: host
     environment:
@@ -28,7 +28,7 @@ services:
 
   debezium-connect:
     image: quay.io/debezium/connect:3.6.0.Final
-    container_name: ad-platform-debezium-connect
+    container_name: DebeziumConnect
     # 本项目的 MySQL 运行在 Linux 宿主机 127.0.0.1:3306；host 网络让 Connector
     # 无需放宽 MySQL bind-address，同时也能访问 Kafka 对外公布的 127.0.0.1:9092。
     network_mode: host
@@ -75,7 +75,7 @@ services:
 
   debezium-init:
     image: curlimages/curl:8.10.1
-    container_name: ad-platform-debezium-init
+    container_name: DebeziumInit
     network_mode: host
     depends_on:
       debezium-connect:
@@ -96,7 +96,7 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-    container_name: ad-platform-elasticsearch
+    container_name: Elasticsearch
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"

@@ -7,7 +7,7 @@ import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
 import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexManagerServiceImpl;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.ElasticSearchManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
 import org.junit.jupiter.api.Test;
 
@@ -68,36 +68,36 @@ class WarmUpTasksTests {
     void shouldInitializeElasticsearchWhenEnabled() {
         EsProperties properties = mock(EsProperties.class);
         when(properties.isEnabled()).thenReturn(true);
-        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
+        ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
 
-        new ElasticsearchWarmUpTask(properties, esIndexManagerServiceImpl).warmUp();
+        new ElasticsearchWarmUpTask(properties, elasticSearchManager).warmUp();
 
-        verify(esIndexManagerServiceImpl).initialRebuild();
+        verify(elasticSearchManager).initialRebuild();
     }
 
     @Test
     void shouldSkipElasticsearchWhenDisabled() {
         EsProperties properties = mock(EsProperties.class);
-        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
+        ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
 
-        new ElasticsearchWarmUpTask(properties, esIndexManagerServiceImpl).warmUp();
+        new ElasticsearchWarmUpTask(properties, elasticSearchManager).warmUp();
 
         verify(properties).isEnabled();
-        verifyNoInteractions(esIndexManagerServiceImpl);
+        verifyNoInteractions(elasticSearchManager);
     }
 
     @Test
     void shouldContinueWhenElasticsearchInitializationFails() {
         EsProperties properties = mock(EsProperties.class);
         when(properties.isEnabled()).thenReturn(true);
-        EsIndexManagerServiceImpl esIndexManagerServiceImpl = mock(EsIndexManagerServiceImpl.class);
+        ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
         doThrow(new IllegalStateException("Elasticsearch unavailable"))
-                .when(esIndexManagerServiceImpl).initialRebuild();
+                .when(elasticSearchManager).initialRebuild();
 
         ElasticsearchWarmUpTask task = new ElasticsearchWarmUpTask(
-                properties, esIndexManagerServiceImpl);
+                properties, elasticSearchManager);
 
         assertDoesNotThrow(task::warmUp);
-        verify(esIndexManagerServiceImpl).initialRebuild();
+        verify(elasticSearchManager).initialRebuild();
     }
 }

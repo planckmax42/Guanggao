@@ -3,7 +3,7 @@ apiVersion: 1
 providers:
   - name: ad-platform-observability
     orgId: 1
-    folder: Ad Platform
+    folder: 广告平台
     type: file
     disableDeletion: true
     editable: false

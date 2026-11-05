@@ -17,7 +17,7 @@ import java.util.List;
 @Data
 @Setting(shards = 2)
 @Document(
-        indexName = "AdPlatformCandidate",
+        indexName = "ad-candidate",
         createIndex = false,
         writeTypeHint = WriteTypeHint.FALSE,
         dynamic = Dynamic.STRICT

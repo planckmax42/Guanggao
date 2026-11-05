@@ -1,6 +1,6 @@
 package com.example.adplatform.admin.response.slot;
 
 
-public record SlotResponse(
+public record SlotOperationResponse(
         String publicId) {
 }

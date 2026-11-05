@@ -1,13 +1,12 @@
-name: ad-platform-logging
+name: log
 services:
   loki:
     image: grafana/loki:3.7.0
-    container_name: ad-platform-loki
-    command: -config.file=/etc/loki/loki.yml
+    container_name: Loki
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
-      - ./observability/loki.yml:/etc/loki/loki.yml:ro
+      - ./observability/loki/loki.yml:/etc/loki/local-config.yml:ro
       - ad-platform-loki-data:/loki
     restart: unless-stopped
     healthcheck:
@@ -18,7 +17,7 @@ services:
 
   alloy:
     image: grafana/alloy:v1.16.1
-    container_name: ad-platform-alloy
+    container_name: Alloy
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -37,7 +36,7 @@ services:
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
-    container_name: ad-platform-kafka-exporter
+    container_name: KafkaExporter
     network_mode: host
     command:
       - --kafka.server=127.0.0.1:9092
@@ -48,11 +47,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.13.1
-    container_name: ad-platform-prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=7d
+    container_name: Prometheus
     ports:
       - "127.0.0.1:9090:9090"
     extra_hosts:
@@ -66,7 +61,7 @@ services:
 
   grafana:
     image: grafana/grafana:13.1.0
-    container_name: ad-platform-grafana
+    container_name: Grafana
     ports:
       - "127.0.0.1:3000:3000"
     environment:

@@ -80,7 +80,7 @@ src/main/resources/sql/99-seed-demo-data.sql
 3. 启动 Elasticsearch、Debezium 和 Kafbat UI：
 
 ```bash
-docker compose -f docker/docker-compose.elasticsearch.yml up -d
+docker compose -f docker/docker-es.yml up -d
 ```
 
 Compose 不会创建 Kafka 容器；它会启动 Elasticsearch、Debezium Kafka Connect、Kafbat UI，并通过 Connect
@@ -104,7 +104,7 @@ Kafbat UI 同样使用 host 网络连接 Kafka `127.0.0.1:9092` 和 Connect `127
 已有 Kafka 和 Debezium 时，可以单独启动界面：
 
 ```bash
-docker compose -f docker/docker-compose.elasticsearch.yml up -d kafbat-ui
+docker compose -f docker/docker-es.yml up -d kafbat-ui
 ```
 
 界面修改 Connector 配置后，应将需要保留的配置同步到 `docker/debezium/outbox-connector.json`。
@@ -129,7 +129,7 @@ curl http://127.0.0.1:8080/api/health
 Topic 和 Consumer Group，避免内部 Topic 干扰看板。
 
 ```bash
-docker compose -f docker/docker-compose.logging.yml up -d
+docker compose -f docker/docker-log.yml up -d
 ```
 
 打开 `http://127.0.0.1:3000`，默认账号密码是 `admin/admin`。`Ad Platform` 目录中的

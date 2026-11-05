@@ -2,7 +2,7 @@ package com.example.adplatform.admin.controller;
 
 import com.example.adplatform.admin.request.CreateAdvertiserRequest;
 import com.example.adplatform.admin.service.AdvertiserService;
-import com.example.adplatform.admin.response.AdvertiserResponse;
+import com.example.adplatform.admin.response.AdvertiserQueryResponse;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
@@ -38,7 +38,7 @@ public class AdvertiserController {
      * 分页查询广告主，支持按名称关键字和启用状态筛选。
      */
     @GetMapping("/page")
-    public Result<PageResponse<AdvertiserResponse>> page(
+    public Result<PageResponse<AdvertiserQueryResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) String name,

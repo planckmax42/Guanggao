@@ -11,16 +11,14 @@ import com.example.adplatform.admin.request.UpdateSlotRequest;
 import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
+import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.service.SlotService;
-import com.example.adplatform.admin.response.slot.SlotResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.id.PublicIdGenerator;
-import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -54,7 +52,7 @@ public class SlotServiceImpl implements SlotService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SlotResponse create(CreateSlotRequest request) {
+    public SlotOperationResponse create(CreateSlotRequest request) {
         SlotEntity slotEntity = slotConverter.toCreateEntity(request);
         slotEntity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
@@ -71,7 +69,7 @@ public class SlotServiceImpl implements SlotService {
     }
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SlotResponse update(UpdateSlotRequest request) {
+    public SlotOperationResponse update(UpdateSlotRequest request) {
         SlotEntity oldEntity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>().eq(SlotEntity::getPublicId, request.publicId()));
         if (oldEntity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
@@ -87,7 +85,7 @@ public class SlotServiceImpl implements SlotService {
         if (!Objects.equals(oldSlotCode, newSlotCode)&&Objects.equals(oldEntity.getStatus(), CommonStatus.ENABLED)) {
             slotFilterService.addSlotFilter(newSlotCode);//todo：如何删除？重建机制？// 布隆过滤器允许假阳性：提交前加入可避免提交后的假阴性误杀。
             slotCacheDebeziumPort.updateCacheWithRetry(oldEntity.getId(),oldSlotCode,newSlotCode);
-            slotElasticsearchDebeziumPort.syncElasticsearchWithRetry(newSlotCode);
+            slotElasticsearchDebeziumPort.syncElasticsearchWithRetry(oldSlotCode,newSlotCode);
         }
         return slotConverter.toResponse(newEntity);
     }
@@ -97,7 +95,7 @@ public class SlotServiceImpl implements SlotService {
 //    状态请求随后却按照旧编码 A 更新 Redis
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SlotResponse updateStatus(UpdateSlotStatusRequest request) {
+    public SlotOperationResponse updateStatus(UpdateSlotStatusRequest request) {
         SlotEntity slotEntity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getPublicId, request.publicId()));
         if (slotEntity == null) {
@@ -121,11 +119,11 @@ public class SlotServiceImpl implements SlotService {
         }
         return slotConverter.toResponse(slotEntity);
     }
-     public SlotResponse delete(DeleteSlotRequest request){
+     public SlotOperationResponse delete(DeleteSlotRequest request){
         int deleted = slotMapper.delete(new LambdaQueryWrapper<SlotEntity>().eq(SlotEntity::getPublicId,request.publicId()));
         if (deleted == 0) throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
         slotCacheDebeziumPort.evictCacheWithRetry(request.slotCode());
-        return new SlotResponse(request.publicId());
+        return new SlotOperationResponse(request.publicId());
      }
     @Override
     public PageResponse<SlotQueryResponse> pageQuery(long current, long size, String slotCode, Integer status) {
