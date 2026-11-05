@@ -1,0 +1,140 @@
+# 本地三节点 Elasticsearch 集群，每个节点都可参与主节点选举、存储数据和处理 ingest。
+# 参考：https://www.elastic.co/guide/en/elasticsearch/reference/8.13/docker.html
+# 启动：docker compose -f docker-es-cluster.yml up -d
+# 启动前停止占用 9200 的本机 ES 或原单节点 ES 容器。
+# 本机 HTTP 地址：127.0.0.1:9200、127.0.0.1:9201、127.0.0.1:9202。
+# 节点间通过 Compose 网络中的 9300 端口通信，不需要映射到宿主机。
+# cluster.initial_master_nodes 仅用于首次组建集群；成功后删除下面三处配置，保留数据卷。
+# 这是一个新集群，使用独立数据卷，不会加载原单节点 ES 的索引。
+name: es-cluster
+
+services:
+  es-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: Elasticsearch1
+    hostname: es-1
+    environment:
+      cluster.name: ad-platform-es-cluster
+      node.name: es-1
+      node.roles: master,data,ingest
+      network.host: 0.0.0.0
+      discovery.seed_hosts: es-1,es-2,es-3
+      cluster.initial_master_nodes: es-1,es-2,es-3
+      # 与现有本地应用一致，使用 HTTP，无须账号密码；HTTP 仅映射到本机。
+      xpack.security.enabled: "false"
+      # 本地练习关闭 mmap，无须修改宿主机 vm.max_map_count；不用于性能压测。
+      node.store.allow_mmap: "false"
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - ad-platform-es-1-data:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 120s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  es-2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: Elasticsearch2
+    hostname: es-2
+    environment:
+      cluster.name: ad-platform-es-cluster
+      node.name: es-2
+      node.roles: master,data,ingest
+      network.host: 0.0.0.0
+      discovery.seed_hosts: es-1,es-2,es-3
+      cluster.initial_master_nodes: es-1,es-2,es-3
+      xpack.security.enabled: "false"
+      node.store.allow_mmap: "false"
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:9201:9200"
+    volumes:
+      - ad-platform-es-2-data:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 120s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  es-3:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: Elasticsearch3
+    hostname: es-3
+    environment:
+      cluster.name: ad-platform-es-cluster
+      node.name: es-3
+      node.roles: master,data,ingest
+      network.host: 0.0.0.0
+      discovery.seed_hosts: es-1,es-2,es-3
+      cluster.initial_master_nodes: es-1,es-2,es-3
+      xpack.security.enabled: "false"
+      node.store.allow_mmap: "false"
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:9202:9200"
+    volumes:
+      - ad-platform-es-3-data:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 120s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  ad-platform-es-1-data:
+  ad-platform-es-2-data:
+  ad-platform-es-3-data:
