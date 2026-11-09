@@ -1,7 +1,7 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.request.AuditMaterialRequest;
-import com.example.adplatform.admin.response.MaterialResponse;
+import com.example.adplatform.admin.request.material.AuditMaterialRequest;
+import com.example.adplatform.admin.response.material.MaterialResponse;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;

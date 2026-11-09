@@ -5,7 +5,7 @@ import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.RuleMapper;
-import com.example.adplatform.admin.request.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.CreateRuleRequest;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import org.junit.jupiter.api.Test;

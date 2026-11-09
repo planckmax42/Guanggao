@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.response;
+package com.example.adplatform.admin.response.advertiser;
 
 import java.time.LocalDateTime;
 

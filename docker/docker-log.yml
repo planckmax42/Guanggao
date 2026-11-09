@@ -1,4 +1,4 @@
-name: log
+name: Log
 services:
   loki:
     image: grafana/loki:3.7.0
@@ -26,7 +26,7 @@ services:
     ports:
       - "127.0.0.1:12345:12345"
     volumes:
-      - ./observability/alloy.config:/etc/alloy/config.alloy:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - ../logs:/var/log/ad-platform:ro
       - ad-platform-alloy-data:/var/lib/alloy/data
     depends_on:

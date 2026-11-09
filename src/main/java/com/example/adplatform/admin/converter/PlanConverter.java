@@ -1,11 +1,11 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.request.CreatePlanRequest;
-import com.example.adplatform.admin.request.UpdatePlanRequest;
+import com.example.adplatform.admin.request.plan.CreatePlanRequest;
+import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.entity.BillingType;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.PlanStatus;
-import com.example.adplatform.admin.response.PlanResponse;
+import com.example.adplatform.admin.response.plan.PlanResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

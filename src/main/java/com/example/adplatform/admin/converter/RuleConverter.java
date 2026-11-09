@@ -1,8 +1,8 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.request.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.CreateRuleRequest;
 import com.example.adplatform.admin.entity.RuleEntity;
-import com.example.adplatform.admin.response.RuleResponse;
+import com.example.adplatform.admin.response.rule.RuleResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.ResourceRefResponse;

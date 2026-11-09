@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.request;
+package com.example.adplatform.admin.request.slot;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

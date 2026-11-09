@@ -1,8 +1,9 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.request.CreateSlotRequest;
-import com.example.adplatform.admin.request.UpdateSlotRequest;
-import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
+import com.example.adplatform.admin.request.slot.CreateSlotRequest;
+import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
+import com.example.adplatform.admin.request.slot.UpdateSlotStatusRequest;
+import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.service.SlotService;
 import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.admin.response.PageResponse;
@@ -37,7 +38,7 @@ public class SlotController {
      * 创建广告位，用于表示客户端场景中的广告投放位置。
      */
     @PostMapping
-    public Result<ResourceRefResponse> create(@Valid @RequestBody CreateSlotRequest request) {
+    public Result<SlotOperationResponse> create(@Valid @RequestBody CreateSlotRequest request) {
         return Result.success(slotService.create(request));
     }
 
@@ -65,7 +66,7 @@ public class SlotController {
      * 分页查询广告位，支持按广告位编码关键字和启用状态筛选。
      */
     @GetMapping("/page")
-    public Result<PageResponse<SlotOperationResponse>> page(
+    public Result<PageResponse<SlotQueryResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) String slotCode,

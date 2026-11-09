@@ -1,8 +1,8 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.request.CreateAdvertiserRequest;
+import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
-import com.example.adplatform.admin.response.AdvertiserQueryResponse;
+import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
 import com.example.adplatform.admin.response.advertiser.AdvertiserOperationResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import org.mapstruct.Mapper;

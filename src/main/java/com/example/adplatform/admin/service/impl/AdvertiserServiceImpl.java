@@ -3,12 +3,12 @@ package com.example.adplatform.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.AdvertiserConverter;
-import com.example.adplatform.admin.request.CreateAdvertiserRequest;
+import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.response.advertiser.AdvertiserOperationResponse;
 import com.example.adplatform.admin.service.AdvertiserService;
-import com.example.adplatform.admin.response.AdvertiserQueryResponse;
+import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
@@ -40,10 +40,9 @@ public class AdvertiserServiceImpl implements AdvertiserService {
     }
 
     @Override
-    public PageResponse<AdvertiserQueryResponse> pageQuery(long current, long size, String name, Integer status) {
+    public PageResponse<AdvertiserQueryResponse> pageQuery(long current, long size, Integer status) {
         Page<AdvertiserEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<AdvertiserEntity> query = new LambdaQueryWrapper<AdvertiserEntity>()
-                .like(StringUtils.hasText(name), AdvertiserEntity::getName, name)
                 .eq(status != null, AdvertiserEntity::getStatus, status)
                 .orderByDesc(AdvertiserEntity::getId);
         Page<AdvertiserEntity> result = advertiserMapper.selectPage(page, query);

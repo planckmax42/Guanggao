@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.response;
+package com.example.adplatform.admin.response.slot;
 
 /** 广告主选择投放位置时所需的最小广告位视图。 */
 public record AvailableSlotResponse(

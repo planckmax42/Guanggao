@@ -1,9 +1,8 @@
-package com.example.adplatform.admin.request;
+package com.example.adplatform.admin.request.slot;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UpdateSlotRequest(

@@ -1,9 +1,9 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.request.CreateSlotRequest;
-import com.example.adplatform.admin.request.UpdateSlotRequest;
+import com.example.adplatform.admin.request.slot.CreateSlotRequest;
+import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.admin.response.AvailableSlotResponse;
+import com.example.adplatform.admin.response.slot.AvailableSlotResponse;
 import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.common.enums.CommonStatus;

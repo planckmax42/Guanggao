@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.request;
+package com.example.adplatform.admin.request.material;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

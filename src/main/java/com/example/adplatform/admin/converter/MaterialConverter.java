@@ -1,9 +1,9 @@
 package com.example.adplatform.admin.converter;
 
-import com.example.adplatform.admin.request.CreateMaterialRequest;
+import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.MaterialAuditStatus;
 import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.admin.response.MaterialResponse;
+import com.example.adplatform.admin.response.material.MaterialResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import org.mapstruct.Mapper;

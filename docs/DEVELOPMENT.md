@@ -253,7 +253,7 @@ ad-platform
 接口：
 
 - `POST /api/platform/advertisers`
-- `GET /api/platform/advertisers/page`
+- `POST /api/platform/advertisers/page`：JSON 请求体，例如 `{"current":1,"size":10,"name":"广告","status":1}`；`current`、`size` 默认分别为 1、10，`name`、`status` 可省略。
 - `POST /api/platform/slots`
 - `PUT /api/platform/slots/{slotPublicId}`
 - `GET /api/advertiser/available-slots`

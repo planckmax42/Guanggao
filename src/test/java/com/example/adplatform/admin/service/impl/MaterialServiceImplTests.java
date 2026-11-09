@@ -7,7 +7,7 @@ import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.EventMetadataPort;
-import com.example.adplatform.admin.request.CreateMaterialRequest;
+import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;

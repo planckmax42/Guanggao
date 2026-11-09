@@ -1,8 +1,8 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.request.CreateMaterialRequest;
+import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.service.MaterialService;
-import com.example.adplatform.admin.response.MaterialResponse;
+import com.example.adplatform.admin.response.material.MaterialResponse;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;

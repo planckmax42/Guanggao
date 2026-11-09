@@ -2,13 +2,13 @@ package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.converter.RuleConverter;
-import com.example.adplatform.admin.request.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.CreateRuleRequest;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.RuleMapper;
 import com.example.adplatform.admin.service.RuleService;
-import com.example.adplatform.admin.response.RuleResponse;
+import com.example.adplatform.admin.response.rule.RuleResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.ResourceRefResponse;

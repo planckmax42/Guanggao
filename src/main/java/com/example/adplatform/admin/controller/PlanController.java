@@ -1,9 +1,9 @@
 package com.example.adplatform.admin.controller;
 
-import com.example.adplatform.admin.request.CreatePlanRequest;
-import com.example.adplatform.admin.request.UpdatePlanRequest;
+import com.example.adplatform.admin.request.plan.CreatePlanRequest;
+import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.service.PlanService;
-import com.example.adplatform.admin.response.PlanResponse;
+import com.example.adplatform.admin.response.plan.PlanResponse;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;

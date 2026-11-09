@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.response;
+package com.example.adplatform.admin.response.rule;
 
 import java.time.LocalDateTime;
 import java.util.List;

@@ -37,6 +37,6 @@ public class AdvertiserEntity {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
     public void initializePublicId(String publicId) {
-        this.publicId = Objects.requireNonNull(publicId, "publicId");
+        this.publicId = publicId;
     }
 }

@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.request;
+package com.example.adplatform.admin.request.advertiser;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

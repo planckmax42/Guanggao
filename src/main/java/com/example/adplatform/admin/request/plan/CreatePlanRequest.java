@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.request;
+package com.example.adplatform.admin.request.plan;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Future;

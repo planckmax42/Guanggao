@@ -1,8 +1,8 @@
 package com.example.adplatform.admin.service;
 
-import com.example.adplatform.admin.request.CreateSlotRequest;
-import com.example.adplatform.admin.request.UpdateSlotRequest;
-import com.example.adplatform.admin.request.UpdateSlotStatusRequest;
+import com.example.adplatform.admin.request.slot.CreateSlotRequest;
+import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
+import com.example.adplatform.admin.request.slot.UpdateSlotStatusRequest;
 import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.response.PageResponse;
