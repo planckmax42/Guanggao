@@ -3,6 +3,8 @@ package com.example.adplatform.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
+import com.example.adplatform.admin.entity.AdvertiserEntity;
+import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.request.material.AuditMaterialRequest;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
@@ -12,13 +14,12 @@ import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.port.EventMetadataPort;
+import com.example.adplatform.admin.response.material.MaterialOperationResponse;
 import com.example.adplatform.admin.service.MaterialService;
-import com.example.adplatform.admin.response.material.MaterialResponse;
+import com.example.adplatform.admin.response.material.MaterialQueryResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
@@ -51,61 +52,27 @@ public class MaterialServiceImpl implements MaterialService {
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final EventMetadataPort eventMetadataCacheService;
+    private final AdvertiserMapper advertiserMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ResourceRefResponse create(CreateMaterialRequest request) {
-        PlanEntity plan = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, request.planPublicId()));
-        if (plan == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.slotPublicId()));
-        if (slot == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-        }
-        if (slot.getStatus() == null || slot.getStatus() != CommonStatus.ENABLED) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "广告位已停用，不能创建素材");
-        }
-
-        MaterialEntity entity = materialConverter.toEntity(request);
+    public MaterialOperationResponse create(CreateMaterialRequest request) {
+        if(advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId())))
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告主不存在");
+        if(slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, request.slotPublicId())))
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
+        MaterialEntity entity = materialConverter.requestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
-        entity.setPlanId(plan.getId());
-        entity.setSlotId(slot.getId());
+        entity.setAdvertiserId(request.advertiserPublicId());
+        entity.setSlotId(request.slotPublicId());
         materialMapper.insert(entity);
-        eventMetadataCacheService.refreshAfterCommit(entity.getPublicId(), new EventMaterialMetadata(
-                entity.getId(),
-                plan.getId(),
-                entity.getSlotId(),
-                plan.getBudgetTotal(),
-                plan.getBudgetDaily(),
-                plan.getBidPrice(),
-                plan.getBillingType()));
-        searchOutboxService.appendConfigChange(ConfigAggregateType.MATERIAL, entity.getPublicId());
-        return materialConverter.toRef(entity);
+        return materialConverter.entityToOperationResponse(entity);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public MaterialResponse audit(String publicId, AuditMaterialRequest request) {
-        MaterialEntity entity = materialMapper.selectOne(new LambdaQueryWrapper<MaterialEntity>()
-                .eq(MaterialEntity::getPublicId, publicId));
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告素材不存在");
-        }
-        entity.setAuditStatus(request.auditStatus());
-        materialMapper.updateById(entity);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.MATERIAL, publicId);
-        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(
-                ConfigAggregateType.MATERIAL,
-                entity.getId(),
-                !"APPROVED".equals(request.auditStatus())));
-        return toResponse(materialMapper.selectById(entity.getId()));
-    }
-
-    @Override
-    public PageResponse<MaterialResponse> pageQuery(
+    public PageResponse<MaterialQueryResponse> pageQuery(
             long current,
             long size,
             String planPublicId,
@@ -133,8 +100,8 @@ public class MaterialServiceImpl implements MaterialService {
                 ? Map.of()
                 : slotMapper.selectBatchIds(slotIds).stream()
                         .collect(Collectors.toMap(SlotEntity::getId, SlotEntity::getPublicId));
-        List<MaterialResponse> records = result.getRecords().stream()
-                .map(entity -> materialConverter.toResponse(
+        List<MaterialQueryResponse> records = result.getRecords().stream()
+                .map(entity -> materialConverter.entityToQueryResponse(
                         entity,
                         planPublicIds.get(entity.getPlanId()),
                         slotPublicIds.get(entity.getSlotId())))
@@ -151,12 +118,4 @@ public class MaterialServiceImpl implements MaterialService {
         return plan;
     }
 
-    private MaterialResponse toResponse(MaterialEntity entity) {
-        PlanEntity plan = planMapper.selectById(entity.getPlanId());
-        SlotEntity slot = slotMapper.selectById(entity.getSlotId());
-        return materialConverter.toResponse(
-                entity,
-                plan == null ? null : plan.getPublicId(),
-                slot == null ? null : slot.getPublicId());
-    }
 }

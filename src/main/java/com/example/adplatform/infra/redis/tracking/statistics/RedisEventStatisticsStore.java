@@ -86,6 +86,6 @@ public class RedisEventStatisticsStore implements EventStatisticsStore {
                 statDate,
                 metadata.planId(),
                 metadata.materialId(),
-                metadata.slotId());
+                metadata.slotPublicId());
     }
 }

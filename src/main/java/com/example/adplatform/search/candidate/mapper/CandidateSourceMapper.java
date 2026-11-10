@@ -50,7 +50,7 @@ public interface CandidateSourceMapper {
     CandidateQueryResult selectEligibleByMaterialPublicId(@Param("materialPublicId") String materialPublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND p.public_id = #{planPublicId} ORDER BY m.id")
-    List<CandidateQueryResult> selectEligibleByPlanPublicId(@Param("planPublicId") String planPublicId);
+    List<CandidateQueryResult> selectEligibleByPlanPublicId(@Param("advertiserPublicId") String planPublicId);
 
     @Select("SELECT " + COLUMNS + FROM + " WHERE " + ELIGIBLE + " AND s.public_id = #{slotPublicId} ORDER BY m.id")
     List<CandidateQueryResult> selectEligibleBySlotPublicId(@Param("slotPublicId") String slotPublicId);

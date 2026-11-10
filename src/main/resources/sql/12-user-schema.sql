@@ -1,6 +1,6 @@
 USE ad_platform;
 
--- 存量环境先执行 11-rename-user-to-advertiser.sql，再创建新的用户表。
+-- 存量环境先执行 11-rename-user-entityToOperationResponse-advertiser.sql，再创建新的用户表。
 CREATE TABLE IF NOT EXISTS `user` (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(64) NOT NULL COMMENT '姓名',

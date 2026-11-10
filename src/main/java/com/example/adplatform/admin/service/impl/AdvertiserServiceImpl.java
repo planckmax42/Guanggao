@@ -44,7 +44,8 @@ public class AdvertiserServiceImpl implements AdvertiserService {
         Page<AdvertiserEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<AdvertiserEntity> query = new LambdaQueryWrapper<AdvertiserEntity>()
                 .eq(status != null, AdvertiserEntity::getStatus, status)
-                .orderByDesc(AdvertiserEntity::getId);
+                .orderByAsc(AdvertiserEntity::getName)
+                .orderByAsc(AdvertiserEntity::getId);
         Page<AdvertiserEntity> result = advertiserMapper.selectPage(page, query);
         List<AdvertiserQueryResponse> records = result.getRecords().stream().map(advertiserConverter::entityToQueryResponse).toList();
         return PageResponse.of(result, records);

@@ -217,19 +217,19 @@ DEALLOCATE PREPARE stmt;
 -- 将素材标题字段重命名为 name。
 SET @title_exists := (
     SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'material' AND COLUMN_NAME = 'title'
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'material' AND COLUMN_NAME = 'name'
 );
 SET @name_exists := (
     SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'material' AND COLUMN_NAME = 'name'
 );
 SET @sql := IF(@title_exists > 0 AND @name_exists = 0,
-    'ALTER TABLE material RENAME COLUMN title TO name',
+    'ALTER TABLE material RENAME COLUMN name TO name',
     'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 INSERT INTO schema_version (version, description)
-VALUES ('stage-15-add-common-fields', 'add common fields and rename material title to name')
+VALUES ('stage-15-add-common-fields', 'add common fields and rename material name entityToOperationResponse name')
 ON DUPLICATE KEY UPDATE description = VALUES(description);

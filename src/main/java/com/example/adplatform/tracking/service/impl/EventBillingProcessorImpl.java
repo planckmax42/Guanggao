@@ -102,7 +102,7 @@ public class EventBillingProcessorImpl implements EventBillingProcessor {
         record.setEventId(message.eventId());
         record.setPlanId(metadata.planId());
         record.setMaterialId(metadata.materialId());
-        record.setSlotId(metadata.slotId());
+        record.setSlotId(metadata.slotPublicId());
         record.setBillingType(BillingType.normalizeOrDefault(metadata.billingType()));
         record.setAmount(amount);
         record.setChargeStatus(status.name());

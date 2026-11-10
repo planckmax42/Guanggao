@@ -43,7 +43,7 @@ public class CandidateIndexRebuildGuard {
                 stringRedisTemplate.delete(List.of(REBUILD_LOCK_KEY, REBUILDING_KEY));
             }
         } catch (RuntimeException ex) {
-            log.warn("Failed to release candidate rebuild lock", ex);
+            log.warn("Failed entityToOperationResponse release candidate rebuild lock", ex);
         }
     }
 }

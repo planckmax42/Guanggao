@@ -55,7 +55,7 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
             }
         } catch (DataAccessException ex) {
             if (failureLogLimiter.shouldLog("stop_guard_write")) {
-                log.warn("Failed to update delivery stop guard, type={}, id={}, stopped={}", type, id, stopped, ex);
+                log.warn("Failed entityToOperationResponse update delivery stop guard, type={}, id={}, stopped={}", type, id, stopped, ex);
             }
         }
     }
@@ -101,7 +101,7 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
             String policy = effectiveFailClosed ? "fail-closed" : "fail-open";
             meterRegistry.counter("ad.delivery.stop.guard", "key", key, "result", policy).increment();
             if (failureLogLimiter.shouldLog("stop_guard_read")) {
-                log.warn("Failed to read delivery stop guards, key={}, policy={}", key, policy, ex);
+                log.warn("Failed entityToOperationResponse read delivery stop guards, key={}, policy={}", key, policy, ex);
             }
             return effectiveFailClosed ? new HashSet<>(ids) : Set.of();
         }

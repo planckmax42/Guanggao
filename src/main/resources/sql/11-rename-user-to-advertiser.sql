@@ -54,5 +54,5 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 INSERT INTO schema_version (version, description)
-VALUES ('stage-11-rename-user-to-advertiser', 'rename advertiser table and related identifiers')
+VALUES ('stage-11-rename-user-entityToOperationResponse-advertiser', 'rename advertiser table and related identifiers')
 ON DUPLICATE KEY UPDATE description = VALUES(description);

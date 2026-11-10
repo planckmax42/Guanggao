@@ -2,9 +2,11 @@ package com.example.adplatform.tracking.service;
 
 /** 三条事件消费链路共享的素材、广告位和计划快照。 */
 public record EventMaterialMetadata(
-        Long materialId,
-        Long planId,
-        Long slotId,
+        String materialPublicId,
+        String advertiserPublicId,
+        String slotPublicId,
+        String planPublicId,
+        String materialName,
         Long budgetTotal,
         Long budgetDaily,
         Long bidPrice,

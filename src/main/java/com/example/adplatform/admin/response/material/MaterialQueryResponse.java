@@ -2,7 +2,7 @@ package com.example.adplatform.admin.response.material;
 
 import java.time.LocalDateTime;
 
-public record MaterialResponse(
+public record MaterialQueryResponse(
         String publicId,
         String planPublicId,
         String slotPublicId,

@@ -131,8 +131,10 @@ class SearchPipelineIT {
 
     private void exerciseCandidateConfigPipeline() throws Exception {
         ResponseEntity<JsonNode> paused = restTemplate.exchange(
-                "/api/advertiser/plans/plan_00000000000000000000000000000001/pause",
-                HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
+                "/api/advertiser/plans/pause",
+                HttpMethod.PUT,
+                new HttpEntity<>(java.util.Map.of("publicId", "plan_00000000000000000000000000000001")),
+                JsonNode.class);
         assertThat(paused.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(paused.getBody()).isNotNull();
         assertThat(paused.getBody().path("code").asInt()).isZero();
@@ -140,8 +142,10 @@ class SearchPipelineIT {
                 "mat_00000000000000000000000000000001"));
 
         ResponseEntity<JsonNode> online = restTemplate.exchange(
-                "/api/advertiser/plans/plan_00000000000000000000000000000001/online",
-                HttpMethod.PUT, HttpEntity.EMPTY, JsonNode.class);
+                "/api/advertiser/plans/online",
+                HttpMethod.PUT,
+                new HttpEntity<>(java.util.Map.of("publicId", "plan_00000000000000000000000000000001")),
+                JsonNode.class);
         assertThat(online.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(online.getBody()).isNotNull();
         assertThat(online.getBody().path("code").asInt()).isZero();

@@ -8,5 +8,5 @@ ALTER TABLE `rule` MODIFY COLUMN device_type JSON NULL;
 ALTER TABLE `user` MODIFY COLUMN device_type JSON NULL;
 
 INSERT INTO schema_version (version, description)
-VALUES ('stage-21-device-type-json', 'convert rule and user device_type columns to JSON')
+VALUES ('stage-21-device-type-json', 'convert rule and user device_type columns entityToOperationResponse JSON')
 ON DUPLICATE KEY UPDATE description = VALUES(description);

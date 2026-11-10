@@ -89,7 +89,7 @@ public class EsIndexUpdateServiceImpl implements CandidateIndexUpdatePort, SlotE
 
     private void updatePlan(String planPublicId, IndexCoordinates index) {//这里产生了写放大，todo:考虑解决方案，或许可以改进ES中存储的内容，相同内容不重复存储，同时保持幂等性
         // 计划与素材是一对多关系，必须按 planId 清理后重新生成该计划的完整候选集合。
-        deleteByField("planPublicId", planPublicId, index);
+        deleteByField("advertiserPublicId", planPublicId, index);
         saveAll(sourceMapper.selectEligibleByPlanPublicId(planPublicId), index);
     }
 

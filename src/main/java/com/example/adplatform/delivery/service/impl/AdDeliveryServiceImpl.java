@@ -204,17 +204,17 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         try {
             slotId = redisCircuitBreaker.executeSupplier(()-> slotCacheDeliveryPort.getSlotIdFromCache(slotCode));
         }catch (DataAccessException exception){
-            meterRegistry.counter("delivery.slotId.cacheUnavailable");
+            meterRegistry.counter("delivery.slotPublicId.cacheUnavailable");
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存服务不可用",exception);
         }
         catch (CallNotPermittedException exception){
-            meterRegistry.counter("delivery.slotId.cacheFusing");
+            meterRegistry.counter("delivery.slotPublicId.cacheFusing");
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存熔断器已熔断",exception);
         }
         if(slotId != null) return Optional.of(slotId);
         LockAcquireAttempt lockAcquireAttempt = slotCacheLockManager.acquireStripLock(slotCode);
         if(lockAcquireAttempt.isTimeOut()){
-            meterRegistry.counter("delivery.slotId.lockTimeOut");
+            meterRegistry.counter("delivery.slotPublicId.lockTimeOut");
             slotId = slotCacheDeliveryPort.getSlotIdFromCache(slotCode);
             if (slotId!=null){
                 return Optional.of(slotId);
@@ -222,7 +222,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存回源锁超时");
         }
         if (lockAcquireAttempt.isInterrupted()){
-            meterRegistry.counter("delivery.slotId.lockInterrupted");
+            meterRegistry.counter("delivery.slotPublicId.lockInterrupted");
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存回源锁被中断");
         }
         SlotEntity slotEntity;
@@ -233,11 +233,11 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                         .eq(SlotEntity::getStatus, CommonStatus.ENABLED)));
             }
             catch (DataAccessException exception){
-                meterRegistry.counter("delivery.slotId.mysqlUnavailable");
+                meterRegistry.counter("delivery.slotPublicId.mysqlUnavailable");
                 throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位MYSQL服务不可用",exception);
             }
             catch (CallNotPermittedException exception){
-                meterRegistry.counter("delivery.slotId.mysqlFusing");
+                meterRegistry.counter("delivery.slotPublicId.mysqlFusing");
                 throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位MYSQL熔断器已熔断",exception);
             }
         }

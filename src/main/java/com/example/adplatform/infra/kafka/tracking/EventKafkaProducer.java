@@ -73,7 +73,7 @@ public class EventKafkaProducer implements EventPublisher {
             MeterRegistry registry,
             String result) {
         return Timer.builder("ad.event.producer.ack")//指定指标名称
-                .description("Time from event publish to Kafka acknowledgement or final failure")//设置指标描述
+                .description("Time from event publish entityToOperationResponse Kafka acknowledgement or final failure")//设置指标描述
                 .tag("result", result)//给指标设置标签，参数1：标签名称，参数2：标签值
                 .publishPercentileHistogram()//便于计算P95,P99
                 .register(registry);

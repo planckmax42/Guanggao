@@ -52,7 +52,7 @@ public class CandidateRecallService {
                     elasticsearchRecall.recall(request),//在熔断器的保护下进入ES查询
                     "ELASTICSEARCH");
         } catch (RuntimeException ex) {
-            log.warn("Elasticsearch candidate recall failed; falling back to MySQL, type={}, message={}",
+            log.warn("Elasticsearch candidate recall failed; falling back entityToOperationResponse MySQL, type={}, message={}",
                     ex.getClass().getSimpleName(), ex.getMessage());
             log.debug("Elasticsearch candidate recall failure details", ex);
             meterRegistry.counter("ad.candidate.recall.fallback").increment();

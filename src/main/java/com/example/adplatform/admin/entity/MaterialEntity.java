@@ -31,23 +31,20 @@ public class MaterialEntity {
     private String publicId;
 
     public void initializePublicId(String publicId) {
-        if (this.publicId != null) {
-            throw new IllegalStateException("广告素材 publicId 创建后不允许修改");
-        }
-        this.publicId = Objects.requireNonNull(publicId, "publicId");
+        this.publicId = publicId;
     }
 
     /**
      * 所属广告计划 ID，素材跟随计划的预算、出价和投放状态。
      */
-    @TableField("plan_id")
-    private Long planId;
+    @TableField("advertiser_id")
+    private String advertiserId;
 
     /**
      * 绑定广告位 ID，表示该素材适配哪个展示位置和尺寸。
      */
     @TableField("slot_id")
-    private Long slotId;
+    private String slotId;
     private String title;
     private String description;
     private String imageUrl;

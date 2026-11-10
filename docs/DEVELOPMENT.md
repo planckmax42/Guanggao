@@ -253,17 +253,45 @@ ad-platform
 接口：
 
 - `POST /api/platform/advertisers`
-- `POST /api/platform/advertisers/page`：JSON 请求体，例如 `{"current":1,"size":10,"name":"广告","status":1}`；`current`、`size` 默认分别为 1、10，`name`、`status` 可省略。
+- `POST /api/platform/advertisers/page`：`{"current":1,"size":10,"status":1}`。
 - `POST /api/platform/slots`
-- `PUT /api/platform/slots/{slotPublicId}`
-- `GET /api/advertiser/available-slots`
+- `PUT /api/platform/slots`：原有更新字段加 `publicId`。
+- `PUT /api/platform/slots/status`：请求体包含 `publicId`、`slotCode`、`status`。
+- `POST /api/platform/slots/page`：请求体包含 `current`、`size`，以及可选的 `slotCode`、`status`。
 - `POST /api/advertiser/plans`
-- `PUT /api/advertiser/plans/{planPublicId}`
-- `PUT /api/advertiser/plans/{planPublicId}/online`
-- `PUT /api/advertiser/plans/{planPublicId}/pause`
+- `PUT /api/advertiser/plans`：原有更新字段加 `publicId`。
+- `PUT /api/advertiser/plans/online`：请求体包含 `publicId`。
+- `PUT /api/advertiser/plans/pause`：请求体包含 `publicId`。
+- `PUT /api/advertiser/plans/offline`：请求体包含 `publicId`。
+- `POST /api/advertiser/plans/page`：请求体包含 `current`、`size`，以及可选的 `advertiserPublicId`、`status`。
 - `POST /api/advertiser/materials`
-- `PUT /api/platform/materials/{materialPublicId}/audit`
+- `POST /api/advertiser/materials/page`：请求体包含 `current`、`size`，以及可选的 `planPublicId`、`auditStatus`。
+- `PUT /api/platform/materials/audit`：请求体包含 `publicId`、`auditStatus`。
 - `POST /api/advertiser/rules`
+- `POST /api/advertiser/rules/by-plan`：请求体包含 `planPublicId`。
+
+有业务入参的接口统一使用 `Content-Type: application/json`，通过 `@Valid @RequestBody XxxRequest request` 接收。
+原查询参数和路径 ID 均移入请求体，调用方需要同步切换请求方法、路径和 JSON 字段。
+广告位、计划、素材分页请求的 `current`、`size` 可省略，默认分别为 1、10，过滤字段均可选。
+返回体继续使用统一 `Result`，分页响应结构不变。健康检查和候选索引重建没有业务参数，无需请求体。
+
+例如，暂停计划请求：
+
+```http
+PUT /api/advertiser/plans/pause
+Content-Type: application/json
+
+{"publicId":"plan_00000000000000000000000000000001"}
+```
+
+审核素材请求：
+
+```http
+PUT /api/platform/materials/audit
+Content-Type: application/json
+
+{"publicId":"mat_00000000000000000000000000000001","auditStatus":"APPROVED"}
+```
 
 验收标准：
 
@@ -347,9 +375,17 @@ CPA：转化事件扣 bid_price
 接口：
 
 - `POST /api/tracking/events`
-- `GET /api/report/daily`
-- `GET /api/report/funnel`
-- `GET /api/report/top-materials`
+- `POST /api/report/daily`
+- `POST /api/report/funnel`
+- `POST /api/report/top-materials`
+
+报表查询参数通过 JSON 请求体传入，日期格式为 `yyyy-MM-dd`：
+
+- 日报：`{"statDate":"2026-11-09","planPublicId":"plan_00000000000000000000000000000001"}`。
+- 漏斗：`{"startDate":"2026-11-01","endDate":"2026-11-09"}`。
+- 素材排行：`{"startDate":"2026-11-01","endDate":"2026-11-09","limit":10}`。
+
+日期字段必填，`planPublicId` 可选；排行的 `limit` 可选，默认 10，上限 50。
 
 验收标准：
 
@@ -449,9 +485,9 @@ event-topic
 接口：
 
 - `GET /api/report/realtime`
-- `GET /api/report/daily`
-- `GET /api/report/top-materials`
-- `GET /api/report/funnel`
+- `POST /api/report/daily`
+- `POST /api/report/top-materials`
+- `POST /api/report/funnel`
 
 验收标准：
 

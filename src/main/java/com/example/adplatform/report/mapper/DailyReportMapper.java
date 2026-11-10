@@ -36,7 +36,7 @@ public interface DailyReportMapper extends BaseMapper<DailyReportEntity> {
             @Param("statDate") LocalDate statDate,
             @Param("planId") Long planId,
             @Param("materialId") Long materialId,
-            @Param("slotId") Long slotId,
+            @Param("slotPublicId") Long slotId,
             @Param("impressionCount") long impressionCount,
             @Param("clickCount") long clickCount,
             @Param("conversionCount") long conversionCount,

@@ -10,7 +10,7 @@ public interface ReportConverter {
 
     @Mapping(target = "ctr", expression = "java(divide(entity.getClickCount(), entity.getImpressionCount()))")
     @Mapping(target = "cvr", expression = "java(divide(entity.getConversionCount(), entity.getClickCount()))")
-    @Mapping(target = "planPublicId", source = "planPublicId")
+    @Mapping(target = "advertiserPublicId", source = "advertiserPublicId")
     @Mapping(target = "materialPublicId", source = "materialPublicId")
     @Mapping(target = "slotPublicId", source = "slotPublicId")
     DailyReportResponse toDailyReportResponse(

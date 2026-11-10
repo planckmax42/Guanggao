@@ -49,11 +49,11 @@ public abstract class RuleConverter {
     @Mapping(target = "regions", source = "entity.region", qualifiedByName = "fromJson")
     @Mapping(target = "deviceTypes", source = "entity.deviceType", qualifiedByName = "fromJson")
     @Mapping(target = "userTags", source = "entity.userTags", qualifiedByName = "fromJson")
-    @Mapping(target = "planPublicId", source = "planPublicId")
+    @Mapping(target = "advertiserPublicId", source = "advertiserPublicId")
     public abstract RuleResponse toResponse(RuleEntity entity, String planPublicId);
 
     @Mapping(target = "publicId", source = "entity.publicId")
-    @Mapping(target = "bizKey", source = "planPublicId")
+    @Mapping(target = "bizKey", source = "advertiserPublicId")
     public abstract ResourceRefResponse toRef(RuleEntity entity, String planPublicId);
 
     @Named("toJson")
