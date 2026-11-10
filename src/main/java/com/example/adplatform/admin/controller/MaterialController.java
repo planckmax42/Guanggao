@@ -1,5 +1,9 @@
 package com.example.adplatform.admin.controller;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import com.example.adplatform.admin.request.material.UpdateMaterialRequest;
+import com.example.adplatform.admin.request.material.DeleteMaterialRequest;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;
@@ -24,7 +28,7 @@ public class MaterialController {
     private final MaterialService materialService;
 
     /**
-     * 为已有广告计划创建广告素材，初始审核状态为待审核。
+     * 为已有广告主创建广告素材，初始审核状态为待审核。
      */
     @PostMapping
     public Result<MaterialOperationResponse> create(@Valid @RequestBody CreateMaterialRequest request) {
@@ -32,10 +36,20 @@ public class MaterialController {
     }
 
     /**
-     * 分页查询广告素材，支持按广告计划公开标识和审核状态筛选。
+     * 分页查询广告素材。
      */
     @PostMapping("/page")
     public Result<PageResponse<MaterialQueryResponse>> page(@Valid @RequestBody PageMaterialRequest request) {
         return Result.success(materialService.pageQuery(request));
+    }
+
+    @PutMapping
+    public Result<MaterialOperationResponse> update(@Valid @RequestBody UpdateMaterialRequest request) {
+        return Result.success(materialService.update(request));
+    }
+
+    @DeleteMapping
+    public Result<MaterialOperationResponse> delete(@Valid @RequestBody DeleteMaterialRequest request) {
+        return Result.success(materialService.delete(request));
     }
 }

@@ -35,16 +35,16 @@ public class MaterialEntity {
     }
 
     /**
-     * 所属广告计划 ID，素材跟随计划的预算、出价和投放状态。
+     * 所属广告主公开标识。
      */
     @TableField("advertiser_id")
-    private String advertiserId;
+    private String advertiserPublicId;
 
     /**
-     * 绑定广告位 ID，表示该素材适配哪个展示位置和尺寸。
+     * 绑定广告位公开标识，表示该素材适配哪个展示位置和尺寸。
      */
     @TableField("slot_id")
-    private String slotId;
+    private String slotPublicId;
     private String name;
     private String description;
     private String imageUrl;

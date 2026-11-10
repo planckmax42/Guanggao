@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.material.UpdateMaterialRequest;
+import com.example.adplatform.admin.request.material.DeleteMaterialRequest;
 import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -42,16 +44,16 @@ public class MaterialServiceImpl implements MaterialService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MaterialOperationResponse create(CreateMaterialRequest request) {
-        if(advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
+        if(!advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
                 .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId())))
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告主不存在");
-        if(slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+        if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getPublicId, request.slotPublicId())))
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
         MaterialEntity entity = materialConverter.requestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
-        entity.setAdvertiserId(request.advertiserPublicId());
-        entity.setSlotId(request.slotPublicId());
+        entity.setAdvertiserPublicId(request.advertiserPublicId());
+        entity.setSlotPublicId(request.slotPublicId());
         materialMapper.insert(entity);
         return materialConverter.entityToOperationResponse(entity);
     }
@@ -60,12 +62,41 @@ public class MaterialServiceImpl implements MaterialService {
     public PageResponse<MaterialQueryResponse> pageQuery(PageMaterialRequest request) {
         long current = request.current();
         long size = request.size();
-        Integer status = request.status();
         Page<MaterialEntity> page = new Page<>(current, size);
         Page<MaterialEntity> result = materialMapper.selectPage(page, new LambdaQueryWrapper<MaterialEntity>()
-                .eq(status!=null, MaterialEntity::getAuditStatus, status)
                 .orderByAsc(MaterialEntity::getName)
                 .orderByAsc(MaterialEntity::getId));
         return materialConverter.pageToResponse(result);
+    }
+
+    @Override
+    public MaterialOperationResponse update(UpdateMaterialRequest request) {
+        MaterialEntity existing = materialMapper.selectOne(new LambdaQueryWrapper<MaterialEntity>()
+                .eq(MaterialEntity::getPublicId, request.publicId()));
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        }
+        if (!advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        if (!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, request.slotPublicId()))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
+        MaterialEntity entity = materialConverter.requestToEntity(request);
+        entity.setId(existing.getId());
+        materialMapper.updateById(entity);
+        return new MaterialOperationResponse(request.publicId());
+    }
+
+    @Override
+    public MaterialOperationResponse delete(DeleteMaterialRequest request) {
+        int deleted = materialMapper.delete(new LambdaQueryWrapper<MaterialEntity>()
+                .eq(MaterialEntity::getPublicId, request.publicId()));
+        if (deleted == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        }
+        return new MaterialOperationResponse(request.publicId());
     }
 }

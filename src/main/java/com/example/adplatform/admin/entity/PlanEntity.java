@@ -38,10 +38,10 @@ public class PlanEntity {
     }
 
     /**
-     * 所属广告主 ID，一个广告主可以创建多个广告计划。
+     * 所属广告主公开标识，一个广告主可以创建多个广告计划。
      */
     @TableField("advertiser_id")
-    private Long advertiserId;
+    private String advertiserPublicId;
     private String name;
 
     /**

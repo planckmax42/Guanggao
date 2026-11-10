@@ -38,10 +38,10 @@ public class RuleEntity {
     }
 
     /**
-     * 所属广告计划 ID。当前设计中一个计划对应一组定向规则。
+     * 所属广告计划公开标识。当前设计中一个计划对应一组定向规则。
      */
     @TableField("plan_id")
-    private Long planId;
+    private String planPublicId;
 
     /**
      * 地域白名单，JSON 数组格式，例如 ["beijing","shanghai"]；为空表示不限地域。

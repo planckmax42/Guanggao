@@ -1,18 +1,23 @@
 package com.example.adplatform.admin.service.impl;
 
-import com.example.adplatform.admin.request.rule.QueryRuleRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.RuleConverter;
-import com.example.adplatform.admin.request.rule.CreateRuleRequest;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.RuleMapper;
-import com.example.adplatform.admin.service.RuleService;
+import com.example.adplatform.admin.request.rule.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.UpdateRuleRequest;
+import com.example.adplatform.admin.request.rule.DeleteRuleRequest;
+import com.example.adplatform.admin.request.rule.PageRuleRequest;
+import com.example.adplatform.admin.response.PageResponse;
+import com.example.adplatform.admin.response.rule.RuleOperationResponse;
 import com.example.adplatform.admin.response.rule.RuleResponse;
+import com.example.adplatform.admin.service.RuleService;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
@@ -21,12 +26,6 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 计划定向规则的创建或更新服务。
- *
- * <p>Outbox 使用 rulePublicId 作为 RULE 聚合标识；消费者在本地解析所属计划后，
- * 重建该计划下的全部素材文档。</p>
- */
 @RequiredArgsConstructor
 @Service
 public class RuleServiceImpl implements RuleService {
@@ -38,57 +37,69 @@ public class RuleServiceImpl implements RuleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ResourceRefResponse createOrUpdate(CreateRuleRequest request) {
-        PlanEntity plan = getPlanByPublicId(request.planPublicId());
-        if (plan == null) {
+    public RuleOperationResponse create(CreateRuleRequest request) {
+        if (!planMapper.exists(new LambdaQueryWrapper<PlanEntity>()
+                .eq(PlanEntity::getPublicId, request.planPublicId()))) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
         }
-
-        RuleEntity entity = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
-                .eq(RuleEntity::getPlanId, plan.getId()));
-        if (entity == null) {
-            entity = ruleConverter.toEntity(request);
-            entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.RULE_PREFIX));
-            entity.setPlanId(plan.getId());
-            try {
-                ruleMapper.insert(entity);
-            } catch (DuplicateKeyException ex) {
-                entity = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
-                        .eq(RuleEntity::getPlanId, plan.getId()));
-                if (entity == null) {
-                    throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
-                }
-                ruleConverter.updateEntity(request, entity);
-                ruleMapper.updateById(entity);
-            }
-            searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, entity.getPublicId());
-            return ruleConverter.toRef(entity, plan.getPublicId());
+        if (ruleMapper.exists(new LambdaQueryWrapper<RuleEntity>()
+                .eq(RuleEntity::getPlanPublicId, request.planPublicId()))) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
         }
-
-        ruleConverter.updateEntity(request, entity);
-        ruleMapper.updateById(entity);
+        RuleEntity entity = ruleConverter.requestToEntity(request);
+        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.RULE_PREFIX));
+        try {
+            ruleMapper.insert(entity);
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
+        }
         searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, entity.getPublicId());
-        return ruleConverter.toRef(entity, plan.getPublicId());
+        return ruleConverter.entityToOperationResponse(entity);
     }
 
     @Override
-    public RuleResponse getByPlanPublicId(QueryRuleRequest request) {
-        String planPublicId = request.planPublicId();
-        PlanEntity plan = getPlanByPublicId(planPublicId);
+    public PageResponse<RuleResponse> pageQuery(PageRuleRequest request) {
+        Page<RuleEntity> result = ruleMapper.selectPage(new Page<>(request.current(), request.size()),
+                new LambdaQueryWrapper<RuleEntity>().orderByDesc(RuleEntity::getId));
+        return ruleConverter.pageToResponse(result);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RuleOperationResponse update(UpdateRuleRequest request) {
+        RuleEntity entity = getRuleOrThrow(request.publicId());
+        ruleConverter.requestToEntity(request, entity);
+        // 空值表示取消该项定向，需要显式写入 NULL。
+        ruleMapper.update(new RuleEntity(), new LambdaUpdateWrapper<RuleEntity>()
+                .eq(RuleEntity::getPublicId, request.publicId())
+                .set(RuleEntity::getRegion, entity.getRegion())
+                .set(RuleEntity::getDeviceType, entity.getDeviceType())
+                .set(RuleEntity::getGender, entity.getGender())
+                .set(RuleEntity::getAgeMin, entity.getAgeMin())
+                .set(RuleEntity::getAgeMax, entity.getAgeMax())
+                .set(RuleEntity::getUserTags, entity.getUserTags()));
+        searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, request.publicId());
+        return ruleConverter.entityToOperationResponse(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RuleOperationResponse delete(DeleteRuleRequest request) {
+        RuleEntity entity = getRuleOrThrow(request.publicId());
+        if (ruleMapper.deleteById(entity.getId()) == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
+        }
+        // 删除后无法再从规则解析所属计划，使用计划公开标识触发重建。
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, entity.getPlanPublicId());
+        return ruleConverter.entityToOperationResponse(entity);
+    }
+
+    private RuleEntity getRuleOrThrow(String publicId) {
         RuleEntity entity = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
-                .eq(RuleEntity::getPlanId, plan.getId()));
+                .eq(RuleEntity::getPublicId, publicId));
         if (entity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
         }
-        return ruleConverter.toResponse(entity, plan.getPublicId());
-    }
-
-    private PlanEntity getPlanByPublicId(String publicId) {
-        PlanEntity plan = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, publicId));
-        if (plan == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-        return plan;
+        return entity;
     }
 }

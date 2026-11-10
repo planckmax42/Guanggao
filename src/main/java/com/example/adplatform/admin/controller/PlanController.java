@@ -1,13 +1,15 @@
 package com.example.adplatform.admin.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
+import com.example.adplatform.admin.request.plan.DeletePlanRequest;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
 import com.example.adplatform.admin.request.plan.PagePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
+import com.example.adplatform.admin.response.plan.PlanOperationResponse;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.plan.PlanResponse;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,16 +32,29 @@ public class PlanController {
      * 为启用状态的广告主创建广告计划，初始状态为草稿。
      */
     @PostMapping
-    public Result<ResourceRefResponse> create(@Valid @RequestBody CreatePlanRequest request) {
+    public Result<PlanOperationResponse> create(@Valid @RequestBody CreatePlanRequest request) {
         return Result.success(planService.create(request));
+    }
+
+    /**
+     * 分页查询广告计划。
+     */
+    @PostMapping("/page")
+    public Result<PageResponse<PlanResponse>> page(@Valid @RequestBody PagePlanRequest request) {
+        return Result.success(planService.pageQuery(request));
     }
 
     /**
      * 更新广告计划的基础信息、预算、出价和投放时间。
      */
     @PutMapping
-    public Result<PlanResponse> update(@Valid @RequestBody UpdatePlanRequest request) {
+    public Result<PlanOperationResponse> update(@Valid @RequestBody UpdatePlanRequest request) {
         return Result.success(planService.update(request));
+    }
+
+    @DeleteMapping
+    public Result<PlanOperationResponse> delete(@Valid @RequestBody DeletePlanRequest request) {
+        return Result.success(planService.delete(request));
     }
 
     /**
@@ -64,13 +79,5 @@ public class PlanController {
     @PutMapping("/offline")
     public Result<PlanResponse> offline(@Valid @RequestBody UpdatePlanStatusRequest request) {
         return Result.success(planService.offline(request));
-    }
-
-    /**
-     * 分页查询广告计划，支持按广告主公开标识和计划状态筛选。
-     */
-    @PostMapping("/page")
-    public Result<PageResponse<PlanResponse>> page(@Valid @RequestBody PagePlanRequest request) {
-        return Result.success(planService.pageQuery(request));
     }
 }

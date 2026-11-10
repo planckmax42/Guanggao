@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.advertiser.UpdateAdvertiserRequest;
+import com.example.adplatform.admin.request.advertiser.DeleteAdvertiserRequest;
 import com.example.adplatform.admin.request.advertiser.PageAdvertiserRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -17,9 +19,7 @@ import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
-import java.util.List;
 
 @RequiredArgsConstructor
 @Service
@@ -44,12 +44,37 @@ public class AdvertiserServiceImpl implements AdvertiserService {
     public PageResponse<AdvertiserQueryResponse> pageQuery(PageAdvertiserRequest request) {
         long current = request.current();
         long size = request.size();
-        Integer status = request.status();
         Page<AdvertiserEntity> page = new Page<>(current, size);
         Page<AdvertiserEntity> result = advertiserMapper.selectPage(page,  new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(status != null, AdvertiserEntity::getStatus, status)
                 .orderByAsc(AdvertiserEntity::getName)
                 .orderByAsc(AdvertiserEntity::getId));
         return advertiserConverter.pageToResponse(result);
+    }
+
+    @Override
+    public AdvertiserOperationResponse update(UpdateAdvertiserRequest request) {
+        AdvertiserEntity existing = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.publicId()));
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        AdvertiserEntity entity = advertiserConverter.requestToEntity(request);
+        entity.setId(existing.getId());
+        try {
+            advertiserMapper.updateById(entity);
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告主名称已存在");
+        }
+        return new AdvertiserOperationResponse(request.publicId());
+    }
+
+    @Override
+    public AdvertiserOperationResponse delete(DeleteAdvertiserRequest request) {
+        int deleted = advertiserMapper.delete(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.publicId()));
+        if (deleted == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        return new AdvertiserOperationResponse(request.publicId());
     }
 }

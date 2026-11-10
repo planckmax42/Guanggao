@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
+import com.example.adplatform.admin.request.slot.DeleteSlotRequest;
 import com.example.adplatform.admin.request.slot.CreateSlotRequest;
 import com.example.adplatform.admin.request.slot.PageSlotRequest;
 import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
@@ -8,7 +10,6 @@ import com.example.adplatform.admin.response.slot.SlotQueryResponse;
 import com.example.adplatform.admin.service.SlotService;
 import com.example.adplatform.admin.response.slot.SlotOperationResponse;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.response.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,11 +37,24 @@ public class SlotController {
     }
 
     /**
+     * 分页查询广告位。
+     */
+    @PostMapping("/page")
+    public Result<PageResponse<SlotQueryResponse>> page(@Valid @RequestBody PageSlotRequest request) {
+        return Result.success(slotService.pageQuery(request));
+    }
+
+    /**
      * 更新广告位基础信息。修改广告位编码后，会同步刷新投放链路使用的 Redis 缓存。
      */
     @PutMapping
     public Result<SlotOperationResponse> update(@Valid @RequestBody UpdateSlotRequest request) {
         return Result.success(slotService.update(request));
+    }
+
+    @DeleteMapping
+    public Result<SlotOperationResponse> delete(@Valid @RequestBody DeleteSlotRequest request) {
+        return Result.success(slotService.delete(request));
     }
 
     /**
@@ -49,13 +63,5 @@ public class SlotController {
     @PutMapping("/status")
     public Result<SlotOperationResponse> updateStatus(@Valid @RequestBody UpdateSlotStatusRequest request) {
         return Result.success(slotService.updateStatus(request));
-    }
-
-    /**
-     * 分页查询广告位，支持按广告位编码关键字和启用状态筛选。
-     */
-    @PostMapping("/page")
-    public Result<PageResponse<SlotQueryResponse>> page(@Valid @RequestBody PageSlotRequest request) {
-        return Result.success(slotService.pageQuery(request));
     }
 }

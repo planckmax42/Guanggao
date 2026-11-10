@@ -6,7 +6,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.json.JsonData;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -58,7 +57,7 @@ public class EsQueryFactory {
                         .field("bidPrice").order(SortOrder.Desc)))
                 .withSort(sortBuilder -> sortBuilder.field(fieldSortBuilder -> fieldSortBuilder
                         .field("materialId").order(SortOrder.Desc)))
-                .withPageable(PageRequest.of(0, size))
+                .withMaxResults(size)
                 .withTimeout(properties.getCandidate().getQueryTimeout())
                 .withTrackTotalHits(false)
                 .build();

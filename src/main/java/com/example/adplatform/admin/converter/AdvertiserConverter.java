@@ -1,6 +1,8 @@
 package com.example.adplatform.admin.converter;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
+import com.example.adplatform.admin.request.advertiser.UpdateAdvertiserRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
@@ -8,7 +10,6 @@ import com.example.adplatform.admin.response.advertiser.AdvertiserOperationRespo
 import com.example.adplatform.common.enums.CommonStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.springframework.data.domain.Page;
 
 @Mapper(componentModel = "spring", imports = CommonStatus.class)
 public interface AdvertiserConverter {
@@ -22,7 +23,14 @@ public interface AdvertiserConverter {
 
     AdvertiserQueryResponse entityToQueryResponse(AdvertiserEntity entity);
 
-    AdvertiserOperationResponse entityToOperationResponse(AdvertiserEntity entity);
-
     PageResponse<AdvertiserQueryResponse> pageToResponse(Page<AdvertiserEntity> page);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    AdvertiserEntity requestToEntity(UpdateAdvertiserRequest request);
+
+    AdvertiserOperationResponse entityToOperationResponse(AdvertiserEntity entity);
 }

@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.converter;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.request.slot.CreateSlotRequest;
 import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
@@ -16,7 +18,11 @@ public interface SlotConverter {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    SlotEntity toCreateEntity(CreateSlotRequest request);
+    SlotEntity requestToEntity(CreateSlotRequest request);
+
+    SlotQueryResponse entityToQueryResponse(SlotEntity entity);
+
+    PageResponse<SlotQueryResponse> pageToResponse(Page<SlotEntity> page);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
@@ -24,11 +30,9 @@ public interface SlotConverter {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    SlotEntity toUpdateEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
+    SlotEntity requestToEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
 
-    SlotOperationResponse toResponse(SlotEntity entity);
+    SlotOperationResponse entityToOperationResponse(SlotEntity entity);
 
-    SlotQueryResponse toQueryResponse(SlotEntity entity);
-
-    AvailableSlotResponse toAvailableResponse(SlotEntity entity);
+    AvailableSlotResponse entityToAvailableResponse(SlotEntity entity);
 }

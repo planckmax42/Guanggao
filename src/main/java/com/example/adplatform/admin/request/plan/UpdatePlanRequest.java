@@ -24,11 +24,11 @@ public record UpdatePlanRequest(
 
     @AssertTrue(message = "结束时间必须晚于开始时间")
     public boolean isValidTimeRange() {
-        return startTime == null || endTime == null || endTime.isAfter(startTime);
+        return  endTime.isAfter(startTime);
     }
 
     @AssertTrue(message = "日预算必须小于等于总预算")
     public boolean isValidBudget() {
-        return budgetTotal == null || budgetDaily == null || budgetDaily <= budgetTotal;
+        return  budgetDaily <= budgetTotal;
     }
 }

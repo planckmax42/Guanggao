@@ -2,6 +2,7 @@ package com.example.adplatform.admin.converter;
 
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.request.rule.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.UpdateRuleRequest;
 import com.example.adplatform.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -23,35 +24,35 @@ class RuleConverterTests {
     void shouldConvertRuleAndMapPlanPublicId() {
         CreateRuleRequest request = new CreateRuleRequest(
                 "plan_1", List.of("北京"), List.of("ANDROID"), null, 18, 45, List.of("shopping"));
-        RuleEntity entity = converter.toEntity(request);
+        RuleEntity entity = converter.requestToEntity(request);
         entity.initializePublicId("rule_1");
-        entity.setPlanId(10L);
+        entity.setPlanPublicId("plan_1");
 
-        var response = converter.toResponse(entity, request.planPublicId());
+        var response = converter.entityToQueryResponse(entity);
 
         assertThat(response.planPublicId()).isEqualTo("plan_1");
         assertThat(response.regions()).containsExactly("北京");
         assertThat(response.deviceTypes()).containsExactly("ANDROID");
         assertThat(response.userTags()).containsExactly("shopping");
-        assertThat(converter.toRef(entity, "plan_1").bizKey()).isEqualTo("plan_1");
-        assertThat(converter.toRef(entity, "plan_1").publicId()).isEqualTo("rule_1");
+        assertThat(entity.getPlanPublicId()).isEqualTo("plan_1");
+        assertThat(converter.entityToOperationResponse(entity).publicId()).isEqualTo("rule_1");
 
-        converter.updateEntity(request, entity);
-        converter.updateEntity(request, entity);
+        converter.requestToEntity(new UpdateRuleRequest("rule_1", request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
+        converter.requestToEntity(new UpdateRuleRequest("rule_1", request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
 
-        assertThat(converter.toResponse(entity, "plan_1")).isEqualTo(response);
-        assertThat(entity.getPlanId()).isEqualTo(10L);
+        assertThat(converter.entityToQueryResponse(entity)).isEqualTo(response);
+        assertThat(entity.getPlanPublicId()).isEqualTo("plan_1");
     }
 
     @Test
     void shouldPreserveEmptyTargetingBehavior() {
-        RuleEntity entity = converter.toEntity(new CreateRuleRequest(
+        RuleEntity entity = converter.requestToEntity(new CreateRuleRequest(
                 "plan_1", null, List.of(), null, null, null, null));
 
         assertThat(entity.getRegion()).isNull();
         assertThat(entity.getDeviceType()).isNull();
-        assertThat(converter.toResponse(entity, "plan_1").regions()).isEmpty();
-        assertThat(converter.toResponse(entity, "plan_1").deviceTypes()).isEmpty();
+        assertThat(converter.entityToQueryResponse(entity).regions()).isEmpty();
+        assertThat(converter.entityToQueryResponse(entity).deviceTypes()).isEmpty();
     }
 
     @Test
@@ -59,7 +60,7 @@ class RuleConverterTests {
         RuleEntity entity = new RuleEntity();
         entity.setRegion("invalid-json");
 
-        assertThatThrownBy(() -> converter.toResponse(entity, "plan_1"))
+        assertThatThrownBy(() -> converter.entityToQueryResponse(entity))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("定向规则解析失败");
     }

@@ -4,9 +4,9 @@ import java.time.LocalDateTime;
 
 public record MaterialQueryResponse(
         String publicId,
-        String planPublicId,
+        String advertiserPublicId,
         String slotPublicId,
-        String title,
+        String name,
         String description,
         String imageUrl,
         String landingPageUrl,

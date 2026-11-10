@@ -54,8 +54,7 @@ class EsQueryFactoryTests {
         assertAgeTarget(filters.get(6), 25);
         assertTagsTarget(filters.get(7), List.of("sports", "technology"));
 
-        assertThat(nativeQuery.getPageable().getPageNumber()).isZero();
-        assertThat(nativeQuery.getPageable().getPageSize()).isEqualTo(1000);
+        assertThat(nativeQuery.getMaxResults()).isEqualTo(1000);
         assertThat(nativeQuery.getTimeout()).isEqualTo(Duration.ofMillis(80));
         assertThat(nativeQuery.getTrackTotalHits()).isFalse();
         assertThat(nativeQuery.getSortOptions()).hasSize(2);

@@ -3,110 +3,61 @@ package com.example.adplatform.admin.service.impl;
 import com.example.adplatform.admin.converter.SlotConverter;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
-import com.example.adplatform.admin.port.slot.SlotFilterPort;
-import com.example.adplatform.admin.request.slot.CreateSlotRequest;
-import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
-import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
-import com.example.adplatform.search.outbox.message.ConfigAggregateType;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
+import com.example.adplatform.admin.port.slot.*;
+import com.example.adplatform.admin.request.slot.*;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class SlotServiceImplTests {
+    private final SlotMapper mapper = mock(SlotMapper.class);
+    private final SlotFilterPort filter = mock(SlotFilterPort.class);
+    private final SlotCacheDebeziumPort cache = mock(SlotCacheDebeziumPort.class);
+    private final SlotElasticsearchDebeziumPort elasticsearch = mock(SlotElasticsearchDebeziumPort.class);
+    private final SlotServiceImpl service = new SlotServiceImpl(mapper, Mappers.getMapper(SlotConverter.class), filter,
+            mock(ApplicationEventPublisher.class), cache, elasticsearch, mock(SlotCacheStopGuardPort.class));
 
     @Test
-    void shouldAppendOutboxAndPublishAfterCommitCacheEvent() {
-        Fixture fixture = fixture();
-        CreateSlotRequest request = new CreateSlotRequest(
-                "HOME_BANNER", "首页 Banner", 1080, 300, "APP_HOME");
-        SlotEntity entity = slot(1L, "HOME_BANNER");
-        when(fixture.converter().toCreateEntity(request)).thenReturn(entity);
-
-        fixture.service().create(request);
-
-        verify(fixture.slotCacheOutbox()).append(entity.getPublicId(), null);
-        verify(fixture.searchOutbox()).appendConfigChange(ConfigAggregateType.SLOT, entity.getPublicId());
-        verify(fixture.eventPublisher()).publishEvent(
-                new SlotServiceImpl.SlotCacheWriteEvent("HOME_BANNER", 1L));
-        assertThat(entity.getPublicId()).matches("^slot_[0-9a-f]{32}$");
-    }
-
-    @Test
-    void shouldEvictOldCodeAfterCommitAndPersistCompensationMessage() {
-        Fixture fixture = fixture();
-        UpdateSlotRequest request = new UpdateSlotRequest(
-                "NEW_BANNER", "New Banner", 1080, 300, "APP_HOME");
-        SlotEntity existing = slot(1L, "OLD_BANNER");
-        existing.initializePublicId("slot_00000000000000000000000000000001");
-        SlotEntity updated = slot(1L, "NEW_BANNER");
-        updated.initializePublicId("slot_00000000000000000000000000000001");
-        when(fixture.mapper().selectOne(any())).thenReturn(existing);
-        when(fixture.mapper().selectById(1L)).thenReturn(updated);
-
-        fixture.service().update(request);
-
-        verify(fixture.slotCacheOutbox()).append(existing.getPublicId(), "OLD_BANNER");
-        verify(fixture.eventPublisher()).publishEvent(
-                new SlotServiceImpl.SlotCacheUpdateEvent("OLD_BANNER", 1L));
+    void shouldRenameEnabledSlotAndNotWriteStatus() {
+        SlotEntity entity = slot();
+        when(mapper.selectOne(any())).thenReturn(entity);
+        service.update(new UpdateSlotRequest("slot_1", "NEW", null, null, null, null));
+        ArgumentCaptor<SlotEntity> update = ArgumentCaptor.forClass(SlotEntity.class);
+        verify(mapper).updateById(update.capture());
+        assertThat(update.getValue().getStatus()).isNull();
+        assertThat(entity.getSlotCode()).isEqualTo("OLD");
+        verify(filter).addSlotFilter("NEW");
+        verify(cache).updateCacheWithRetry(1L, "OLD", "NEW");
+        verify(elasticsearch).syncElasticsearchWithRetry("OLD", "NEW");
     }
 
     @Test
-    void shouldNotAppendCacheMessageWhenCodeDidNotChange() {
-        Fixture fixture = fixture();
-        UpdateSlotRequest request = new UpdateSlotRequest(
-                "HOME_BANNER", "Renamed", 1080, 300, "APP_HOME");
-        SlotEntity existing = slot(1L, "HOME_BANNER");
-        existing.initializePublicId("slot_00000000000000000000000000000001");
-        when(fixture.mapper().selectOne(any())).thenReturn(existing);
-        when(fixture.mapper().selectById(1L)).thenReturn(existing);
-
-        fixture.service().update(request);
-
-        verify(fixture.slotCacheOutbox(), never()).append(any(), any());
+    void shouldPreserveCodeForPartialUpdate() {
+        when(mapper.selectOne(any())).thenReturn(slot());
+        service.update(new UpdateSlotRequest("slot_1", null, "New name", null, null, null));
+        verifyNoInteractions(cache, filter, elasticsearch);
     }
 
-    private Fixture fixture() {
-        SlotMapper mapper = mock(SlotMapper.class);
-        SlotConverter converter = mock(SlotConverter.class);
-        SlotFilterPort slotFilter = mock(SlotFilterPort.class);
-        SearchOutboxService searchOutbox = mock(SearchOutboxService.class);
-        SlotCacheOutboxService slotCacheOutbox = mock(SlotCacheOutboxService.class);
-        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-        SlotServiceImpl service = new SlotServiceImpl(
-                mapper,
-                converter,
-                slotFilter,
-                searchOutbox,
-                slotCacheOutbox,
-                eventPublisher,
-                mock(SlotCacheAdminPort.class),
-                mock(SlotCacheLockManager.class));
-        return new Fixture(service, mapper, converter, searchOutbox, slotCacheOutbox, eventPublisher);
+    @Test
+    void shouldDeleteUsingStoredCodeAndReportMissingOnRepeat() {
+        when(mapper.selectOne(any())).thenReturn(slot(), null);
+        when(mapper.deleteById(1L)).thenReturn(1);
+        assertThat(service.delete(new DeleteSlotRequest("slot_1")).publicId()).isEqualTo("slot_1");
+        verify(cache).evictCacheWithRetry("OLD");
+        assertThatThrownBy(() -> service.delete(new DeleteSlotRequest("slot_1"))).hasMessage("广告位不存在");
     }
 
-    private SlotEntity slot(Long id, String code) {
-        SlotEntity slot = new SlotEntity();
-        slot.setId(id);
-        slot.setSlotCode(code);
-        slot.setStatus(CommonStatus.ENABLED);
-        return slot;
-    }
-
-    private record Fixture(
-            SlotServiceImpl service,
-            SlotMapper mapper,
-            SlotConverter converter,
-            SearchOutboxService searchOutbox,
-            SlotCacheOutboxService slotCacheOutbox,
-            ApplicationEventPublisher eventPublisher) {
+    private SlotEntity slot() {
+        SlotEntity entity = new SlotEntity();
+        entity.setId(1L);
+        entity.initializePublicId("slot_1");
+        entity.setSlotCode("OLD");
+        entity.setStatus(1);
+        return entity;
     }
 }

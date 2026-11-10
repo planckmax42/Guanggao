@@ -27,9 +27,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.Objects;
 
 
@@ -54,7 +52,7 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse create(CreateSlotRequest request) {
-        SlotEntity slotEntity = slotConverter.toCreateEntity(request);
+        SlotEntity slotEntity = slotConverter.requestToEntity(request);
         slotEntity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
             slotMapper.insert(slotEntity);
@@ -66,8 +64,20 @@ public class SlotServiceImpl implements SlotService {
             slotFilterService.addSlotFilter(slotCode);
             slotCacheDebeziumPort.writeCacheWithRetry(slotEntity.getId(),slotCode);
         }
-        return slotConverter.toResponse(slotEntity);
+        return slotConverter.entityToOperationResponse(slotEntity);
     }
+
+    @Override
+    public PageResponse<SlotQueryResponse> pageQuery(PageSlotRequest request) {
+        long current = request.current();
+        long size = request.size();
+        Page<SlotEntity> page = new Page<>(current, size);
+        LambdaQueryWrapper<SlotEntity> query = new LambdaQueryWrapper<SlotEntity>()
+                .orderByDesc(SlotEntity::getId);
+        Page<SlotEntity> result = slotMapper.selectPage(page, query);
+        return slotConverter.pageToResponse(result);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse update(UpdateSlotRequest request) {
@@ -76,8 +86,10 @@ public class SlotServiceImpl implements SlotService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
         String oldSlotCode = oldEntity.getSlotCode();
-        SlotEntity newEntity = slotConverter.toUpdateEntity(request, oldEntity);
-        String newSlotCode = newEntity.getSlotCode();
+        SlotEntity newEntity = slotConverter.requestToEntity(request, new SlotEntity());
+        newEntity.setId(oldEntity.getId());
+        newEntity.initializePublicId(oldEntity.getPublicId());
+        String newSlotCode = request.slotCode() == null ? oldSlotCode : request.slotCode();
         try {
             slotMapper.updateById(newEntity);
         } catch (DuplicateKeyException ex) {
@@ -88,8 +100,21 @@ public class SlotServiceImpl implements SlotService {
             slotCacheDebeziumPort.updateCacheWithRetry(oldEntity.getId(),oldSlotCode,newSlotCode);
             slotElasticsearchDebeziumPort.syncElasticsearchWithRetry(oldSlotCode,newSlotCode);
         }
-        return slotConverter.toResponse(newEntity);
+        return slotConverter.entityToOperationResponse(newEntity);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SlotOperationResponse delete(DeleteSlotRequest request) {
+        SlotEntity entity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, request.publicId()));
+        if (entity == null || slotMapper.deleteById(entity.getId()) == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
+        slotCacheDebeziumPort.evictCacheWithRetry(entity.getSlotCode());
+        return new SlotOperationResponse(request.publicId());
+    }
+
 //    //todo“需要处理缓存不一致问题状态请求查询到 slotCode=A
 //    另一个请求把编码修改成 B
 //    状态请求只更新 status，数据库字段不会被覆盖
@@ -118,33 +143,14 @@ public class SlotServiceImpl implements SlotService {
             applicationEventPublisher.publishEvent(new SlotCacheStopGuardWriteEvent(slotCode));
             slotCacheDebeziumPort.evictCacheWithRetry(slotCode);
         }
-        return slotConverter.toResponse(slotEntity);
+        return slotConverter.entityToOperationResponse(slotEntity);
     }
-     public SlotOperationResponse delete(DeleteSlotRequest request){
-        int deleted = slotMapper.delete(new LambdaQueryWrapper<SlotEntity>().eq(SlotEntity::getPublicId,request.publicId()));
-        if (deleted == 0) throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
-        slotCacheDebeziumPort.evictCacheWithRetry(request.slotCode());
-        return new SlotOperationResponse(request.publicId());
-     }
-    @Override
-    public PageResponse<SlotQueryResponse> pageQuery(PageSlotRequest request) {
-        long current = request.current();
-        long size = request.size();
-        String slotCode = request.slotCode();
-        Integer status = request.status();
-        Page<SlotEntity> page = new Page<>(current, size);
-        LambdaQueryWrapper<SlotEntity> query = new LambdaQueryWrapper<SlotEntity>()
-                .like(StringUtils.hasText(slotCode), SlotEntity::getSlotCode, slotCode)
-                .eq(status != null, SlotEntity::getStatus, status)
-                .orderByDesc(SlotEntity::getId);
-        Page<SlotEntity> result = slotMapper.selectPage(page, query);
-        List<SlotQueryResponse> records = result.getRecords().stream().map(slotConverter::toQueryResponse).toList();
-        return PageResponse.of(result, records);
-    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(SlotCacheStopGuardWriteEvent event){//需要重试机制吗
         slotCacheStopGuardPort.writeToStopGuardCache(event.slotCode);
     }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void afterCommit(SlotCacheStopGuardEvictEvent event){
         slotCacheStopGuardPort.evictFromStopGuardCache(event.slotCode);

@@ -1,5 +1,9 @@
 package com.example.adplatform.admin.controller;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import com.example.adplatform.admin.request.advertiser.UpdateAdvertiserRequest;
+import com.example.adplatform.admin.request.advertiser.DeleteAdvertiserRequest;
 import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
 import com.example.adplatform.admin.request.advertiser.PageAdvertiserRequest;
 import com.example.adplatform.admin.response.advertiser.AdvertiserOperationResponse;
@@ -32,10 +36,20 @@ public class AdvertiserController {
     }
 
     /**
-     * 分页查询广告主，支持按名称关键字和启用状态筛选。
+     * 分页查询广告主。
      */
     @PostMapping("/page")
     public Result<PageResponse<AdvertiserQueryResponse>> page(@Valid @RequestBody PageAdvertiserRequest request) {
         return Result.success(advertiserService.pageQuery(request));
+    }
+
+    @PutMapping
+    public Result<AdvertiserOperationResponse> update(@Valid @RequestBody UpdateAdvertiserRequest request) {
+        return Result.success(advertiserService.update(request));
+    }
+
+    @DeleteMapping
+    public Result<AdvertiserOperationResponse> delete(@Valid @RequestBody DeleteAdvertiserRequest request) {
+        return Result.success(advertiserService.delete(request));
     }
 }

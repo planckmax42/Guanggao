@@ -1,13 +1,20 @@
 package com.example.adplatform.admin.service;
 
-import com.example.adplatform.admin.request.rule.QueryRuleRequest;
 import com.example.adplatform.admin.request.rule.CreateRuleRequest;
+import com.example.adplatform.admin.request.rule.UpdateRuleRequest;
+import com.example.adplatform.admin.request.rule.DeleteRuleRequest;
+import com.example.adplatform.admin.request.rule.PageRuleRequest;
+import com.example.adplatform.admin.response.PageResponse;
+import com.example.adplatform.admin.response.rule.RuleOperationResponse;
 import com.example.adplatform.admin.response.rule.RuleResponse;
-import com.example.adplatform.common.response.ResourceRefResponse;
 
 public interface RuleService {
 
-    ResourceRefResponse createOrUpdate(CreateRuleRequest request);
+    RuleOperationResponse create(CreateRuleRequest request);
 
-    RuleResponse getByPlanPublicId(QueryRuleRequest request);
+    PageResponse<RuleResponse> pageQuery(PageRuleRequest request);
+
+    RuleOperationResponse update(UpdateRuleRequest request);
+
+    RuleOperationResponse delete(DeleteRuleRequest request);
 }

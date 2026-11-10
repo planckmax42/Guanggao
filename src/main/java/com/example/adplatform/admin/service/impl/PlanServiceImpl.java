@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.plan.DeletePlanRequest;
 import com.example.adplatform.admin.request.plan.PagePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -13,13 +14,13 @@ import com.example.adplatform.admin.entity.PlanStatus;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.port.EventMetadataPort;
+import com.example.adplatform.admin.response.plan.PlanOperationResponse;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.plan.PlanResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.response.ResourceRefResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
@@ -28,12 +29,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 广告计划管理及状态流转服务。
@@ -54,31 +51,57 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ResourceRefResponse create(CreatePlanRequest request) {
-        AdvertiserEntity advertiser = getEnabledAdvertiser(request.advertiserPublicId());
-
-        PlanEntity entity = planConverter.toEntity(request);
+    public PlanOperationResponse create(CreatePlanRequest request) {
+        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()));
+        if (advertiser == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        if (advertiser.getStatus() != CommonStatus.ENABLED) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
+        }
+        PlanEntity entity = planConverter.requestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.PLAN_PREFIX));
-        entity.setAdvertiserId(advertiser.getId());
+        entity.setAdvertiserPublicId(request.advertiserPublicId());
         planMapper.insert(entity);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, entity.getPublicId());
-        return planConverter.toRef(entity);
+        return planConverter.entityToOperationResponse(entity);
+    }
+
+    @Override
+    public PageResponse<PlanResponse> pageQuery(PagePlanRequest request) {
+        Page<PlanEntity> result = planMapper.selectPage(new Page<>(request.current(), request.size()),
+                new LambdaQueryWrapper<PlanEntity>().orderByDesc(PlanEntity::getId));
+        return planConverter.pageToResponse(result);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PlanResponse update(UpdatePlanRequest request) {
+    public PlanOperationResponse update(UpdatePlanRequest request) {
         String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
         if (PlanStatus.OFFLINE.name().equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "已下线的广告计划不能修改");
         }
-        planConverter.updateEntity(request, entity);
-        planMapper.updateById(entity);
+        PlanEntity update = new PlanEntity();
+        update.setId(internalId);
+        planConverter.requestToEntity(request, update);
+        planMapper.updateById(update);
         eventMetadataCacheService.evictPlanAfterCommit(internalId);
         searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
-        return toResponse(planMapper.selectById(internalId));
+        return planConverter.entityToOperationResponse(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PlanOperationResponse delete(DeletePlanRequest request) {
+        PlanEntity entity = getPlanOrThrow(request.publicId());
+        if (planMapper.deleteById(entity.getId()) == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        }
+        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
+        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
+        return new PlanOperationResponse(request.publicId());
     }
 
     @Override
@@ -87,7 +110,7 @@ public class PlanServiceImpl implements PlanService {
         String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
-        ensureAdvertiserEnabled(entity.getAdvertiserId());
+        ensureAdvertiserEnabled(entity.getAdvertiserPublicId());
         if (entity.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "广告计划结束时间已过期");
         }
@@ -127,33 +150,6 @@ public class PlanServiceImpl implements PlanService {
         return toResponse(planMapper.selectById(internalId));
     }
 
-    @Override
-    public PageResponse<PlanResponse> pageQuery(PagePlanRequest request) {
-        long current = request.current();
-        long size = request.size();
-        String advertiserPublicId = request.advertiserPublicId();
-        String status = request.status();
-        Long advertiserId = advertiserPublicId == null ? null : getAdvertiser(advertiserPublicId).getId();
-        Page<PlanEntity> page = new Page<>(current, size);
-        LambdaQueryWrapper<PlanEntity> query = new LambdaQueryWrapper<PlanEntity>()
-                .eq(advertiserId != null, PlanEntity::getAdvertiserId, advertiserId)
-                .eq(StringUtils.hasText(status), PlanEntity::getStatus, status)
-                .orderByDesc(PlanEntity::getId);
-        Page<PlanEntity> result = planMapper.selectPage(page, query);
-        List<Long> advertiserIds = result.getRecords().stream()
-                .map(PlanEntity::getAdvertiserId)
-                .distinct()
-                .toList();
-        Map<Long, String> advertiserPublicIds = advertiserIds.isEmpty()
-                ? Map.of()
-                : advertiserMapper.selectBatchIds(advertiserIds).stream()
-                        .collect(Collectors.toMap(AdvertiserEntity::getId, AdvertiserEntity::getPublicId));
-        List<PlanResponse> records = result.getRecords().stream()
-                .map(entity -> planConverter.toResponse(entity, advertiserPublicIds.get(entity.getAdvertiserId())))
-                .toList();
-        return PageResponse.of(result, records);
-    }
-
     private PlanEntity getPlanOrThrow(String publicId) {
         PlanEntity entity = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
                 .eq(PlanEntity::getPublicId, publicId));
@@ -164,8 +160,7 @@ public class PlanServiceImpl implements PlanService {
     }
 
     private PlanResponse toResponse(PlanEntity entity) {
-        AdvertiserEntity advertiser = advertiserMapper.selectById(entity.getAdvertiserId());
-        return planConverter.toResponse(entity, advertiser == null ? null : advertiser.getPublicId());
+        return planConverter.entityToQueryResponse(entity);
     }
 
     private AdvertiserEntity getAdvertiser(String publicId) {
@@ -179,12 +174,13 @@ public class PlanServiceImpl implements PlanService {
 
     private AdvertiserEntity getEnabledAdvertiser(String publicId) {
         AdvertiserEntity advertiser = getAdvertiser(publicId);
-        ensureAdvertiserEnabled(advertiser.getId());
+        ensureAdvertiserEnabled(advertiser.getPublicId());
         return advertiser;
     }
 
-    private void ensureAdvertiserEnabled(Long advertiserId) {
-        AdvertiserEntity advertiser = advertiserMapper.selectById(advertiserId);
+    private void ensureAdvertiserEnabled(String advertiserPublicId) {
+        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, advertiserPublicId));
         if (advertiser == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
         }
