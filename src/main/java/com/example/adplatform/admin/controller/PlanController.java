@@ -39,7 +39,7 @@ public class PlanController {
      */
     @PutMapping
     public Result<PlanResponse> update(@Valid @RequestBody UpdatePlanRequest request) {
-        return Result.success(planService.update(request.publicId(), request));
+        return Result.success(planService.update(request));
     }
 
     /**
@@ -47,7 +47,7 @@ public class PlanController {
      */
     @PutMapping("/online")
     public Result<PlanResponse> online(@Valid @RequestBody UpdatePlanStatusRequest request) {
-        return Result.success(planService.online(request.publicId()));
+        return Result.success(planService.online(request));
     }
 
     /**
@@ -55,7 +55,7 @@ public class PlanController {
      */
     @PutMapping("/pause")
     public Result<PlanResponse> pause(@Valid @RequestBody UpdatePlanStatusRequest request) {
-        return Result.success(planService.pause(request.publicId()));
+        return Result.success(planService.pause(request));
     }
 
     /**
@@ -63,7 +63,7 @@ public class PlanController {
      */
     @PutMapping("/offline")
     public Result<PlanResponse> offline(@Valid @RequestBody UpdatePlanStatusRequest request) {
-        return Result.success(planService.offline(request.publicId()));
+        return Result.success(planService.offline(request));
     }
 
     /**
@@ -71,7 +71,6 @@ public class PlanController {
      */
     @PostMapping("/page")
     public Result<PageResponse<PlanResponse>> page(@Valid @RequestBody PagePlanRequest request) {
-        return Result.success(planService.pageQuery(
-                request.current(), request.size(), request.advertiserPublicId(), request.status()));
+        return Result.success(planService.pageQuery(request));
     }
 }

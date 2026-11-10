@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.rule.QueryRuleRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.converter.RuleConverter;
 import com.example.adplatform.admin.request.rule.CreateRuleRequest;
@@ -71,7 +72,8 @@ public class RuleServiceImpl implements RuleService {
     }
 
     @Override
-    public RuleResponse getByPlanPublicId(String planPublicId) {
+    public RuleResponse getByPlanPublicId(QueryRuleRequest request) {
+        String planPublicId = request.planPublicId();
         PlanEntity plan = getPlanByPublicId(planPublicId);
         RuleEntity entity = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
                 .eq(RuleEntity::getPlanId, plan.getId()));

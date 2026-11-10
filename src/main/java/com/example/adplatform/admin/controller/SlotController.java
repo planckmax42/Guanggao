@@ -56,7 +56,6 @@ public class SlotController {
      */
     @PostMapping("/page")
     public Result<PageResponse<SlotQueryResponse>> page(@Valid @RequestBody PageSlotRequest request) {
-        return Result.success(slotService.pageQuery(
-                request.current(), request.size(), request.slotCode(), request.status()));
+        return Result.success(slotService.pageQuery(request));
     }
 }

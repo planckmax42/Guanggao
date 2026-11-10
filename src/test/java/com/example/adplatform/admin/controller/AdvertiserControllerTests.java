@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.controller;
 
+import com.example.adplatform.admin.request.advertiser.PageAdvertiserRequest;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.service.AdvertiserService;
 import com.example.adplatform.common.exception.GlobalExceptionHandler;
@@ -29,7 +30,7 @@ class AdvertiserControllerTests {
 
     @Test
     void shouldQueryPageUsingJsonBody() throws Exception {
-        when(advertiserService.pageQuery(2, 20, 1))
+        when(advertiserService.pageQuery(new PageAdvertiserRequest(2L, 20L, 1)))
                 .thenReturn(new PageResponse<>(2, 20, 0, 0, List.of()));
 
         mockMvc.perform(post("/api/platform/advertisers/page")
@@ -44,7 +45,7 @@ class AdvertiserControllerTests {
 
     @Test
     void shouldUseDefaultPaginationWhenFieldsAreOmitted() throws Exception {
-        when(advertiserService.pageQuery(1, 10, null))
+        when(advertiserService.pageQuery(new PageAdvertiserRequest(1L, 10L, null)))
                 .thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
 
         mockMvc.perform(post("/api/platform/advertisers/page")

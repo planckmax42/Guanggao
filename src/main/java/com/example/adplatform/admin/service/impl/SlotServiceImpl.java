@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.slot.PageSlotRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -126,7 +127,11 @@ public class SlotServiceImpl implements SlotService {
         return new SlotOperationResponse(request.publicId());
      }
     @Override
-    public PageResponse<SlotQueryResponse> pageQuery(long current, long size, String slotCode, Integer status) {
+    public PageResponse<SlotQueryResponse> pageQuery(PageSlotRequest request) {
+        long current = request.current();
+        long size = request.size();
+        String slotCode = request.slotCode();
+        Integer status = request.status();
         Page<SlotEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<SlotEntity> query = new LambdaQueryWrapper<SlotEntity>()
                 .like(StringUtils.hasText(slotCode), SlotEntity::getSlotCode, slotCode)

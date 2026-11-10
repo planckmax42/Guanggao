@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service;
 
+import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.example.adplatform.admin.request.material.AuditMaterialRequest;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;
@@ -10,5 +11,5 @@ public interface MaterialService {
 
     MaterialOperationResponse create(CreateMaterialRequest request);
 
-    PageResponse<MaterialQueryResponse> pageQuery(long current, long size, String planPublicId, String auditStatus);
+    PageResponse<MaterialQueryResponse> pageQuery(PageMaterialRequest request);
 }

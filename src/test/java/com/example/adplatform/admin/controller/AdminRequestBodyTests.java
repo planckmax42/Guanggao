@@ -1,5 +1,10 @@
 package com.example.adplatform.admin.controller;
 
+import com.example.adplatform.admin.request.material.PageMaterialRequest;
+import com.example.adplatform.admin.request.plan.PagePlanRequest;
+import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
+import com.example.adplatform.admin.request.rule.QueryRuleRequest;
+import com.example.adplatform.admin.request.slot.PageSlotRequest;
 import com.example.adplatform.admin.request.material.AuditMaterialRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
@@ -51,9 +56,9 @@ class AdminRequestBodyTests {
     @ParameterizedTest
     @ValueSource(strings = {"/api/platform/slots/page", "/api/advertiser/plans/page", "/api/advertiser/materials/page"})
     void shouldPreservePaginationDefaults(String path) throws Exception {
-        when(slots.pageQuery(1, 10, null, null)).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
-        when(plans.pageQuery(1, 10, null, null)).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
-        when(materials.pageQuery(1, 10, null, null)).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
+        when(slots.pageQuery(new PageSlotRequest(1L, 10L, null, null))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
+        when(plans.pageQuery(new PagePlanRequest(1L, 10L, null, null))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
+        when(materials.pageQuery(new PageMaterialRequest(1L, 10L, null, null))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
 
         mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk())
@@ -66,18 +71,18 @@ class AdminRequestBodyTests {
         mvc.perform(post("/api/platform/slots/page").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"current\":2,\"size\":20,\"slotCode\":\"home\",\"status\":1}"))
                 .andExpect(status().isOk());
-        verify(slots).pageQuery(2, 20, "home", 1);
+        verify(slots).pageQuery(new PageSlotRequest(2L, 20L, "home", 1));
 
         String advertiserId = "adv_00000000000000000000000000000001";
         mvc.perform(post("/api/advertiser/plans/page").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"current\":3,\"size\":30,\"advertiserPublicId\":\"" + advertiserId + "\",\"status\":\"ONLINE\"}"))
                 .andExpect(status().isOk());
-        verify(plans).pageQuery(3, 30, advertiserId, "ONLINE");
+        verify(plans).pageQuery(new PagePlanRequest(3L, 30L, advertiserId, "ONLINE"));
 
         mvc.perform(post("/api/advertiser/materials/page").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"current\":4,\"size\":40,\"planPublicId\":\"" + PLAN_ID + "\",\"auditStatus\":\"APPROVED\"}"))
                 .andExpect(status().isOk());
-        verify(materials).pageQuery(4, 40, PLAN_ID, "APPROVED");
+        verify(materials).pageQuery(new PageMaterialRequest(4L, 40L, PLAN_ID, "APPROVED"));
     }
 
     @ParameterizedTest
@@ -104,9 +109,9 @@ class AdminRequestBodyTests {
                         .content("{\"publicId\":\"" + PLAN_ID + "\"}"))
                 .andExpect(status().isOk());
         switch (action) {
-            case "online" -> verify(plans).online(PLAN_ID);
-            case "pause" -> verify(plans).pause(PLAN_ID);
-            case "offline" -> verify(plans).offline(PLAN_ID);
+            case "online" -> verify(plans).online(new UpdatePlanStatusRequest(PLAN_ID));
+            case "pause" -> verify(plans).pause(new UpdatePlanStatusRequest(PLAN_ID));
+            case "offline" -> verify(plans).offline(new UpdatePlanStatusRequest(PLAN_ID));
             default -> throw new AssertionError(action);
         }
     }
@@ -121,7 +126,8 @@ class AdminRequestBodyTests {
                                 """.formatted(PLAN_ID)))
                 .andExpect(status().isOk());
         ArgumentCaptor<UpdatePlanRequest> request = ArgumentCaptor.forClass(UpdatePlanRequest.class);
-        verify(plans).update(eq(PLAN_ID), request.capture());
+        verify(plans).update(request.capture());
+        assertThat(request.getValue().publicId()).isEqualTo(PLAN_ID);
         assertThat(request.getValue().name()).isEqualTo("更新计划");
     }
 
@@ -156,7 +162,7 @@ class AdminRequestBodyTests {
         mvc.perform(post("/api/advertiser/rules/by-plan").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"planPublicId\":\"" + PLAN_ID + "\"}"))
                 .andExpect(status().isOk());
-        verify(rules).getByPlanPublicId(PLAN_ID);
+        verify(rules).getByPlanPublicId(new QueryRuleRequest(PLAN_ID));
     }
 
     @ParameterizedTest
@@ -166,8 +172,8 @@ class AdminRequestBodyTests {
             "/api/advertiser/plans/offline|{\"publicId\":\"\"}",
             "/api/platform/slots|{\"publicId\":\"bad\",\"name\":\"首页\"}",
             "/api/platform/slots/status|{\"publicId\":\"bad\",\"slotCode\":\"home\",\"status\":1}",
-            "/api/platform/materials/audit|{\"auditStatus\":\"APPROVED\"}",
-            "/api/platform/materials/audit|{\"publicId\":\"bad\",\"auditStatus\":\"APPROVED\"}"
+            "/api/platform/materials/audit|{\"status\":\"APPROVED\"}",
+            "/api/platform/materials/audit|{\"publicId\":\"bad\",\"status\":\"APPROVED\"}"
     })
     void shouldValidateResourceIdsInRequestBodies(String path, String body) throws Exception {
         mvc.perform(put(path).contentType(MediaType.APPLICATION_JSON).content(body))

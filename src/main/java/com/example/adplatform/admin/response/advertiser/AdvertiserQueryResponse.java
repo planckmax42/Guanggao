@@ -8,7 +8,5 @@ public record AdvertiserQueryResponse(
         String industry,
         String contactName,
         String contactEmail,
-        Integer status,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        Integer status) {
 }

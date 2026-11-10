@@ -11,7 +11,5 @@ public record MaterialQueryResponse(
         String imageUrl,
         String landingPageUrl,
         String auditStatus,
-        Integer status,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        Integer status) {
 }

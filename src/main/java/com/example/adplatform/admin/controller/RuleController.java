@@ -35,6 +35,6 @@ public class RuleController {
      */
     @PostMapping("/by-plan")
     public Result<RuleResponse> getByPlanPublicId(@Valid @RequestBody QueryRuleRequest request) {
-        return Result.success(ruleService.getByPlanPublicId(request.planPublicId()));
+        return Result.success(ruleService.getByPlanPublicId(request));
     }
 }

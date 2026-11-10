@@ -31,7 +31,7 @@ public class ReportController {
      */
     @PostMapping("/daily")
     public Result<List<DailyReportResponse>> daily(@Valid @RequestBody DailyReportRequest request) {
-        return Result.success(reportService.daily(request.statDate(), request.planPublicId()));
+        return Result.success(reportService.daily(request));
     }
 
     /**
@@ -39,7 +39,7 @@ public class ReportController {
      */
     @PostMapping("/funnel")
     public Result<FunnelStatsResponse> funnel(@Valid @RequestBody FunnelReportRequest request) {
-        return Result.success(reportService.funnel(request.startDate(), request.endDate(), request.planPublicId()));
+        return Result.success(reportService.funnel(request));
     }
 
     /**
@@ -47,7 +47,6 @@ public class ReportController {
      */
     @PostMapping("/top-materials")
     public Result<List<TopMaterialResponse>> topMaterials(@Valid @RequestBody TopMaterialsRequest request) {
-        return Result.success(reportService.topMaterials(
-                request.startDate(), request.endDate(), request.planPublicId(), request.limit()));
+        return Result.success(reportService.topMaterials(request));
     }
 }

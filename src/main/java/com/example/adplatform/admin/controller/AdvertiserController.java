@@ -36,7 +36,6 @@ public class AdvertiserController {
      */
     @PostMapping("/page")
     public Result<PageResponse<AdvertiserQueryResponse>> page(@Valid @RequestBody PageAdvertiserRequest request) {
-        return Result.success(advertiserService.pageQuery(
-                request.current(), request.size(), request.status()));
+        return Result.success(advertiserService.pageQuery(request));
     }
 }

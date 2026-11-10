@@ -2,11 +2,13 @@ package com.example.adplatform.admin.converter;
 
 import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
+import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
 import com.example.adplatform.admin.response.advertiser.AdvertiserOperationResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.data.domain.Page;
 
 @Mapper(componentModel = "spring", imports = CommonStatus.class)
 public interface AdvertiserConverter {
@@ -21,4 +23,6 @@ public interface AdvertiserConverter {
     AdvertiserQueryResponse entityToQueryResponse(AdvertiserEntity entity);
 
     AdvertiserOperationResponse entityToOperationResponse(AdvertiserEntity entity);
+
+    PageResponse<AdvertiserQueryResponse> pageToResponse(Page<AdvertiserEntity> page);
 }

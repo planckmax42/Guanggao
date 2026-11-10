@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.advertiser.PageAdvertiserRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.AdvertiserConverter;
@@ -40,14 +41,15 @@ public class AdvertiserServiceImpl implements AdvertiserService {
     }
 
     @Override
-    public PageResponse<AdvertiserQueryResponse> pageQuery(long current, long size, Integer status) {
+    public PageResponse<AdvertiserQueryResponse> pageQuery(PageAdvertiserRequest request) {
+        long current = request.current();
+        long size = request.size();
+        Integer status = request.status();
         Page<AdvertiserEntity> page = new Page<>(current, size);
-        LambdaQueryWrapper<AdvertiserEntity> query = new LambdaQueryWrapper<AdvertiserEntity>()
+        Page<AdvertiserEntity> result = advertiserMapper.selectPage(page,  new LambdaQueryWrapper<AdvertiserEntity>()
                 .eq(status != null, AdvertiserEntity::getStatus, status)
                 .orderByAsc(AdvertiserEntity::getName)
-                .orderByAsc(AdvertiserEntity::getId);
-        Page<AdvertiserEntity> result = advertiserMapper.selectPage(page, query);
-        List<AdvertiserQueryResponse> records = result.getRecords().stream().map(advertiserConverter::entityToQueryResponse).toList();
-        return PageResponse.of(result, records);
+                .orderByAsc(AdvertiserEntity::getId));
+        return advertiserConverter.pageToResponse(result);
     }
 }

@@ -45,7 +45,7 @@ public class MaterialEntity {
      */
     @TableField("slot_id")
     private String slotId;
-    private String title;
+    private String name;
     private String description;
     private String imageUrl;
     private String landingPageUrl;

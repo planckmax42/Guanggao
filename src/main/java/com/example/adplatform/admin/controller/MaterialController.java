@@ -36,7 +36,6 @@ public class MaterialController {
      */
     @PostMapping("/page")
     public Result<PageResponse<MaterialQueryResponse>> page(@Valid @RequestBody PageMaterialRequest request) {
-        return Result.success(materialService.pageQuery(
-                request.current(), request.size(), request.planPublicId(), request.auditStatus()));
+        return Result.success(materialService.pageQuery(request));
     }
 }

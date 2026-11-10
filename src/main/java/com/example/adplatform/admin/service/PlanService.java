@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.service;
 
+import com.example.adplatform.admin.request.plan.PagePlanRequest;
+import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.response.plan.PlanResponse;
@@ -10,13 +12,13 @@ public interface PlanService {
 
     ResourceRefResponse create(CreatePlanRequest request);
 
-    PlanResponse update(String publicId, UpdatePlanRequest request);
+    PlanResponse update(UpdatePlanRequest request);
 
-    PlanResponse online(String publicId);
+    PlanResponse online(UpdatePlanStatusRequest request);
 
-    PlanResponse pause(String publicId);
+    PlanResponse pause(UpdatePlanStatusRequest request);
 
-    PlanResponse offline(String publicId);
+    PlanResponse offline(UpdatePlanStatusRequest request);
 
-    PageResponse<PlanResponse> pageQuery(long current, long size, String advertiserPublicId, String status);
+    PageResponse<PlanResponse> pageQuery(PagePlanRequest request);
 }

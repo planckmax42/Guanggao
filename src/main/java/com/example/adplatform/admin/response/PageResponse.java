@@ -13,10 +13,5 @@ public record PageResponse<T>(
         long total,
         long pages,
         List<T> records) {
-    /**
-     * 从 MyBatis-Plus 分页对象中提取分页信息，并使用业务层转换后的 records。
-     */
-    public static <T> PageResponse<T> of(Page<?> page, List<T> records) {
-        return new PageResponse<>(page.getCurrent(), page.getSize(), page.getTotal(), page.getPages(), records);
-    }
+
 }

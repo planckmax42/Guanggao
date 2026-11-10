@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.service;
 
+import com.example.adplatform.admin.request.slot.PageSlotRequest;
 import com.example.adplatform.admin.request.slot.CreateSlotRequest;
 import com.example.adplatform.admin.request.slot.UpdateSlotRequest;
 import com.example.adplatform.admin.request.slot.UpdateSlotStatusRequest;
@@ -15,6 +16,6 @@ public interface SlotService {
 
     SlotOperationResponse updateStatus(UpdateSlotStatusRequest request);
 
-    PageResponse<SlotQueryResponse> pageQuery(long current, long size, String slotCode, Integer status);
+    PageResponse<SlotQueryResponse> pageQuery(PageSlotRequest request);
 
 }

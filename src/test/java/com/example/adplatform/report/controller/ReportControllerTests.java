@@ -1,5 +1,8 @@
 package com.example.adplatform.report.controller;
 
+import com.example.adplatform.report.request.DailyReportRequest;
+import com.example.adplatform.report.request.FunnelReportRequest;
+import com.example.adplatform.report.request.TopMaterialsRequest;
 import com.example.adplatform.common.exception.GlobalExceptionHandler;
 import com.example.adplatform.report.service.ReportService;
 import org.junit.jupiter.api.Test;
@@ -30,7 +33,7 @@ class ReportControllerTests {
         mvc.perform(post("/api/report/daily").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"statDate\":\"2026-11-09\",\"planPublicId\":\"" + PLAN_ID + "\"}"))
                 .andExpect(status().isOk());
-        verify(reports).daily(LocalDate.of(2026, 11, 9), PLAN_ID);
+        verify(reports).daily(new DailyReportRequest(LocalDate.of(2026, 11, 9), PLAN_ID));
     }
 
     @Test
@@ -38,7 +41,7 @@ class ReportControllerTests {
         mvc.perform(post("/api/report/funnel").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-09\"}"))
                 .andExpect(status().isOk());
-        verify(reports).funnel(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 9), null);
+        verify(reports).funnel(new FunnelReportRequest(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 9), null));
     }
 
     @Test
@@ -48,7 +51,7 @@ class ReportControllerTests {
                                 {"startDate":"2026-11-01","endDate":"2026-11-09","advertiserPublicId":"%s","limit":5}
                                 """.formatted(PLAN_ID)))
                 .andExpect(status().isOk());
-        verify(reports).topMaterials(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 9), PLAN_ID, 5);
+        verify(reports).topMaterials(new TopMaterialsRequest(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 9), PLAN_ID, 5));
     }
 
     @ParameterizedTest

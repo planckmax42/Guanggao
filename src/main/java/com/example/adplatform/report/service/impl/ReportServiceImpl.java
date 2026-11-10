@@ -1,5 +1,8 @@
 package com.example.adplatform.report.service.impl;
 
+import com.example.adplatform.report.request.TopMaterialsRequest;
+import com.example.adplatform.report.request.FunnelReportRequest;
+import com.example.adplatform.report.request.DailyReportRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
@@ -41,7 +44,9 @@ public class ReportServiceImpl implements ReportService {
     private final SlotMapper slotMapper;
 
     @Override
-    public List<DailyReportResponse> daily(LocalDate statDate, String planPublicId) {
+    public List<DailyReportResponse> daily(DailyReportRequest request) {
+        LocalDate statDate = request.statDate();
+        String planPublicId = request.planPublicId();
         Long planId = resolvePlanId(planPublicId);
         LambdaQueryWrapper<DailyReportEntity> query = new LambdaQueryWrapper<DailyReportEntity>()
                 .eq(DailyReportEntity::getStatDate, statDate)
@@ -60,7 +65,10 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public FunnelStatsResponse funnel(LocalDate startDate, LocalDate endDate, String planPublicId) {
+    public FunnelStatsResponse funnel(FunnelReportRequest request) {
+        LocalDate startDate = request.startDate();
+        LocalDate endDate = request.endDate();
+        String planPublicId = request.planPublicId();
         if (endDate.isBefore(startDate)) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束日期不能早于开始日期");
         }
@@ -87,11 +95,11 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<TopMaterialResponse> topMaterials(
-            LocalDate startDate,
-            LocalDate endDate,
-            String planPublicId,
-            Integer limit) {
+    public List<TopMaterialResponse> topMaterials(TopMaterialsRequest request) {
+        LocalDate startDate = request.startDate();
+        LocalDate endDate = request.endDate();
+        String planPublicId = request.planPublicId();
+        Integer limit = request.limit();
         if (endDate.isBefore(startDate)) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束日期不能早于开始日期");
         }

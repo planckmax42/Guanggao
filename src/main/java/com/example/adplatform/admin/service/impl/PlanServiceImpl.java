@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.plan.PagePlanRequest;
+import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.PlanConverter;
@@ -65,7 +67,8 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PlanResponse update(String publicId, UpdatePlanRequest request) {
+    public PlanResponse update(UpdatePlanRequest request) {
+        String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
         if (PlanStatus.OFFLINE.name().equals(entity.getStatus())) {
@@ -80,7 +83,8 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PlanResponse online(String publicId) {
+    public PlanResponse online(UpdatePlanStatusRequest request) {
+        String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
         ensureAdvertiserEnabled(entity.getAdvertiserId());
@@ -96,7 +100,8 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PlanResponse pause(String publicId) {
+    public PlanResponse pause(UpdatePlanStatusRequest request) {
+        String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
         if (!PlanStatus.ONLINE.name().equals(entity.getStatus())) {
@@ -111,7 +116,8 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PlanResponse offline(String publicId) {
+    public PlanResponse offline(UpdatePlanStatusRequest request) {
+        String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
         entity.setStatus(PlanStatus.OFFLINE.name());
@@ -122,11 +128,11 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
-    public PageResponse<PlanResponse> pageQuery(
-            long current,
-            long size,
-            String advertiserPublicId,
-            String status) {
+    public PageResponse<PlanResponse> pageQuery(PagePlanRequest request) {
+        long current = request.current();
+        long size = request.size();
+        String advertiserPublicId = request.advertiserPublicId();
+        String status = request.status();
         Long advertiserId = advertiserPublicId == null ? null : getAdvertiser(advertiserPublicId).getId();
         Page<PlanEntity> page = new Page<>(current, size);
         LambdaQueryWrapper<PlanEntity> query = new LambdaQueryWrapper<PlanEntity>()

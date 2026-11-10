@@ -1,19 +1,17 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
-import com.example.adplatform.admin.request.material.AuditMaterialRequest;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
-import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
-import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.material.MaterialQueryResponse;
@@ -21,19 +19,9 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
-import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
-import com.example.adplatform.search.outbox.message.ConfigAggregateType;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
-import com.example.adplatform.tracking.service.EventMaterialMetadata;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 素材管理服务。
@@ -49,9 +37,6 @@ public class MaterialServiceImpl implements MaterialService {
     private final PlanMapper planMapper;
     private final SlotMapper slotMapper;
     private final MaterialConverter materialConverter;
-    private final SearchOutboxService searchOutboxService;
-    private final ApplicationEventPublisher applicationEventPublisher;
-    private final EventMetadataPort eventMetadataCacheService;
     private final AdvertiserMapper advertiserMapper;
 
     @Override
@@ -72,50 +57,15 @@ public class MaterialServiceImpl implements MaterialService {
     }
 
     @Override
-    public PageResponse<MaterialQueryResponse> pageQuery(
-            long current,
-            long size,
-            String planPublicId,
-            String auditStatus) {
-        Long planId = planPublicId == null ? null : getPlanByPublicId(planPublicId).getId();
+    public PageResponse<MaterialQueryResponse> pageQuery(PageMaterialRequest request) {
+        long current = request.current();
+        long size = request.size();
+        Integer status = request.status();
         Page<MaterialEntity> page = new Page<>(current, size);
-        LambdaQueryWrapper<MaterialEntity> query = new LambdaQueryWrapper<MaterialEntity>()
-                .eq(planId != null, MaterialEntity::getPlanId, planId)
-                .eq(StringUtils.hasText(auditStatus), MaterialEntity::getAuditStatus, auditStatus)
-                .orderByDesc(MaterialEntity::getId);
-        Page<MaterialEntity> result = materialMapper.selectPage(page, query);
-        List<Long> planIds = result.getRecords().stream()
-                .map(MaterialEntity::getPlanId)
-                .distinct()
-                .toList();
-        Map<Long, String> planPublicIds = planIds.isEmpty()
-                ? Map.of()
-                : planMapper.selectBatchIds(planIds).stream()
-                        .collect(Collectors.toMap(PlanEntity::getId, PlanEntity::getPublicId));
-        List<Long> slotIds = result.getRecords().stream()
-                .map(MaterialEntity::getSlotId)
-                .distinct()
-                .toList();
-        Map<Long, String> slotPublicIds = slotIds.isEmpty()
-                ? Map.of()
-                : slotMapper.selectBatchIds(slotIds).stream()
-                        .collect(Collectors.toMap(SlotEntity::getId, SlotEntity::getPublicId));
-        List<MaterialQueryResponse> records = result.getRecords().stream()
-                .map(entity -> materialConverter.entityToQueryResponse(
-                        entity,
-                        planPublicIds.get(entity.getPlanId()),
-                        slotPublicIds.get(entity.getSlotId())))
-                .toList();
-        return PageResponse.of(result, records);
+        Page<MaterialEntity> result = materialMapper.selectPage(page, new LambdaQueryWrapper<MaterialEntity>()
+                .eq(status!=null, MaterialEntity::getAuditStatus, status)
+                .orderByAsc(MaterialEntity::getName)
+                .orderByAsc(MaterialEntity::getId));
+        return materialConverter.pageToResponse(result);
     }
-
-    private PlanEntity getPlanByPublicId(String publicId) {
-        PlanEntity plan = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, publicId));
-        if (plan == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-        return plan;
-    }
-
 }

@@ -3,28 +3,13 @@ package com.example.adplatform.admin.converter;
 import com.example.adplatform.admin.request.rule.CreateRuleRequest;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.response.rule.RuleResponse;
-import com.example.adplatform.common.exception.BusinessException;
-import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.response.ResourceRefResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.Named;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-
-@Mapper(componentModel = "spring")
-public abstract class RuleConverter {
-
-    private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
-    };
-
-    @Autowired
-    private ObjectMapper objectMapper;
+@Mapper(componentModel = "spring", uses = RuleJsonConverter.class)
+public interface RuleConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -34,7 +19,7 @@ public abstract class RuleConverter {
     @Mapping(target = "userTags", source = "userTags", qualifiedByName = "toJson")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    public abstract RuleEntity toEntity(CreateRuleRequest request);
+    RuleEntity toEntity(CreateRuleRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -44,39 +29,15 @@ public abstract class RuleConverter {
     @Mapping(target = "userTags", source = "userTags", qualifiedByName = "toJson")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    public abstract void updateEntity(CreateRuleRequest request, @MappingTarget RuleEntity entity);
+    void updateEntity(CreateRuleRequest request, @MappingTarget RuleEntity entity);
 
     @Mapping(target = "regions", source = "entity.region", qualifiedByName = "fromJson")
     @Mapping(target = "deviceTypes", source = "entity.deviceType", qualifiedByName = "fromJson")
     @Mapping(target = "userTags", source = "entity.userTags", qualifiedByName = "fromJson")
-    @Mapping(target = "advertiserPublicId", source = "advertiserPublicId")
-    public abstract RuleResponse toResponse(RuleEntity entity, String planPublicId);
+    @Mapping(target = "planPublicId", source = "planPublicId")
+    RuleResponse toResponse(RuleEntity entity, String planPublicId);
 
     @Mapping(target = "publicId", source = "entity.publicId")
-    @Mapping(target = "bizKey", source = "advertiserPublicId")
-    public abstract ResourceRefResponse toRef(RuleEntity entity, String planPublicId);
-
-    @Named("toJson")
-    protected String toJson(List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(values);
-        } catch (JsonProcessingException ex) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "定向规则序列化失败");
-        }
-    }
-
-    @Named("fromJson")
-    protected List<String> fromJson(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(value, STRING_LIST_TYPE);
-        } catch (JsonProcessingException ex) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "定向规则解析失败");
-        }
-    }
+    @Mapping(target = "bizKey", source = "planPublicId")
+    ResourceRefResponse toRef(RuleEntity entity, String planPublicId);
 }
