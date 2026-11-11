@@ -1,6 +1,6 @@
 package com.example.adplatform.tracking.service.impl;
 
-import com.example.adplatform.admin.entity.BillingType;
+import com.example.adplatform.admin.enums.BillingType;
 import com.example.adplatform.tracking.port.BudgetChargePort;
 import com.example.adplatform.tracking.port.EventMetadataReaderPort;
 import com.example.adplatform.report.mapper.DailyReportMapper;

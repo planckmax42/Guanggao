@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.entity;
+package com.example.adplatform.admin.enums;
 
 /**
  * 广告素材审核状态。

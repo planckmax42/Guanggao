@@ -4,7 +4,6 @@ import com.example.adplatform.admin.request.material.UpdateMaterialRequest;
 import com.example.adplatform.admin.request.material.DeleteMaterialRequest;
 import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
@@ -12,9 +11,8 @@ import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.entity.MaterialEntity;
-import com.example.adplatform.admin.entity.MaterialAuditStatus;
+import com.example.adplatform.admin.enums.MaterialAuditStatus;
 import com.example.adplatform.admin.mapper.SlotMapper;
-import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;
 import com.example.adplatform.admin.service.MaterialService;
@@ -40,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MaterialServiceImpl implements MaterialService {
 
     private final MaterialMapper materialMapper;
-    private final PlanMapper planMapper;
     private final SlotMapper slotMapper;
     private final MaterialConverter materialConverter;
     private final AdvertiserMapper advertiserMapper;
@@ -56,11 +53,9 @@ public class MaterialServiceImpl implements MaterialService {
         if (advertiser.getStatus() != CommonStatus.ENABLED) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
         }
-        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.slotPublicId()));
-        if (slot == null) {
+        if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, request.slotPublicId())))
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-        }
         MaterialEntity entity = materialConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
         try {
@@ -82,6 +77,19 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public MaterialOperationResponse update(UpdateMaterialRequest request) {
+        MaterialEntity existing = materialMapper.selectOne(new LambdaQueryWrapper<MaterialEntity>()
+                .eq(MaterialEntity::getPublicId, request.publicId()));
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        }
+        boolean changed = (request.slotPublicId() != null && !request.slotPublicId().equals(existing.getSlotPublicId()))
+                || (request.name() != null && !request.name().equals(existing.getName()))
+                || (request.description() != null && !request.description().equals(existing.getDescription()))
+                || (request.imageUrl() != null && !request.imageUrl().equals(existing.getImageUrl()))
+                || (request.landingPageUrl() != null && !request.landingPageUrl().equals(existing.getLandingPageUrl()));
+        if (!changed) {
+            return new MaterialOperationResponse(request.publicId());
+        }
         if (request.slotPublicId() != null) {
             SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
                     .eq(SlotEntity::getPublicId, request.slotPublicId()));
@@ -90,11 +98,10 @@ public class MaterialServiceImpl implements MaterialService {
             }
         }
         MaterialEntity entity = materialConverter.updateRequestToEntity(request);
+        entity.setId(existing.getId());
         entity.setAuditStatus(MaterialAuditStatus.PENDING.name());
         try {
-            int updated = materialMapper.update(entity, new LambdaUpdateWrapper<MaterialEntity>()
-                    .eq(MaterialEntity::getPublicId, request.publicId()));
-            if (updated == 0) {
+            if (materialMapper.updateById(entity) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
             }
         } catch (DuplicateKeyException ex) {
@@ -105,6 +112,9 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public MaterialOperationResponse delete(DeleteMaterialRequest request) {
+        if (materialMapper.hasReferences(request.publicId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "素材存在关联数据，不能删除");
+        }
         int deleted = materialMapper.delete(new LambdaQueryWrapper<MaterialEntity>()
                 .eq(MaterialEntity::getPublicId, request.publicId()));
         if (deleted == 0) {

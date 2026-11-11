@@ -2,7 +2,7 @@ package com.example.adplatform.delivery.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.PlanEntity;
-import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.enums.PlanStatus;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.common.enums.CommonStatus;

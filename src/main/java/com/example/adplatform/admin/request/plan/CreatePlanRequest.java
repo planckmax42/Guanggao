@@ -18,17 +18,19 @@ public record CreatePlanRequest(
         @NotNull @Min(1) Long budgetTotal,
         @NotNull @Min(1) Long budgetDaily,
         @NotNull @Min(1) Long bidPrice,
-        @NotBlank @Size(max = 16) String billingType,
+        @NotBlank
+        @Pattern(regexp = "CPC|CPM|CPA", message = "计费方式只能是 CPC、CPM 或 CPA")
+        String billingType,
         @NotNull LocalDateTime startTime,
         @NotNull @Future LocalDateTime endTime) {
 
     @AssertTrue(message = "结束时间必须晚于开始时间")
     public boolean isValidTimeRange() {
-        return  endTime.isAfter(startTime);
+        return startTime == null || endTime == null || endTime.isAfter(startTime);
     }
 
     @AssertTrue(message = "日预算必须小于等于总预算")
     public boolean isValidBudget() {
-        return budgetDaily <= budgetTotal;
+        return budgetDaily == null || budgetTotal == null || budgetDaily <= budgetTotal;
     }
 }

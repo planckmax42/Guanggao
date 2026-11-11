@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
+import static com.example.adplatform.common.util.StringUtils.blankToNull;
+
 import static com.example.adplatform.common.id.PublicIdGenerator.PLAN_PATTERN;
 
 public record UpdatePlanRequest(
@@ -17,9 +19,21 @@ public record UpdatePlanRequest(
         @Min(1) Long budgetTotal,
         @Min(1) Long budgetDaily,
         @Min(1) Long bidPrice,
-        @Size(max = 16) String billingType,
+        @Pattern(regexp = "CPC|CPM|CPA", message = "计费方式只能是 CPC、CPM 或 CPA")
+        String billingType,
         LocalDateTime startTime,
         @Future LocalDateTime endTime) {
+
+    public UpdatePlanRequest {
+        name = blankToNull(name);
+        billingType = blankToNull(billingType);
+    }
+
+    @AssertTrue(message = "请至少提供一个需要修改的字段")
+    public boolean isUpdateProvided() {
+        return name != null || budgetTotal != null || budgetDaily != null || bidPrice != null
+                || billingType != null || startTime != null || endTime != null;
+    }
 
     @AssertTrue(message = "结束时间必须晚于开始时间")
     public boolean isValidTimeRange() {

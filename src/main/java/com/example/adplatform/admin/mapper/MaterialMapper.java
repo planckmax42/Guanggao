@@ -9,6 +9,13 @@ import org.apache.ibatis.annotations.Select;
 import java.util.List;
 
 public interface MaterialMapper extends BaseMapper<MaterialEntity> {
+    /** 关联列保留原名称，存储目标记录的 publicId；需配套数据库迁移。 */
+    @Select("""
+            SELECT EXISTS (SELECT 1 FROM plan_material_relation WHERE material_id = #{publicId})
+                OR EXISTS (SELECT 1 FROM material_tag_relation WHERE material_id = #{publicId})
+            """)
+    boolean hasReferences(@Param("publicId") String publicId);
+
 
     /**
      * 一次查询返回事件处理所需的素材和计划字段。

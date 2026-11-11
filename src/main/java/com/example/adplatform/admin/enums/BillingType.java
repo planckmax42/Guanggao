@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.entity;
+package com.example.adplatform.admin.enums;
 
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;

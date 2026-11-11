@@ -2,7 +2,7 @@ package com.example.adplatform.infra.warmup;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.PlanEntity;
-import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.enums.PlanStatus;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
 import lombok.RequiredArgsConstructor;

@@ -4,25 +4,21 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
-import com.example.adplatform.admin.entity.BillingType;
 import com.example.adplatform.admin.entity.PlanEntity;
-import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.enums.PlanStatus;
 import com.example.adplatform.admin.response.plan.PlanOperationResponse;
 import com.example.adplatform.admin.response.plan.PlanResponse;
 import org.mapstruct.Mapper;
-import org.mapstruct.BeanMapping;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring", imports = {BillingType.class, PlanStatus.class})
+@Mapper(componentModel = "spring", imports = { PlanStatus.class})
 public interface PlanConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "status", expression = "java(PlanStatus.OFFLINE.name())")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "status", expression = "java(PlanStatus.DRAFT.name())")
-    @Mapping(target = "billingType", expression = "java(BillingType.normalize(request.billingType()))")
     PlanEntity createRequestToEntity(CreatePlanRequest request);
 
     @Mapping(target = "id", ignore = true)

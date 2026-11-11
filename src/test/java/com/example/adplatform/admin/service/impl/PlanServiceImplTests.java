@@ -28,7 +28,7 @@ class PlanServiceImplTests {
     @Test
     void shouldRejectZeroUpdateCountBeforePublishingChanges() {
         when(mapper.selectOne(any())).thenReturn(plan());
-        when(mapper.update(any(PlanEntity.class), any())).thenReturn(0);
+        when(mapper.updateById(any(PlanEntity.class))).thenReturn(0);
         assertThatThrownBy(() -> service.update(new UpdatePlanRequest("plan_1", "新名称", null, null, null, null, null, null))).hasMessage("广告计划不存在");
         verifyNoInteractions(metadata, outbox);
     }
@@ -52,11 +52,11 @@ class PlanServiceImplTests {
         PlanEntity entity = plan();
         when(mapper.selectOne(any())).thenReturn(entity);
         when(mapper.selectById(1L)).thenReturn(entity);
-        when(mapper.update(any(PlanEntity.class), any())).thenReturn(1);
+        when(mapper.updateById(any(PlanEntity.class))).thenReturn(1);
         service.update(new UpdatePlanRequest("plan_1", "新计划", 100L, 10L, 1L, "CPC",
                 LocalDateTime.now(), LocalDateTime.now().plusDays(1)));
         ArgumentCaptor<PlanEntity> updated = ArgumentCaptor.forClass(PlanEntity.class);
-        verify(mapper).update(updated.capture(), any());
+        verify(mapper).updateById(updated.capture());
         assertThat(updated.getValue().getStatus()).isNull();
         assertThat(updated.getValue().getAdvertiserPublicId()).isNull();
         assertThat(entity.getStatus()).isEqualTo("ONLINE");
@@ -65,8 +65,7 @@ class PlanServiceImplTests {
 
     @Test
     void shouldDeleteAndRejectRepeatedDeletion() {
-        when(mapper.selectOne(any())).thenReturn(plan(), null);
-        when(mapper.deleteById(1L)).thenReturn(1);
+        when(mapper.delete(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(1, 0);
         assertThat(service.delete(new DeletePlanRequest("plan_1")).publicId()).isEqualTo("plan_1");
         assertThatThrownBy(() -> service.delete(new DeletePlanRequest("plan_1"))).hasMessage("广告计划不存在");
     }
@@ -78,10 +77,10 @@ class PlanServiceImplTests {
         entity.setBudgetDaily(50L);
         entity.setBillingType("CPM");
         when(mapper.selectOne(any())).thenReturn(entity);
-        when(mapper.update(any(PlanEntity.class), any())).thenReturn(1);
+        when(mapper.updateById(any(PlanEntity.class))).thenReturn(1);
         service.update(new UpdatePlanRequest("plan_1", "新名称", null, null, null, null, null, null));
         ArgumentCaptor<PlanEntity> update = ArgumentCaptor.forClass(PlanEntity.class);
-        verify(mapper).update(update.capture(), any());
+        verify(mapper).updateById(update.capture());
         assertThat(update.getValue().getBillingType()).isNull();
         assertThat(update.getValue().getBudgetTotal()).isNull();
         assertThatThrownBy(() -> service.update(new UpdatePlanRequest("plan_1", null, 40L,

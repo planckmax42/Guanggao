@@ -3,7 +3,7 @@ package com.example.adplatform.admin.converter;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.request.material.UpdateMaterialRequest;
-import com.example.adplatform.admin.entity.MaterialAuditStatus;
+import com.example.adplatform.admin.enums.MaterialAuditStatus;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;

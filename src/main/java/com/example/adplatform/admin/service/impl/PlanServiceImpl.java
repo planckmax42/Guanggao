@@ -4,17 +4,15 @@ import com.example.adplatform.admin.request.plan.DeletePlanRequest;
 import com.example.adplatform.admin.request.plan.PagePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.PlanConverter;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.entity.PlanEntity;
-import com.example.adplatform.admin.entity.PlanStatus;
+import com.example.adplatform.admin.enums.PlanStatus;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
-import com.example.adplatform.admin.port.EventMetadataPort;
 import com.example.adplatform.admin.response.plan.PlanOperationResponse;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.plan.PlanResponse;
@@ -49,7 +47,6 @@ public class PlanServiceImpl implements PlanService {
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final EventMetadataPort eventMetadataCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -64,8 +61,11 @@ public class PlanServiceImpl implements PlanService {
         }
         PlanEntity entity = planConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.PLAN_PREFIX));
-        entity.setAdvertiserPublicId(request.advertiserPublicId());
-        planMapper.insert(entity);
+        try{
+            planMapper.insert(entity);
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名计划");
+        }
         return planConverter.entityToOperationResponse(entity);
     }
 
@@ -81,16 +81,31 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse update(UpdatePlanRequest request) {
-//        PlanEntity entity1 = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
-//                .eq(PlanEntity::getPublicId, request.publicId()));
-//        if (entity1 == null) {
-//            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-//        }
+        PlanEntity existing = getPlanOrThrow(request.publicId());
+        boolean changed = (request.name() != null && !request.name().equals(existing.getName()))
+                || (request.budgetTotal() != null && !request.budgetTotal().equals(existing.getBudgetTotal()))
+                || (request.budgetDaily() != null && !request.budgetDaily().equals(existing.getBudgetDaily()))
+                || (request.bidPrice() != null && !request.bidPrice().equals(existing.getBidPrice()))
+                || (request.billingType() != null && !request.billingType().equals(existing.getBillingType()))
+                || (request.startTime() != null && !request.startTime().equals(existing.getStartTime()))
+                || (request.endTime() != null && !request.endTime().equals(existing.getEndTime()));
+        if (!changed) {
+            return new PlanOperationResponse(request.publicId());
+        }
+        Long budgetTotal = request.budgetTotal() != null ? request.budgetTotal() : existing.getBudgetTotal();
+        Long budgetDaily = request.budgetDaily() != null ? request.budgetDaily() : existing.getBudgetDaily();
+        if (budgetDaily > budgetTotal) {
+            throw new BusinessException(ErrorCode.INVALID_BUDGET, "日预算必须小于等于总预算");
+        }
+        LocalDateTime startTime = request.startTime() != null ? request.startTime() : existing.getStartTime();
+        LocalDateTime endTime = request.endTime() != null ? request.endTime() : existing.getEndTime();
+        if (!endTime.isAfter(startTime)) {
+            throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束时间必须晚于开始时间");
+        }
         PlanEntity entity = planConverter.updateRequestToEntity(request);
+        entity.setId(existing.getId());
         try {
-            int updated = planMapper.update(entity, new LambdaUpdateWrapper<PlanEntity>()
-                    .eq(PlanEntity::getPublicId, request.publicId()));
-            if (updated == 0) {
+            if (planMapper.updateById(entity) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
             }
         } catch (DuplicateKeyException ex) {
@@ -99,19 +114,23 @@ public class PlanServiceImpl implements PlanService {
 //        Long internalId = entity.getId();
 //        eventMetadataCacheService.evictPlanAfterCommit(internalId);
 //        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
-        return planConverter.entityToOperationResponse(entity);
+        return new PlanOperationResponse(request.publicId());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse delete(DeletePlanRequest request) {
-        PlanEntity entity = getPlanOrThrow(request.publicId());
-        if (planMapper.deleteById(entity.getId()) == 0) {
+        if (planMapper.hasReferences(request.publicId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告计划存在关联数据，不能删除");
+        }
+        int deleted = planMapper.delete(new LambdaQueryWrapper<PlanEntity>()
+                .eq(PlanEntity::getPublicId, request.publicId()));
+        if (deleted == 0) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
         }
-        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
         return new PlanOperationResponse(request.publicId());
+//        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
+//        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
     }
 
     @Override
