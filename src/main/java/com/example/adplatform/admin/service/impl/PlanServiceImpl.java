@@ -27,6 +27,7 @@ import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,39 +72,33 @@ public class PlanServiceImpl implements PlanService {
     @Override
     public PageResponse<PlanResponse> pageQuery(PagePlanRequest request) {
         Page<PlanEntity> page = new Page<>(request.current(), request.size());
-        Page<PlanEntity> result = planMapper.selectPage(page,
-                new LambdaQueryWrapper<PlanEntity>().orderByDesc(PlanEntity::getId));
+        Page<PlanEntity> result = planMapper.selectPage(page, new LambdaQueryWrapper<PlanEntity>()
+                .orderByAsc(PlanEntity::getName)
+                .orderByDesc(PlanEntity::getId));
         return planConverter.pageToResponse(result);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse update(UpdatePlanRequest request) {
-        String publicId = request.publicId();
-        PlanEntity entity = getPlanOrThrow(publicId);
-        Long internalId = entity.getId();
-        if (PlanStatus.OFFLINE.name().equals(entity.getStatus())) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "已下线的广告计划不能修改");
+//        PlanEntity entity1 = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
+//                .eq(PlanEntity::getPublicId, request.publicId()));
+//        if (entity1 == null) {
+//            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+//        }
+        PlanEntity entity = planConverter.updateRequestToEntity(request);
+        try {
+            int updated = planMapper.update(entity, new LambdaUpdateWrapper<PlanEntity>()
+                    .eq(PlanEntity::getPublicId, request.publicId()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名计划");
         }
-        LocalDateTime startTime = request.startTime() == null ? entity.getStartTime() : request.startTime();
-        LocalDateTime endTime = request.endTime() == null ? entity.getEndTime() : request.endTime();
-        if ((request.startTime() != null || request.endTime() != null) && !endTime.isAfter(startTime)) {
-            throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束时间必须晚于开始时间");
-        }
-        Long budgetTotal = request.budgetTotal() == null ? entity.getBudgetTotal() : request.budgetTotal();
-        Long budgetDaily = request.budgetDaily() == null ? entity.getBudgetDaily() : request.budgetDaily();
-        if ((request.budgetTotal() != null || request.budgetDaily() != null) && budgetDaily > budgetTotal) {
-            throw new BusinessException(ErrorCode.INVALID_BUDGET, "日预算必须小于等于总预算");
-        }
-        PlanEntity update = new PlanEntity();
-        planConverter.updateRequestToEntity(request, update);
-        int updated = planMapper.update(update, new LambdaUpdateWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, request.publicId()));
-        if (updated == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
-        }
-        eventMetadataCacheService.evictPlanAfterCommit(internalId);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
+//        Long internalId = entity.getId();
+//        eventMetadataCacheService.evictPlanAfterCommit(internalId);
+//        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
         return planConverter.entityToOperationResponse(entity);
     }
 
@@ -176,21 +171,6 @@ public class PlanServiceImpl implements PlanService {
 
     private PlanResponse toResponse(PlanEntity entity) {
         return planConverter.entityToQueryResponse(entity);
-    }
-
-    private AdvertiserEntity getAdvertiser(String publicId) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, publicId));
-        if (advertiser == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        return advertiser;
-    }
-
-    private AdvertiserEntity getEnabledAdvertiser(String publicId) {
-        AdvertiserEntity advertiser = getAdvertiser(publicId);
-        ensureAdvertiserEnabled(advertiser.getPublicId());
-        return advertiser;
     }
 
     private void ensureAdvertiserEnabled(String advertiserPublicId) {

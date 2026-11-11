@@ -12,7 +12,5 @@ public record PlanResponse(
         String billingType,
         LocalDateTime startTime,
         LocalDateTime endTime,
-        String status,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        String status) {
 }

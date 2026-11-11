@@ -12,6 +12,7 @@ import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.entity.MaterialEntity;
+import com.example.adplatform.admin.entity.MaterialAuditStatus;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
@@ -19,10 +20,12 @@ import com.example.adplatform.admin.response.material.MaterialOperationResponse;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.material.MaterialQueryResponse;
 import com.example.adplatform.common.exception.BusinessException;
+import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,17 +48,26 @@ public class MaterialServiceImpl implements MaterialService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MaterialOperationResponse create(CreateMaterialRequest request) {
-        if(!advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId())))
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告主不存在");
-        if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.slotPublicId())))
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
+        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()));
+        if (advertiser == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        if (advertiser.getStatus() != CommonStatus.ENABLED) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
+        }
+        SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                .eq(SlotEntity::getPublicId, request.slotPublicId()));
+        if (slot == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        }
         MaterialEntity entity = materialConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
-        entity.setAdvertiserPublicId(request.advertiserPublicId());
-        entity.setSlotPublicId(request.slotPublicId());
-        materialMapper.insert(entity);
+        try {
+            materialMapper.insert(entity);
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
+        }
         return materialConverter.entityToOperationResponse(entity);
     }
 
@@ -70,15 +82,23 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public MaterialOperationResponse update(UpdateMaterialRequest request) {
-        if (request.slotPublicId() != null && !slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.slotPublicId()))) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        if (request.slotPublicId() != null) {
+            SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
+                    .eq(SlotEntity::getPublicId, request.slotPublicId()));
+            if (slot == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+            }
         }
         MaterialEntity entity = materialConverter.updateRequestToEntity(request);
-        int updated = materialMapper.update(entity, new LambdaUpdateWrapper<MaterialEntity>()
-                .eq(MaterialEntity::getPublicId, request.publicId()));
-        if (updated == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        entity.setAuditStatus(MaterialAuditStatus.PENDING.name());
+        try {
+            int updated = materialMapper.update(entity, new LambdaUpdateWrapper<MaterialEntity>()
+                    .eq(MaterialEntity::getPublicId, request.publicId()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
         }
         return new MaterialOperationResponse(request.publicId());
     }

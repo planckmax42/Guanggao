@@ -13,7 +13,6 @@ import org.mapstruct.Mapper;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring", imports = {BillingType.class, PlanStatus.class})
 public interface PlanConverter {
@@ -26,20 +25,28 @@ public interface PlanConverter {
     @Mapping(target = "billingType", expression = "java(BillingType.normalize(request.billingType()))")
     PlanEntity createRequestToEntity(CreatePlanRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "advertiserPublicId", ignore = true)
-    @Mapping(target = "billingType", expression = "java(request.billingType() == null ? entity.getBillingType() : BillingType.normalize(request.billingType()))")
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    void updateRequestToEntity(UpdatePlanRequest request, @MappingTarget PlanEntity entity);
+    PlanEntity updateRequestToEntity(UpdatePlanRequest request);
 
-    @Mapping(target = "planPublicId", source = "publicId")
     PlanOperationResponse entityToOperationResponse(PlanEntity entity);
 
     PlanResponse entityToQueryResponse(PlanEntity entity);
 
     PageResponse<PlanResponse> pageToResponse(Page<PlanEntity> page);
 }
+
+//    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+//    @Mapping(target = "id", ignore = true)
+//    @Mapping(target = "publicId", ignore = true)
+//    @Mapping(target = "advertiserPublicId", ignore = true)
+//    @Mapping(target = "billingType", expression = "java(request.billingType() == null ? entity.getBillingType() : BillingType.normalize(request.billingType()))")
+//    @Mapping(target = "status", ignore = true)
+//    @Mapping(target = "createdAt", ignore = true)
+//    @Mapping(target = "updatedAt", ignore = true)
+//    void updateRequestToEntity(UpdatePlanRequest request, @MappingTarget PlanEntity entity);
+

@@ -9,6 +9,7 @@ import com.example.adplatform.admin.mapper.*;
 import com.example.adplatform.admin.request.advertiser.*;
 import com.example.adplatform.admin.request.material.*;
 import com.example.adplatform.admin.request.rule.*;
+import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -39,8 +40,14 @@ class AdminCrudTests {
         AdvertiserEntity existing = new AdvertiserEntity();
         existing.setId(1L);
         existing.initializePublicId("adv_1");
-        existing.setStatus(0);
-        when(mapper.update(any(AdvertiserEntity.class), any())).thenReturn(1);
+        existing.setStatus(CommonStatus.ENABLED);
+        when(mapper.selectOne(any())).thenReturn(existing);
+        when(mapper.update(any(AdvertiserEntity.class), any())).thenAnswer(call -> {
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AdvertiserEntity> query = call.getArgument(1);
+            assertThat(query.getSqlSegment()).contains("public_id");
+            assertThat(query.getParamNameValuePairs()).containsValue("adv_1");
+            return 1;
+        });
         UpdateAdvertiserRequest request = new UpdateAdvertiserRequest("adv_1", "新名称", "科技", "张三", "a@example.com");
         assertThat(service.update(request).publicId()).isEqualTo("adv_1");
         service.update(request);
@@ -50,23 +57,31 @@ class AdminCrudTests {
             assertThat(entity.getName()).isEqualTo("新名称");
             assertThat(entity.getStatus()).isNull();
         });
-        assertThat(existing.getStatus()).isZero();
-        verify(mapper, never()).selectOne(any());
+        assertThat(existing.getStatus()).isEqualTo(CommonStatus.ENABLED);
     }
 
     @Test
-    void advertiserUpdateUsesPublicIdAndReportsMissingFromUpdateCount() {
+    void advertiserUpdateReportsMissingWhenAdvertiserNotFound() {
         AdvertiserMapper mapper = mock(AdvertiserMapper.class);
         AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
-        when(mapper.update(any(AdvertiserEntity.class), any())).thenAnswer(call -> {
-            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AdvertiserEntity> query = call.getArgument(1);
-            assertThat(query.getSqlSegment()).contains("public_id");
-            assertThat(query.getParamNameValuePairs()).containsValue("adv_1");
-            return 0;
-        });
+        when(mapper.selectOne(any())).thenReturn(null);
         assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest("adv_1", null, null, null, null)))
                 .hasMessage("广告主不存在");
-        verify(mapper, never()).selectOne(any());
+        verify(mapper, never()).update(any(AdvertiserEntity.class), any());
+    }
+
+    @Test
+    void advertiserUpdateRejectsDisabledAdvertiser() {
+        AdvertiserMapper mapper = mock(AdvertiserMapper.class);
+        AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
+        AdvertiserEntity disabled = new AdvertiserEntity();
+        disabled.initializePublicId("adv_1");
+        disabled.setStatus(CommonStatus.DISABLED);
+        when(mapper.selectOne(any())).thenReturn(disabled);
+        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest("adv_1", "新名称", null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("广告主已停用");
+        verify(mapper, never()).update(any(AdvertiserEntity.class), any());
     }
 
     @Test

@@ -67,7 +67,7 @@ class PlanServiceImplTests {
     void shouldDeleteAndRejectRepeatedDeletion() {
         when(mapper.selectOne(any())).thenReturn(plan(), null);
         when(mapper.deleteById(1L)).thenReturn(1);
-        assertThat(service.delete(new DeletePlanRequest("plan_1")).planPublicId()).isEqualTo("plan_1");
+        assertThat(service.delete(new DeletePlanRequest("plan_1")).publicId()).isEqualTo("plan_1");
         assertThatThrownBy(() -> service.delete(new DeletePlanRequest("plan_1"))).hasMessage("广告计划不存在");
     }
 

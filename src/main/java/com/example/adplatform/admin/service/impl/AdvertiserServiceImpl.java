@@ -13,6 +13,7 @@ import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.response.advertiser.AdvertiserOperationResponse;
 import com.example.adplatform.admin.service.AdvertiserService;
 import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
+import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.admin.response.PageResponse;
@@ -52,13 +53,18 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public AdvertiserOperationResponse update(UpdateAdvertiserRequest request) {
+        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
+                .eq(AdvertiserEntity::getPublicId, request.publicId()));
+        if (advertiser == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        }
+        if (advertiser.getStatus() != CommonStatus.ENABLED) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
+        }
         AdvertiserEntity entity = advertiserConverter.updateRequestToEntity(request);
+        entity.setId(advertiser.getId());
         try {
-            int updated = advertiserMapper.update(entity, new LambdaUpdateWrapper<AdvertiserEntity>()
-                    .eq(AdvertiserEntity::getPublicId, request.publicId()));
-            if (updated == 0) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-            }
+            advertiserMapper.updateById(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告主名称已存在");
         }
