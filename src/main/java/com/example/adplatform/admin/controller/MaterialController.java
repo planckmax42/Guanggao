@@ -30,7 +30,7 @@ public class MaterialController {
     /**
      * 为已有广告主创建广告素材，初始审核状态为待审核。
      */
-    @PostMapping
+    @PostMapping("/create")
     public Result<MaterialOperationResponse> create(@Valid @RequestBody CreateMaterialRequest request) {
         return Result.success(materialService.create(request));
     }
@@ -43,12 +43,12 @@ public class MaterialController {
         return Result.success(materialService.pageQuery(request));
     }
 
-    @PutMapping
+    @PutMapping("/update")
     public Result<MaterialOperationResponse> update(@Valid @RequestBody UpdateMaterialRequest request) {
         return Result.success(materialService.update(request));
     }
 
-    @DeleteMapping
+    @DeleteMapping("/delete")
     public Result<MaterialOperationResponse> delete(@Valid @RequestBody DeleteMaterialRequest request) {
         return Result.success(materialService.delete(request));
     }

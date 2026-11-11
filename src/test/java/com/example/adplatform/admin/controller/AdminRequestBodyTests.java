@@ -36,13 +36,13 @@ class AdminRequestBodyTests {
     @ParameterizedTest
     @ValueSource(strings = {"/api/platform/advertisers", "/api/platform/slots", "/api/advertiser/plans",
             "/api/advertiser/materials", "/api/advertiser/rules"})
-    void shouldDefaultToFirstPageWithoutFilters(String path) throws Exception {
+    void shouldQueryExplicitPageWithoutFilters(String path) throws Exception {
         when(advertisers.pageQuery(new PageAdvertiserRequest(1L, 10L))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
         when(slots.pageQuery(new PageSlotRequest(1L, 10L))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
         when(plans.pageQuery(new PagePlanRequest(1L, 10L))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
         when(materials.pageQuery(new PageMaterialRequest(1L, 10L))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
         when(rules.pageQuery(new PageRuleRequest(1L, 10L))).thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
-        mvc.perform(post(path + "/page").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mvc.perform(post(path + "/page").contentType(MediaType.APPLICATION_JSON).content("{\"current\":1,\"size\":10}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.current").value(1))
                 .andExpect(jsonPath("$.data.size").value(10));
     }
@@ -51,11 +51,11 @@ class AdminRequestBodyTests {
     @ValueSource(strings = {"/api/platform/advertisers", "/api/platform/slots", "/api/advertiser/plans",
             "/api/advertiser/materials", "/api/advertiser/rules"})
     void shouldRejectInvalidPaginationAndDeleteId(String path) throws Exception {
-        for (String body : List.of("{\"current\":0}", "{\"size\":101}")) {
+        for (String body : List.of("{}", "{\"current\":null,\"size\":10}", "{\"current\":1,\"size\":null}", "{\"current\":1}", "{\"size\":10}", "{\"current\":0,\"size\":10}", "{\"current\":1,\"size\":101}")) {
             mvc.perform(post(path + "/page").contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest());
         }
-        mvc.perform(delete(path).contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"bad\"}"))
+        mvc.perform(delete(path + "/delete").contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"bad\"}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(advertisers, slots, plans, materials, rules);
     }
@@ -64,7 +64,7 @@ class AdminRequestBodyTests {
     @CsvSource({"/api/platform/advertisers,adv", "/api/platform/slots,slot", "/api/advertiser/plans,plan",
             "/api/advertiser/materials,mat", "/api/advertiser/rules,rule"})
     void shouldExposeDeleteWithPublicIdOnly(String path, String prefix) throws Exception {
-        mvc.perform(delete(path).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(delete(path + "/delete").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"publicId\":\"" + prefix + "_00000000000000000000000000000001\"}"))
                 .andExpect(status().isOk());
     }

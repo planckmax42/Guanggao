@@ -18,11 +18,7 @@ public interface SlotConverter {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    SlotEntity requestToEntity(CreateSlotRequest request);
-
-    SlotQueryResponse entityToQueryResponse(SlotEntity entity);
-
-    PageResponse<SlotQueryResponse> pageToResponse(Page<SlotEntity> page);
+    SlotEntity createRequestToEntity(CreateSlotRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
@@ -30,9 +26,13 @@ public interface SlotConverter {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    SlotEntity requestToEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
+    SlotEntity updateRequestToEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
 
     SlotOperationResponse entityToOperationResponse(SlotEntity entity);
+
+    SlotQueryResponse entityToQueryResponse(SlotEntity entity);
+
+    PageResponse<SlotQueryResponse> pageToResponse(Page<SlotEntity> page);
 
     AvailableSlotResponse entityToAvailableResponse(SlotEntity entity);
 }

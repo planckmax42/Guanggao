@@ -30,7 +30,7 @@ public class AdvertiserController {
     /**
      * 创建广告主账号，作为广告计划的归属主体。
      */
-    @PostMapping
+    @PostMapping("/create")
     public Result<AdvertiserOperationResponse> create(@Valid @RequestBody CreateAdvertiserRequest request) {
         return Result.success(advertiserService.create(request));
     }
@@ -43,12 +43,12 @@ public class AdvertiserController {
         return Result.success(advertiserService.pageQuery(request));
     }
 
-    @PutMapping
+    @PutMapping("/update")
     public Result<AdvertiserOperationResponse> update(@Valid @RequestBody UpdateAdvertiserRequest request) {
         return Result.success(advertiserService.update(request));
     }
 
-    @DeleteMapping
+    @DeleteMapping("/delete")
     public Result<AdvertiserOperationResponse> delete(@Valid @RequestBody DeleteAdvertiserRequest request) {
         return Result.success(advertiserService.delete(request));
     }

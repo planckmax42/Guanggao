@@ -1,7 +1,5 @@
 package com.example.adplatform.admin.response.advertiser;
 
-import java.time.LocalDateTime;
-
 public record AdvertiserQueryResponse(
         String publicId,
         String name,

@@ -4,6 +4,7 @@ import com.example.adplatform.admin.request.material.UpdateMaterialRequest;
 import com.example.adplatform.admin.request.material.DeleteMaterialRequest;
 import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
@@ -50,7 +51,7 @@ public class MaterialServiceImpl implements MaterialService {
         if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getPublicId, request.slotPublicId())))
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,"广告位不存在");
-        MaterialEntity entity = materialConverter.requestToEntity(request);
+        MaterialEntity entity = materialConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
         entity.setAdvertiserPublicId(request.advertiserPublicId());
         entity.setSlotPublicId(request.slotPublicId());
@@ -60,9 +61,7 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public PageResponse<MaterialQueryResponse> pageQuery(PageMaterialRequest request) {
-        long current = request.current();
-        long size = request.size();
-        Page<MaterialEntity> page = new Page<>(current, size);
+        Page<MaterialEntity> page = new Page<>(request.current(), request.size());
         Page<MaterialEntity> result = materialMapper.selectPage(page, new LambdaQueryWrapper<MaterialEntity>()
                 .orderByAsc(MaterialEntity::getName)
                 .orderByAsc(MaterialEntity::getId));
@@ -71,22 +70,16 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public MaterialOperationResponse update(UpdateMaterialRequest request) {
-        MaterialEntity existing = materialMapper.selectOne(new LambdaQueryWrapper<MaterialEntity>()
-                .eq(MaterialEntity::getPublicId, request.publicId()));
-        if (existing == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
-        }
-        if (!advertiserMapper.exists(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()))) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        if (!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+        if (request.slotPublicId() != null && !slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
                 .eq(SlotEntity::getPublicId, request.slotPublicId()))) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
-        MaterialEntity entity = materialConverter.requestToEntity(request);
-        entity.setId(existing.getId());
-        materialMapper.updateById(entity);
+        MaterialEntity entity = materialConverter.updateRequestToEntity(request);
+        int updated = materialMapper.update(entity, new LambdaUpdateWrapper<MaterialEntity>()
+                .eq(MaterialEntity::getPublicId, request.publicId()));
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        }
         return new MaterialOperationResponse(request.publicId());
     }
 

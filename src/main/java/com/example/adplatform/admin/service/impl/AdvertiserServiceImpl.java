@@ -4,6 +4,7 @@ import com.example.adplatform.admin.request.advertiser.UpdateAdvertiserRequest;
 import com.example.adplatform.admin.request.advertiser.DeleteAdvertiserRequest;
 import com.example.adplatform.admin.request.advertiser.PageAdvertiserRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.AdvertiserConverter;
 import com.example.adplatform.admin.request.advertiser.CreateAdvertiserRequest;
@@ -30,7 +31,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public AdvertiserOperationResponse create(CreateAdvertiserRequest request) {
-        AdvertiserEntity entity = advertiserConverter.requestToEntity(request);
+        AdvertiserEntity entity = advertiserConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.ADVERTISER_PREFIX));
         try {
             advertiserMapper.insert(entity);
@@ -42,9 +43,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public PageResponse<AdvertiserQueryResponse> pageQuery(PageAdvertiserRequest request) {
-        long current = request.current();
-        long size = request.size();
-        Page<AdvertiserEntity> page = new Page<>(current, size);
+        Page<AdvertiserEntity> page = new Page<>(request.current(), request.size());
         Page<AdvertiserEntity> result = advertiserMapper.selectPage(page,  new LambdaQueryWrapper<AdvertiserEntity>()
                 .orderByAsc(AdvertiserEntity::getName)
                 .orderByAsc(AdvertiserEntity::getId));
@@ -53,15 +52,13 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public AdvertiserOperationResponse update(UpdateAdvertiserRequest request) {
-        AdvertiserEntity existing = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.publicId()));
-        if (existing == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        AdvertiserEntity entity = advertiserConverter.requestToEntity(request);
-        entity.setId(existing.getId());
+        AdvertiserEntity entity = advertiserConverter.updateRequestToEntity(request);
         try {
-            advertiserMapper.updateById(entity);
+            int updated = advertiserMapper.update(entity, new LambdaUpdateWrapper<AdvertiserEntity>()
+                    .eq(AdvertiserEntity::getPublicId, request.publicId()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+            }
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告主名称已存在");
         }

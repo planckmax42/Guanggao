@@ -27,7 +27,7 @@ public class RuleController {
 
     private final RuleService ruleService;
 
-    @PostMapping
+    @PostMapping("/create")
     public Result<RuleOperationResponse> create(@Valid @RequestBody CreateRuleRequest request) {
         return Result.success(ruleService.create(request));
     }
@@ -37,12 +37,12 @@ public class RuleController {
         return Result.success(ruleService.pageQuery(request));
     }
 
-    @PutMapping
+    @PutMapping("/update")
     public Result<RuleOperationResponse> update(@Valid @RequestBody UpdateRuleRequest request) {
         return Result.success(ruleService.update(request));
     }
 
-    @DeleteMapping
+    @DeleteMapping("/delete")
     public Result<RuleOperationResponse> delete(@Valid @RequestBody DeleteRuleRequest request) {
         return Result.success(ruleService.delete(request));
     }

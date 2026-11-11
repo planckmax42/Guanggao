@@ -33,9 +33,6 @@ public final class PublicIdGenerator {
 
     /** 生成“业务前缀 + 128 位 UUIDv4 随机值”。 */
     public static String generate(String prefix) {
-        if (!SUPPORTED_PREFIXES.contains(prefix)) {
-            throw new IllegalArgumentException("不支持的 publicId 前缀: " + prefix);
-        }
         return prefix + "_" + UUID.randomUUID().toString().replace("-", "");
     }
 }

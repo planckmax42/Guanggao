@@ -19,18 +19,18 @@ public interface AdvertiserConverter {
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    AdvertiserEntity requestToEntity(CreateAdvertiserRequest request);
-
-    AdvertiserQueryResponse entityToQueryResponse(AdvertiserEntity entity);
-
-    PageResponse<AdvertiserQueryResponse> pageToResponse(Page<AdvertiserEntity> page);
+    AdvertiserEntity createRequestToEntity(CreateAdvertiserRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    AdvertiserEntity requestToEntity(UpdateAdvertiserRequest request);
+    AdvertiserEntity updateRequestToEntity(UpdateAdvertiserRequest request);
 
     AdvertiserOperationResponse entityToOperationResponse(AdvertiserEntity entity);
+
+    AdvertiserQueryResponse entityToQueryResponse(AdvertiserEntity entity);
+
+    PageResponse<AdvertiserQueryResponse> pageToResponse(Page<AdvertiserEntity> page);
 }

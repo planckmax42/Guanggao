@@ -15,6 +15,7 @@ import static com.example.adplatform.common.id.PublicIdGenerator.RULE_PATTERN;
 
 public record UpdateRuleRequest(
         @NotBlank @Pattern(regexp = RULE_PATTERN) String publicId,
+        @Pattern(regexp = PLAN_PATTERN) String planPublicId,
         @Size(max = 32) List<@Size(max = 64) String> regions,
         @Size(max = 16) List<@Size(max = 32) String> deviceTypes,
         @Size(max = 32) String gender,

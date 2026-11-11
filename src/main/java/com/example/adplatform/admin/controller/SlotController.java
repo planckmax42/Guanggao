@@ -31,7 +31,7 @@ public class SlotController {
     /**
      * 创建广告位，用于表示客户端场景中的广告投放位置。
      */
-    @PostMapping
+    @PostMapping("/create")
     public Result<SlotOperationResponse> create(@Valid @RequestBody CreateSlotRequest request) {
         return Result.success(slotService.create(request));
     }
@@ -47,12 +47,12 @@ public class SlotController {
     /**
      * 更新广告位基础信息。修改广告位编码后，会同步刷新投放链路使用的 Redis 缓存。
      */
-    @PutMapping
+    @PutMapping("/update")
     public Result<SlotOperationResponse> update(@Valid @RequestBody UpdateSlotRequest request) {
         return Result.success(slotService.update(request));
     }
 
-    @DeleteMapping
+    @DeleteMapping("/delete")
     public Result<SlotOperationResponse> delete(@Valid @RequestBody DeleteSlotRequest request) {
         return Result.success(slotService.delete(request));
     }

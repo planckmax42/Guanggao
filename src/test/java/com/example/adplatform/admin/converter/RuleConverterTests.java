@@ -24,7 +24,7 @@ class RuleConverterTests {
     void shouldConvertRuleAndMapPlanPublicId() {
         CreateRuleRequest request = new CreateRuleRequest(
                 "plan_1", List.of("北京"), List.of("ANDROID"), null, 18, 45, List.of("shopping"));
-        RuleEntity entity = converter.requestToEntity(request);
+        RuleEntity entity = converter.createRequestToEntity(request);
         entity.initializePublicId("rule_1");
         entity.setPlanPublicId("plan_1");
 
@@ -37,8 +37,8 @@ class RuleConverterTests {
         assertThat(entity.getPlanPublicId()).isEqualTo("plan_1");
         assertThat(converter.entityToOperationResponse(entity).publicId()).isEqualTo("rule_1");
 
-        converter.requestToEntity(new UpdateRuleRequest("rule_1", request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
-        converter.requestToEntity(new UpdateRuleRequest("rule_1", request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
+        converter.updateRequestToEntity(new UpdateRuleRequest("rule_1", request.planPublicId(), request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
+        converter.updateRequestToEntity(new UpdateRuleRequest("rule_1", request.planPublicId(), request.regions(), request.deviceTypes(), request.gender(), request.ageMin(), request.ageMax(), request.userTags()), entity);
 
         assertThat(converter.entityToQueryResponse(entity)).isEqualTo(response);
         assertThat(entity.getPlanPublicId()).isEqualTo("plan_1");
@@ -46,7 +46,7 @@ class RuleConverterTests {
 
     @Test
     void shouldPreserveEmptyTargetingBehavior() {
-        RuleEntity entity = converter.requestToEntity(new CreateRuleRequest(
+        RuleEntity entity = converter.createRequestToEntity(new CreateRuleRequest(
                 "plan_1", null, List.of(), null, null, null, null));
 
         assertThat(entity.getRegion()).isNull();

@@ -40,17 +40,33 @@ class AdminCrudTests {
         existing.setId(1L);
         existing.initializePublicId("adv_1");
         existing.setStatus(0);
-        when(mapper.selectOne(any())).thenReturn(existing);
+        when(mapper.update(any(AdvertiserEntity.class), any())).thenReturn(1);
         UpdateAdvertiserRequest request = new UpdateAdvertiserRequest("adv_1", "新名称", "科技", "张三", "a@example.com");
         assertThat(service.update(request).publicId()).isEqualTo("adv_1");
         service.update(request);
         ArgumentCaptor<AdvertiserEntity> updates = ArgumentCaptor.forClass(AdvertiserEntity.class);
-        verify(mapper, times(2)).updateById(updates.capture());
+        verify(mapper, times(2)).update(updates.capture(), any());
         assertThat(updates.getAllValues()).allSatisfy(entity -> {
             assertThat(entity.getName()).isEqualTo("新名称");
             assertThat(entity.getStatus()).isNull();
         });
         assertThat(existing.getStatus()).isZero();
+        verify(mapper, never()).selectOne(any());
+    }
+
+    @Test
+    void advertiserUpdateUsesPublicIdAndReportsMissingFromUpdateCount() {
+        AdvertiserMapper mapper = mock(AdvertiserMapper.class);
+        AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
+        when(mapper.update(any(AdvertiserEntity.class), any())).thenAnswer(call -> {
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AdvertiserEntity> query = call.getArgument(1);
+            assertThat(query.getSqlSegment()).contains("public_id");
+            assertThat(query.getParamNameValuePairs()).containsValue("adv_1");
+            return 0;
+        });
+        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest("adv_1", null, null, null, null)))
+                .hasMessage("广告主不存在");
+        verify(mapper, never()).selectOne(any());
     }
 
     @Test
@@ -97,7 +113,7 @@ class AdminCrudTests {
             page.setRecords(List.of(entity));
             return page;
         });
-        var response = service.pageQuery(new PageAdvertiserRequest(null, null));
+        var response = service.pageQuery(new PageAdvertiserRequest(1L, 10L));
         assertThat(response.current()).isEqualTo(1);
         assertThat(response.size()).isEqualTo(10);
         assertThat(response.total()).isEqualTo(1);

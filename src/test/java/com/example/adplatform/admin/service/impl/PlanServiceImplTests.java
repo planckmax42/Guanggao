@@ -26,11 +26,19 @@ class PlanServiceImplTests {
             outbox, mock(ApplicationEventPublisher.class), metadata);
 
     @Test
+    void shouldRejectZeroUpdateCountBeforePublishingChanges() {
+        when(mapper.selectOne(any())).thenReturn(plan());
+        when(mapper.update(any(PlanEntity.class), any())).thenReturn(0);
+        assertThatThrownBy(() -> service.update(new UpdatePlanRequest("plan_1", "新名称", null, null, null, null, null, null))).hasMessage("广告计划不存在");
+        verifyNoInteractions(metadata, outbox);
+    }
+
+    @Test
     void shouldCreateDraftWithAdvertiserPublicId() {
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(1);
         when(advertisers.selectOne(any())).thenReturn(advertiser);
-        service.create(new CreatePlanRequest("adv_1", "计划", 100L, 10L, 1L, null,
+        service.create(new CreatePlanRequest("adv_1", "计划", 100L, 10L, 1L, "CPC",
                 LocalDateTime.now(), LocalDateTime.now().plusDays(1)));
         ArgumentCaptor<PlanEntity> inserted = ArgumentCaptor.forClass(PlanEntity.class);
         verify(mapper).insert(inserted.capture());
@@ -44,10 +52,11 @@ class PlanServiceImplTests {
         PlanEntity entity = plan();
         when(mapper.selectOne(any())).thenReturn(entity);
         when(mapper.selectById(1L)).thenReturn(entity);
+        when(mapper.update(any(PlanEntity.class), any())).thenReturn(1);
         service.update(new UpdatePlanRequest("plan_1", "新计划", 100L, 10L, 1L, "CPC",
                 LocalDateTime.now(), LocalDateTime.now().plusDays(1)));
         ArgumentCaptor<PlanEntity> updated = ArgumentCaptor.forClass(PlanEntity.class);
-        verify(mapper).updateById(updated.capture());
+        verify(mapper).update(updated.capture(), any());
         assertThat(updated.getValue().getStatus()).isNull();
         assertThat(updated.getValue().getAdvertiserPublicId()).isNull();
         assertThat(entity.getStatus()).isEqualTo("ONLINE");
@@ -60,6 +69,23 @@ class PlanServiceImplTests {
         when(mapper.deleteById(1L)).thenReturn(1);
         assertThat(service.delete(new DeletePlanRequest("plan_1")).planPublicId()).isEqualTo("plan_1");
         assertThatThrownBy(() -> service.delete(new DeletePlanRequest("plan_1"))).hasMessage("广告计划不存在");
+    }
+
+    @Test
+    void shouldPreserveOmittedBillingTypeAndValidateMergedBudget() {
+        PlanEntity entity = plan();
+        entity.setBudgetTotal(100L);
+        entity.setBudgetDaily(50L);
+        entity.setBillingType("CPM");
+        when(mapper.selectOne(any())).thenReturn(entity);
+        when(mapper.update(any(PlanEntity.class), any())).thenReturn(1);
+        service.update(new UpdatePlanRequest("plan_1", "新名称", null, null, null, null, null, null));
+        ArgumentCaptor<PlanEntity> update = ArgumentCaptor.forClass(PlanEntity.class);
+        verify(mapper).update(update.capture(), any());
+        assertThat(update.getValue().getBillingType()).isNull();
+        assertThat(update.getValue().getBudgetTotal()).isNull();
+        assertThatThrownBy(() -> service.update(new UpdatePlanRequest("plan_1", null, 40L,
+                null, null, null, null, null))).hasMessage("日预算必须小于等于总预算");
     }
 
     private PlanEntity plan() {

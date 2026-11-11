@@ -4,6 +4,7 @@ import com.example.adplatform.admin.request.plan.DeletePlanRequest;
 import com.example.adplatform.admin.request.plan.PagePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.PlanConverter;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
@@ -60,7 +61,7 @@ public class PlanServiceImpl implements PlanService {
         if (advertiser.getStatus() != CommonStatus.ENABLED) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
         }
-        PlanEntity entity = planConverter.requestToEntity(request);
+        PlanEntity entity = planConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.PLAN_PREFIX));
         entity.setAdvertiserPublicId(request.advertiserPublicId());
         planMapper.insert(entity);
@@ -69,7 +70,8 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     public PageResponse<PlanResponse> pageQuery(PagePlanRequest request) {
-        Page<PlanEntity> result = planMapper.selectPage(new Page<>(request.current(), request.size()),
+        Page<PlanEntity> page = new Page<>(request.current(), request.size());
+        Page<PlanEntity> result = planMapper.selectPage(page,
                 new LambdaQueryWrapper<PlanEntity>().orderByDesc(PlanEntity::getId));
         return planConverter.pageToResponse(result);
     }
@@ -83,10 +85,23 @@ public class PlanServiceImpl implements PlanService {
         if (PlanStatus.OFFLINE.name().equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "已下线的广告计划不能修改");
         }
+        LocalDateTime startTime = request.startTime() == null ? entity.getStartTime() : request.startTime();
+        LocalDateTime endTime = request.endTime() == null ? entity.getEndTime() : request.endTime();
+        if ((request.startTime() != null || request.endTime() != null) && !endTime.isAfter(startTime)) {
+            throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "结束时间必须晚于开始时间");
+        }
+        Long budgetTotal = request.budgetTotal() == null ? entity.getBudgetTotal() : request.budgetTotal();
+        Long budgetDaily = request.budgetDaily() == null ? entity.getBudgetDaily() : request.budgetDaily();
+        if ((request.budgetTotal() != null || request.budgetDaily() != null) && budgetDaily > budgetTotal) {
+            throw new BusinessException(ErrorCode.INVALID_BUDGET, "日预算必须小于等于总预算");
+        }
         PlanEntity update = new PlanEntity();
-        update.setId(internalId);
-        planConverter.requestToEntity(request, update);
-        planMapper.updateById(update);
+        planConverter.updateRequestToEntity(request, update);
+        int updated = planMapper.update(update, new LambdaUpdateWrapper<PlanEntity>()
+                .eq(PlanEntity::getPublicId, request.publicId()));
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        }
         eventMetadataCacheService.evictPlanAfterCommit(internalId);
         searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
         return planConverter.entityToOperationResponse(entity);

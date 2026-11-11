@@ -18,7 +18,7 @@ public record CreatePlanRequest(
         @NotNull @Min(1) Long budgetTotal,
         @NotNull @Min(1) Long budgetDaily,
         @NotNull @Min(1) Long bidPrice,
-        @Size(max = 16) String billingType,
+        @NotBlank @Size(max = 16) String billingType,
         @NotNull LocalDateTime startTime,
         @NotNull @Future LocalDateTime endTime) {
 

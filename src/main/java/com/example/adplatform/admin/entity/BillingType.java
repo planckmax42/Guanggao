@@ -25,11 +25,19 @@ public enum BillingType {
     CPA;
 
     /**
-     * 将接口传入的计费方式标准化；未传时默认使用 CPC。
+     * 兼容历史事件的计费方式；未提供时默认使用 CPC。
      */
     public static String normalizeOrDefault(String value) {
         if (!StringUtils.hasText(value)) {
             return CPC.name();
+        }
+        return normalize(value);
+    }
+
+    /** 管理接口必须明确指定计费方式。 */
+    public static String normalize(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw new BusinessException(ErrorCode.PARAM_VALIDATION_FAILED, "计费方式不能为空");
         }
         String normalized = value.trim().toUpperCase();
         try {

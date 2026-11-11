@@ -46,7 +46,7 @@ public class RuleServiceImpl implements RuleService {
                 .eq(RuleEntity::getPlanPublicId, request.planPublicId()))) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "定向规则已存在");
         }
-        RuleEntity entity = ruleConverter.requestToEntity(request);
+        RuleEntity entity = ruleConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.RULE_PREFIX));
         try {
             ruleMapper.insert(entity);
@@ -59,7 +59,8 @@ public class RuleServiceImpl implements RuleService {
 
     @Override
     public PageResponse<RuleResponse> pageQuery(PageRuleRequest request) {
-        Page<RuleEntity> result = ruleMapper.selectPage(new Page<>(request.current(), request.size()),
+        Page<RuleEntity> page = new Page<>(request.current(), request.size());
+        Page<RuleEntity> result = ruleMapper.selectPage(page,
                 new LambdaQueryWrapper<RuleEntity>().orderByDesc(RuleEntity::getId));
         return ruleConverter.pageToResponse(result);
     }
@@ -68,16 +69,40 @@ public class RuleServiceImpl implements RuleService {
     @Transactional(rollbackFor = Exception.class)
     public RuleOperationResponse update(UpdateRuleRequest request) {
         RuleEntity entity = getRuleOrThrow(request.publicId());
-        ruleConverter.requestToEntity(request, entity);
-        // 空值表示取消该项定向，需要显式写入 NULL。
-        ruleMapper.update(new RuleEntity(), new LambdaUpdateWrapper<RuleEntity>()
+        if (request.planPublicId() != null && !planMapper.exists(new LambdaQueryWrapper<PlanEntity>()
+                .eq(PlanEntity::getPublicId, request.planPublicId()))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        }
+        if (request.planPublicId() != null && ruleMapper.exists(new LambdaQueryWrapper<RuleEntity>()
+                .eq(RuleEntity::getPlanPublicId, request.planPublicId())
+                .ne(RuleEntity::getPublicId, request.publicId()))) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "目标广告计划已存在定向规则");
+        }
+        String oldPlanPublicId = entity.getPlanPublicId();
+        ruleConverter.updateRequestToEntity(request, entity);
+        if (entity.getAgeMin() != null && entity.getAgeMax() != null && entity.getAgeMax() < entity.getAgeMin()) {
+            throw new BusinessException(ErrorCode.PARAM_VALIDATION_FAILED, "最大年龄必须大于等于最小年龄");
+        }
+        // 仅更新请求中非 null 的字段；空列表转换为 NULL，表示取消对应定向。
+        try {
+            int updated = ruleMapper.update(new RuleEntity(), new LambdaUpdateWrapper<RuleEntity>()
                 .eq(RuleEntity::getPublicId, request.publicId())
-                .set(RuleEntity::getRegion, entity.getRegion())
-                .set(RuleEntity::getDeviceType, entity.getDeviceType())
-                .set(RuleEntity::getGender, entity.getGender())
-                .set(RuleEntity::getAgeMin, entity.getAgeMin())
-                .set(RuleEntity::getAgeMax, entity.getAgeMax())
-                .set(RuleEntity::getUserTags, entity.getUserTags()));
+                .set(request.planPublicId() != null, RuleEntity::getPlanPublicId, entity.getPlanPublicId())
+                .set(request.regions() != null, RuleEntity::getRegion, entity.getRegion())
+                .set(request.deviceTypes() != null, RuleEntity::getDeviceType, entity.getDeviceType())
+                .set(request.gender() != null, RuleEntity::getGender, entity.getGender())
+                .set(request.ageMin() != null, RuleEntity::getAgeMin, entity.getAgeMin())
+                .set(request.ageMax() != null, RuleEntity::getAgeMax, entity.getAgeMax())
+                .set(request.userTags() != null, RuleEntity::getUserTags, entity.getUserTags()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "目标广告计划已存在定向规则");
+        }
+        if (!oldPlanPublicId.equals(entity.getPlanPublicId())) {
+            searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, oldPlanPublicId);
+        }
         searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, request.publicId());
         return ruleConverter.entityToOperationResponse(entity);
     }

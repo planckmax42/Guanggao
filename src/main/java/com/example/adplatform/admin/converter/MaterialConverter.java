@@ -21,19 +21,20 @@ public interface MaterialConverter {
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    MaterialEntity requestToEntity(CreateMaterialRequest request);
+    MaterialEntity createRequestToEntity(CreateMaterialRequest request);
 
-    MaterialQueryResponse entityToQueryResponse(MaterialEntity entity);
-
-    PageResponse<MaterialQueryResponse>pageToResponse(Page<MaterialEntity> page);
-
+    @Mapping(target = "advertiserPublicId", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "auditStatus", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    MaterialEntity requestToEntity(UpdateMaterialRequest request);
+    MaterialEntity updateRequestToEntity(UpdateMaterialRequest request);
 
     MaterialOperationResponse entityToOperationResponse(MaterialEntity entity);
+
+    MaterialQueryResponse entityToQueryResponse(MaterialEntity entity);
+
+    PageResponse<MaterialQueryResponse>pageToResponse(Page<MaterialEntity> page);
 }

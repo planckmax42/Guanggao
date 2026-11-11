@@ -52,7 +52,7 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse create(CreateSlotRequest request) {
-        SlotEntity slotEntity = slotConverter.requestToEntity(request);
+        SlotEntity slotEntity = slotConverter.createRequestToEntity(request);
         slotEntity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.SLOT_PREFIX));
         try {
             slotMapper.insert(slotEntity);
@@ -69,9 +69,7 @@ public class SlotServiceImpl implements SlotService {
 
     @Override
     public PageResponse<SlotQueryResponse> pageQuery(PageSlotRequest request) {
-        long current = request.current();
-        long size = request.size();
-        Page<SlotEntity> page = new Page<>(current, size);
+        Page<SlotEntity> page = new Page<>(request.current(), request.size());
         LambdaQueryWrapper<SlotEntity> query = new LambdaQueryWrapper<SlotEntity>()
                 .orderByDesc(SlotEntity::getId);
         Page<SlotEntity> result = slotMapper.selectPage(page, query);
@@ -86,12 +84,15 @@ public class SlotServiceImpl implements SlotService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
         String oldSlotCode = oldEntity.getSlotCode();
-        SlotEntity newEntity = slotConverter.requestToEntity(request, new SlotEntity());
-        newEntity.setId(oldEntity.getId());
+        SlotEntity newEntity = slotConverter.updateRequestToEntity(request, new SlotEntity());
         newEntity.initializePublicId(oldEntity.getPublicId());
         String newSlotCode = request.slotCode() == null ? oldSlotCode : request.slotCode();
         try {
-            slotMapper.updateById(newEntity);
+            int updated = slotMapper.update(newEntity, new LambdaUpdateWrapper<SlotEntity>()
+                    .eq(SlotEntity::getPublicId, request.publicId()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+            }
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告位编码已存在");
         }

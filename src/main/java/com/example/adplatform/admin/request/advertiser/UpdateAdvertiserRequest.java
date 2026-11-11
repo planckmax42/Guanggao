@@ -9,8 +9,8 @@ import static com.example.adplatform.common.id.PublicIdGenerator.ADVERTISER_PATT
 
 public record UpdateAdvertiserRequest(
         @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String publicId,
-        @NotBlank @Size(max = 128) String name,
-        @NotBlank @Size(max = 64) String industry,
-        @NotBlank @Size(max = 64) String contactName,
-        @NotBlank @Email @Size(max = 128) String contactEmail) {
+        @Size(max = 128) String name,
+        @Size(max = 64) String industry,
+        @Size(max = 64) String contactName,
+        @Email @Size(max = 128) String contactEmail) {
 }

@@ -23,12 +23,21 @@ class SlotServiceImplTests {
             mock(ApplicationEventPublisher.class), cache, elasticsearch, mock(SlotCacheStopGuardPort.class));
 
     @Test
+    void shouldRejectZeroUpdateCountBeforePublishingChanges() {
+        when(mapper.selectOne(any())).thenReturn(slot());
+        when(mapper.update(any(SlotEntity.class), any())).thenReturn(0);
+        assertThatThrownBy(() -> service.update(new UpdateSlotRequest("slot_1", "NEW", null, null, null, null))).hasMessage("广告位不存在");
+        verifyNoInteractions(cache, filter, elasticsearch);
+    }
+
+    @Test
     void shouldRenameEnabledSlotAndNotWriteStatus() {
         SlotEntity entity = slot();
         when(mapper.selectOne(any())).thenReturn(entity);
-        service.update(new UpdateSlotRequest("slot_1", "NEW", null, null, null, null));
+        when(mapper.update(any(SlotEntity.class), any())).thenReturn(1);
+        service.update(new UpdateSlotRequest("slot_1", "NEW", "首页", 100, 100, "APP_HOME"));
         ArgumentCaptor<SlotEntity> update = ArgumentCaptor.forClass(SlotEntity.class);
-        verify(mapper).updateById(update.capture());
+        verify(mapper).update(update.capture(), any());
         assertThat(update.getValue().getStatus()).isNull();
         assertThat(entity.getSlotCode()).isEqualTo("OLD");
         verify(filter).addSlotFilter("NEW");
@@ -37,8 +46,9 @@ class SlotServiceImplTests {
     }
 
     @Test
-    void shouldPreserveCodeForPartialUpdate() {
+    void shouldNotRefreshCacheWhenCodeIsUnchanged() {
         when(mapper.selectOne(any())).thenReturn(slot());
+        when(mapper.update(any(SlotEntity.class), any())).thenReturn(1);
         service.update(new UpdateSlotRequest("slot_1", null, "New name", null, null, null));
         verifyNoInteractions(cache, filter, elasticsearch);
     }

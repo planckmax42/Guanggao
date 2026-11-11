@@ -44,16 +44,12 @@ class AdvertiserControllerTests {
     }
 
     @Test
-    void shouldUseDefaultPaginationWhenFieldsAreOmitted() throws Exception {
-        when(advertiserService.pageQuery(new PageAdvertiserRequest(1L, 10L)))
-                .thenReturn(new PageResponse<>(1, 10, 0, 0, List.of()));
-
+    void shouldRejectOmittedPagination() throws Exception {
         mockMvc.perform(post("/api/platform/advertisers/page")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.current").value(1))
-                .andExpect(jsonPath("$.data.size").value(10));
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(advertiserService);
     }
 
     @ParameterizedTest
