@@ -9,14 +9,9 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.AccessLevel;
-
-import java.util.Objects;
-
 import java.time.LocalDateTime;
 
-/**
- * 广告主，表示在平台上投放广告的一方。
- */
+
 @Getter
 @Setter
 @TableName("advertiser")

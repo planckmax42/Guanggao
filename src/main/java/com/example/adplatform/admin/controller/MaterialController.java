@@ -27,17 +27,11 @@ public class MaterialController {
 
     private final MaterialService materialService;
 
-    /**
-     * 为已有广告主创建广告素材，初始审核状态为待审核。
-     */
     @PostMapping("/create")
     public Result<MaterialOperationResponse> create(@Valid @RequestBody CreateMaterialRequest request) {
         return Result.success(materialService.create(request));
     }
 
-    /**
-     * 分页查询广告素材。
-     */
     @PostMapping("/page")
     public Result<PageResponse<MaterialQueryResponse>> page(@Valid @RequestBody PageMaterialRequest request) {
         return Result.success(materialService.pageQuery(request));

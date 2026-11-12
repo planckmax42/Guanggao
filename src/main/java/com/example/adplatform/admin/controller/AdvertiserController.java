@@ -27,17 +27,11 @@ public class AdvertiserController {
 
     private final AdvertiserService advertiserService;
 
-    /**
-     * 创建广告主账号，作为广告计划的归属主体。
-     */
     @PostMapping("/create")
     public Result<AdvertiserOperationResponse> create(@Valid @RequestBody CreateAdvertiserRequest request) {
         return Result.success(advertiserService.create(request));
     }
 
-    /**
-     * 分页查询广告主。
-     */
     @PostMapping("/page")
     public Result<PageResponse<AdvertiserQueryResponse>> page(@Valid @RequestBody PageAdvertiserRequest request) {
         return Result.success(advertiserService.pageQuery(request));

@@ -3,39 +3,22 @@ package com.example.adplatform.admin.enums;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import org.springframework.util.StringUtils;
-
 import java.util.Locale;
 
-/**
- * 广告计费方式，决定哪类事件会产生扣费。
- */
 public enum BillingType {
 
-    /**
-     * Cost Per Click：按点击扣费，只有 CLICK 事件会消耗预算。
-     */
     CPC,
 
-    /**
-     * Cost Per Mille：按千次曝光扣费，每累计 1000 次曝光扣一次出价。
-     */
     CPM,
 
-    /**
-     * Cost Per Action：按转化扣费，只有 CONVERSION 事件会消耗预算。
-     */
     CPA;
 
     public static final String PATTERN = "CPC|CPM|CPA";
 
-    /** 仅规范化输入格式，合法性由调用方校验。 */
     public static String normalizeInput(String value) {
         return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    /**
-     * 兼容历史事件的计费方式；未提供时默认使用 CPC。
-     */
     public static String normalizeOrDefault(String value) {
         if (!StringUtils.hasText(value)) {
             return CPC.name();
@@ -43,7 +26,6 @@ public enum BillingType {
         return normalize(value);
     }
 
-    /** 管理接口必须明确指定计费方式。 */
     public static String normalize(String value) {
         if (!StringUtils.hasText(value)) {
             throw new BusinessException(ErrorCode.PARAM_VALIDATION_FAILED, "计费方式不能为空");

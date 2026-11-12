@@ -9,7 +9,6 @@ import com.example.adplatform.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** 创建素材、创建及上线计划时共用的广告主业务校验。 */
 @Component
 @RequiredArgsConstructor
 public class AdvertiserGuard {
