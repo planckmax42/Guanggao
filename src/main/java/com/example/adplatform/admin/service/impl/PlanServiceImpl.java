@@ -6,19 +6,18 @@ import com.example.adplatform.admin.request.plan.UpdatePlanStatusRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.PlanConverter;
+import com.example.adplatform.admin.guard.AdvertiserGuard;
 import com.example.adplatform.admin.request.plan.CreatePlanRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
-import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.entity.PlanEntity;
 import com.example.adplatform.admin.enums.PlanStatus;
-import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.response.plan.PlanOperationResponse;
 import com.example.adplatform.admin.service.PlanService;
 import com.example.adplatform.admin.response.plan.PlanResponse;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.common.exception.ForeignKeyExceptions;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
@@ -26,6 +25,7 @@ import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +43,7 @@ import java.time.LocalDateTime;
 public class PlanServiceImpl implements PlanService {
 
     private final PlanMapper planMapper;
-    private final AdvertiserMapper advertiserMapper;
+    private final AdvertiserGuard advertiserGuard;
     private final PlanConverter planConverter;
     private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -51,20 +51,18 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse create(CreatePlanRequest request) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()));
-        if (advertiser == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        if (advertiser.getStatus() != CommonStatus.ENABLED) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
-        }
+        advertiserGuard.requireEnabled(request.advertiserPublicId());
         PlanEntity entity = planConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.PLAN_PREFIX));
         try{
             planMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名计划");
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isMissingReference(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在", ex);
+            }
+            throw ex;
         }
         return planConverter.entityToOperationResponse(entity);
     }
@@ -120,13 +118,16 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse delete(DeletePlanRequest request) {
-        if (planMapper.hasReferences(request.publicId())) {
-            throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告计划存在关联数据，不能删除");
-        }
-        int deleted = planMapper.delete(new LambdaQueryWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, request.publicId()));
-        if (deleted == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+        try {
+            if (planMapper.delete(new LambdaQueryWrapper<PlanEntity>()
+                    .eq(PlanEntity::getPublicId, request.publicId())) == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
+            }
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isReferenced(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告计划存在关联数据，不能删除", ex);
+            }
+            throw ex;
         }
         return new PlanOperationResponse(request.publicId());
 //        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
@@ -139,7 +140,7 @@ public class PlanServiceImpl implements PlanService {
         String publicId = request.publicId();
         PlanEntity entity = getPlanOrThrow(publicId);
         Long internalId = entity.getId();
-        ensureAdvertiserEnabled(entity.getAdvertiserPublicId());
+        advertiserGuard.requireEnabled(entity.getAdvertiserPublicId());
         if (entity.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "广告计划结束时间已过期");
         }
@@ -190,16 +191,5 @@ public class PlanServiceImpl implements PlanService {
 
     private PlanResponse toResponse(PlanEntity entity) {
         return planConverter.entityToQueryResponse(entity);
-    }
-
-    private void ensureAdvertiserEnabled(String advertiserPublicId) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, advertiserPublicId));
-        if (advertiser == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        if (advertiser.getStatus() == null || advertiser.getStatus() != CommonStatus.ENABLED) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
-        }
     }
 }

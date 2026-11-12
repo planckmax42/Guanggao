@@ -6,24 +6,22 @@ import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
-import com.example.adplatform.admin.entity.AdvertiserEntity;
-import com.example.adplatform.admin.mapper.AdvertiserMapper;
+import com.example.adplatform.admin.guard.AdvertiserGuard;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
-import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.enums.MaterialAuditStatus;
-import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.mapper.MaterialMapper;
 import com.example.adplatform.admin.response.material.MaterialOperationResponse;
 import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.material.MaterialQueryResponse;
 import com.example.adplatform.common.exception.BusinessException;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.common.exception.ForeignKeyExceptions;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,30 +36,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class MaterialServiceImpl implements MaterialService {
 
     private final MaterialMapper materialMapper;
-    private final SlotMapper slotMapper;
     private final MaterialConverter materialConverter;
-    private final AdvertiserMapper advertiserMapper;
+    private final AdvertiserGuard advertiserGuard;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MaterialOperationResponse create(CreateMaterialRequest request) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.advertiserPublicId()));
-        if (advertiser == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
-        }
-        if (advertiser.getStatus() != CommonStatus.ENABLED) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "广告主已停用");
-        }
-        if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.slotPublicId())))
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
+        advertiserGuard.requireEnabled(request.advertiserPublicId());
         MaterialEntity entity = materialConverter.createRequestToEntity(request);
         entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
         try {
             materialMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isMissingReference(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "关联的广告主或广告位不存在", ex);
+            }
+            throw ex;
         }
         return materialConverter.entityToOperationResponse(entity);
     }
@@ -90,11 +82,6 @@ public class MaterialServiceImpl implements MaterialService {
         if (!changed) {
             return new MaterialOperationResponse(request.publicId());
         }
-        if (request.slotPublicId() != null) {
-            if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
-                    .eq(SlotEntity::getPublicId, request.slotPublicId())))
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-        }
         MaterialEntity entity = materialConverter.updateRequestToEntity(request);
         entity.setId(existing.getId());
         entity.setAuditStatus(MaterialAuditStatus.PENDING.name());
@@ -104,19 +91,27 @@ public class MaterialServiceImpl implements MaterialService {
             }
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isMissingReference(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在", ex);
+            }
+            throw ex;
         }
         return new MaterialOperationResponse(request.publicId());
     }
 
     @Override
     public MaterialOperationResponse delete(DeleteMaterialRequest request) {
-        if (materialMapper.hasReferences(request.publicId())) {
-            throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "素材存在关联数据，不能删除");
-        }
-        int deleted = materialMapper.delete(new LambdaQueryWrapper<MaterialEntity>()
-                .eq(MaterialEntity::getPublicId, request.publicId()));
-        if (deleted == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+        try {
+            if (materialMapper.delete(new LambdaQueryWrapper<MaterialEntity>()
+                    .eq(MaterialEntity::getPublicId, request.publicId())) == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
+            }
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isReferenced(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "素材存在关联数据，不能删除", ex);
+            }
+            throw ex;
         }
         return new MaterialOperationResponse(request.publicId());
     }

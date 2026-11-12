@@ -15,10 +15,12 @@ import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
+import com.example.adplatform.common.exception.ForeignKeyExceptions;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.id.PublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 
@@ -81,13 +83,16 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public AdvertiserOperationResponse delete(DeleteAdvertiserRequest request) {
-        if (advertiserMapper.hasReferences(request.publicId())) {
-            throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告主存在关联数据，不能删除");
-        }
-        int deleted = advertiserMapper.delete(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.publicId()));
-        if (deleted == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+        try {
+            if (advertiserMapper.delete(new LambdaQueryWrapper<AdvertiserEntity>()
+                    .eq(AdvertiserEntity::getPublicId, request.publicId())) == 0) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
+            }
+        } catch (DataIntegrityViolationException ex) {
+            if (ForeignKeyExceptions.isReferenced(ex)) {
+                throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告主存在关联数据，不能删除", ex);
+            }
+            throw ex;
         }
         return new AdvertiserOperationResponse(request.publicId());
     }

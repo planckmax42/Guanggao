@@ -1,5 +1,7 @@
 package com.example.adplatform.admin.service.impl;
 
+import com.example.adplatform.admin.guard.AdvertiserGuard;
+
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -98,18 +100,18 @@ class AdminCrudTests {
     void materialCreateAcceptsExistingReferencesAndRejectsMissingAdvertiser() {
         MaterialMapper mapper = mock(MaterialMapper.class);
         AdvertiserMapper advertisers = mock(AdvertiserMapper.class);
-        SlotMapper slots = mock(SlotMapper.class);
-        MaterialServiceImpl service = new MaterialServiceImpl(mapper, mock(PlanMapper.class), slots,
-                Mappers.getMapper(MaterialConverter.class), advertisers);
+        MaterialServiceImpl service = new MaterialServiceImpl(mapper,
+                Mappers.getMapper(MaterialConverter.class), new AdvertiserGuard(advertisers));
         CreateMaterialRequest request = new CreateMaterialRequest("adv_1", "slot_1", "素材", "描述", "image", "landing");
-        when(advertisers.exists(any())).thenReturn(true);
-        when(slots.exists(any())).thenReturn(true);
+        AdvertiserEntity advertiser = new AdvertiserEntity();
+        advertiser.setStatus(CommonStatus.ENABLED);
+        when(advertisers.selectOne(any())).thenReturn(advertiser);
         assertThat(service.create(request).publicId()).startsWith("mat_");
         ArgumentCaptor<MaterialEntity> inserted = ArgumentCaptor.forClass(MaterialEntity.class);
         verify(mapper).insert(inserted.capture());
         assertThat(inserted.getValue().getAuditStatus()).isEqualTo("PENDING");
         assertThat(inserted.getValue().getStatus()).isEqualTo(1);
-        when(advertisers.exists(any())).thenReturn(false);
+        when(advertisers.selectOne(any())).thenReturn(null);
         assertThatThrownBy(() -> service.create(request)).hasMessage("广告主不存在");
         verify(mapper, times(1)).insert(any(MaterialEntity.class));
     }
