@@ -91,11 +91,9 @@ public class MaterialServiceImpl implements MaterialService {
             return new MaterialOperationResponse(request.publicId());
         }
         if (request.slotPublicId() != null) {
-            SlotEntity slot = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                    .eq(SlotEntity::getPublicId, request.slotPublicId()));
-            if (slot == null) {
+            if(!slotMapper.exists(new LambdaQueryWrapper<SlotEntity>()
+                    .eq(SlotEntity::getPublicId, request.slotPublicId())))
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
-            }
         }
         MaterialEntity entity = materialConverter.updateRequestToEntity(request);
         entity.setId(existing.getId());

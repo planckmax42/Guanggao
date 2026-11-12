@@ -4,6 +4,8 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import org.springframework.util.StringUtils;
 
+import java.util.Locale;
+
 /**
  * 广告计费方式，决定哪类事件会产生扣费。
  */
@@ -24,6 +26,13 @@ public enum BillingType {
      */
     CPA;
 
+    public static final String PATTERN = "CPC|CPM|CPA";
+
+    /** 仅规范化输入格式，合法性由调用方校验。 */
+    public static String normalizeInput(String value) {
+        return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
+    }
+
     /**
      * 兼容历史事件的计费方式；未提供时默认使用 CPC。
      */
@@ -39,7 +48,7 @@ public enum BillingType {
         if (!StringUtils.hasText(value)) {
             throw new BusinessException(ErrorCode.PARAM_VALIDATION_FAILED, "计费方式不能为空");
         }
-        String normalized = value.trim().toUpperCase();
+        String normalized = normalizeInput(value);
         try {
             return BillingType.valueOf(normalized).name();
         } catch (IllegalArgumentException ex) {

@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.request.plan;
 
+import com.example.adplatform.admin.enums.BillingType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
@@ -19,14 +20,14 @@ public record UpdatePlanRequest(
         @Min(1) Long budgetTotal,
         @Min(1) Long budgetDaily,
         @Min(1) Long bidPrice,
-        @Pattern(regexp = "CPC|CPM|CPA", message = "计费方式只能是 CPC、CPM 或 CPA")
+        @Pattern(regexp = BillingType.PATTERN, message = "计费方式只能是 CPC、CPM 或 CPA")
         String billingType,
         LocalDateTime startTime,
         @Future LocalDateTime endTime) {
 
     public UpdatePlanRequest {
         name = blankToNull(name);
-        billingType = blankToNull(billingType);
+        billingType = blankToNull(BillingType.normalizeInput(billingType));
     }
 
     @AssertTrue(message = "请至少提供一个需要修改的字段")

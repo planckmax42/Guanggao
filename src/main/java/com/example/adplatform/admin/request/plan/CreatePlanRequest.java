@@ -1,5 +1,6 @@
 package com.example.adplatform.admin.request.plan;
 
+import com.example.adplatform.admin.enums.BillingType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
@@ -19,10 +20,14 @@ public record CreatePlanRequest(
         @NotNull @Min(1) Long budgetDaily,
         @NotNull @Min(1) Long bidPrice,
         @NotBlank
-        @Pattern(regexp = "CPC|CPM|CPA", message = "计费方式只能是 CPC、CPM 或 CPA")
+        @Pattern(regexp = BillingType.PATTERN, message = "计费方式只能是 CPC、CPM 或 CPA")
         String billingType,
         @NotNull LocalDateTime startTime,
         @NotNull @Future LocalDateTime endTime) {
+
+    public CreatePlanRequest {
+        billingType = BillingType.normalizeInput(billingType);
+    }
 
     @AssertTrue(message = "结束时间必须晚于开始时间")
     public boolean isValidTimeRange() {
