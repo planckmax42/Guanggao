@@ -15,9 +15,9 @@ import com.example.adplatform.admin.response.advertiser.AdvertiserQueryResponse;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.exception.ForeignKeyExceptions;
+import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.id.PublicIdGenerator;
+import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,7 +34,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
     @Override
     public AdvertiserOperationResponse create(CreateAdvertiserRequest request) {
         AdvertiserEntity entity = advertiserConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.ADVERTISER_PREFIX));
+        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.ADVERTISER_PREFIX));
         try {
             advertiserMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -89,7 +89,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
             }
         } catch (DataIntegrityViolationException ex) {
-            if (ForeignKeyExceptions.isReferenced(ex)) {
+            if (MySqlForeignKeyUtils.isReferencedByOtherRows(ex)) {
                 throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "广告主存在关联数据，不能删除", ex);
             }
             throw ex;

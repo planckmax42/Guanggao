@@ -3,7 +3,7 @@ package com.example.adplatform.infra.debezium.admin;
 import com.example.adplatform.admin.port.slot.SlotElasticsearchDebeziumPort;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.id.PublicIdGenerator;
+import com.example.adplatform.common.util.PublicIdUtils;
 import com.example.adplatform.search.outbox.entity.OutboxMessageEntity;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,7 +26,7 @@ public class SlotElasticsearchOutbox implements SlotElasticsearchDebeziumPort {
     public void syncElasticsearchWithRetry(String oldSlotCode, String newSlotCode){
         SlotElasticSearchUpdatePayload payload = new SlotElasticSearchUpdatePayload(oldSlotCode,newSlotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
-        entity.setEventId(PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX));
+        entity.setEventId(PublicIdUtils.generate(PublicIdUtils.EVENT_PREFIX));
         entity.setTopic(topic);
         entity.setMessageKey("SlotElasticsearchSync:" + oldSlotCode);
         try {

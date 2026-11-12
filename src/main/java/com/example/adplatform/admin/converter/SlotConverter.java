@@ -20,13 +20,12 @@ public interface SlotConverter {
     @Mapping(target = "updatedAt", ignore = true)
     SlotEntity createRequestToEntity(CreateSlotRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    SlotEntity updateRequestToEntity(UpdateSlotRequest request, @MappingTarget SlotEntity entity);
+    SlotEntity updateRequestToEntity(UpdateSlotRequest request);
 
     SlotOperationResponse entityToOperationResponse(SlotEntity entity);
 

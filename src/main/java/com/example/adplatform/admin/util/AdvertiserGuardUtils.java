@@ -1,4 +1,4 @@
-package com.example.adplatform.admin.guard;
+package com.example.adplatform.admin.util;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class AdvertiserGuard {
+public class AdvertiserGuardUtils {
 
     private final AdvertiserMapper advertiserMapper;
 

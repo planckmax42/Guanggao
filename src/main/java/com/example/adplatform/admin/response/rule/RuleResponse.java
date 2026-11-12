@@ -5,13 +5,12 @@ import java.util.List;
 
 public record RuleResponse(
         String publicId,
-        String planPublicId,
-        List<String> regions,
+        String advertiserPublicId,
+        String name,
         List<String> deviceTypes,
         String gender,
         Integer ageMin,
         Integer ageMax,
-        List<String> userTags,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 }

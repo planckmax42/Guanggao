@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.*;
+import static com.example.adplatform.common.util.PublicIdUtils.*;
 
 public record CreateMaterialRequest(
         @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String advertiserPublicId,

@@ -2,6 +2,7 @@ package com.example.adplatform.admin.guard;
 
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -16,10 +17,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class AdvertiserGuardTests {
+class AdvertiserGuardUtilsTests {
 
     private final AdvertiserMapper mapper = mock(AdvertiserMapper.class);
-    private final AdvertiserGuard guard = new AdvertiserGuard(mapper);
+    private final AdvertiserGuardUtils guard = new AdvertiserGuardUtils(mapper);
 
     @Test
     void acceptsEnabledAdvertiserOnRepeatedChecks() {

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.PLAN_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.PLAN_PATTERN;
 
 public record UpdatePlanRequest(
         @NotBlank @Pattern(regexp = PLAN_PATTERN) String publicId,

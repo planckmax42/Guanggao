@@ -6,7 +6,7 @@ import com.example.adplatform.admin.request.material.PageMaterialRequest;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.adplatform.admin.converter.MaterialConverter;
-import com.example.adplatform.admin.guard.AdvertiserGuard;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 import com.example.adplatform.admin.request.material.CreateMaterialRequest;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.enums.MaterialAuditStatus;
@@ -16,9 +16,9 @@ import com.example.adplatform.admin.service.MaterialService;
 import com.example.adplatform.admin.response.material.MaterialQueryResponse;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.exception.ForeignKeyExceptions;
+import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.id.PublicIdGenerator;
+import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,20 +37,20 @@ public class MaterialServiceImpl implements MaterialService {
 
     private final MaterialMapper materialMapper;
     private final MaterialConverter materialConverter;
-    private final AdvertiserGuard advertiserGuard;
+    private final AdvertiserGuardUtils advertiserGuardUtils;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MaterialOperationResponse create(CreateMaterialRequest request) {
-        advertiserGuard.requireEnabled(request.advertiserPublicId());
+        advertiserGuardUtils.requireEnabled(request.advertiserPublicId());
         MaterialEntity entity = materialConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdGenerator.generate(PublicIdGenerator.MATERIAL_PREFIX));
+        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.MATERIAL_PREFIX));
         try {
             materialMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
         } catch (DataIntegrityViolationException ex) {
-            if (ForeignKeyExceptions.isMissingReference(ex)) {
+            if (MySqlForeignKeyUtils.isReferencedRowMissing(ex)) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "关联的广告主或广告位不存在", ex);
             }
             throw ex;
@@ -92,7 +92,7 @@ public class MaterialServiceImpl implements MaterialService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名素材");
         } catch (DataIntegrityViolationException ex) {
-            if (ForeignKeyExceptions.isMissingReference(ex)) {
+            if (MySqlForeignKeyUtils.isReferencedRowMissing(ex)) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在", ex);
             }
             throw ex;
@@ -108,7 +108,7 @@ public class MaterialServiceImpl implements MaterialService {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
             }
         } catch (DataIntegrityViolationException ex) {
-            if (ForeignKeyExceptions.isReferenced(ex)) {
+            if (MySqlForeignKeyUtils.isReferencedByOtherRows(ex)) {
                 throw new BusinessException(ErrorCode.RESOURCE_IN_USE, "素材存在关联数据，不能删除", ex);
             }
             throw ex;

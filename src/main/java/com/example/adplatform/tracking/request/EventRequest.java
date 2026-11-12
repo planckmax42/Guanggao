@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.MATERIAL_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.MATERIAL_PATTERN;
 
 /**
  * 广告事件上报请求，客户端或业务系统通过它上报曝光、点击、转化事件。

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.PLAN_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.PLAN_PATTERN;
 
 public record TopMaterialsRequest(
         @NotNull LocalDate startDate,

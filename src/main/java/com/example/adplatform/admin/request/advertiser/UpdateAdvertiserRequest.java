@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.ADVERTISER_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.ADVERTISER_PATTERN;
 
 public record UpdateAdvertiserRequest(
         @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String publicId,

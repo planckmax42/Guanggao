@@ -3,7 +3,7 @@ package com.example.adplatform.infra.debezium.admin;
 import com.example.adplatform.admin.port.slot.SlotCacheDebeziumPort;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
-import com.example.adplatform.common.id.PublicIdGenerator;
+import com.example.adplatform.common.util.PublicIdUtils;
 import com.example.adplatform.search.outbox.entity.OutboxMessageEntity;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,7 +32,7 @@ public class SlotCacheOutbox implements SlotCacheDebeziumPort {
     public void writeCacheWithRetry(Long slotId, String slotCode){
         SlotCacheWritePayload payload = new SlotCacheWritePayload(slotId,slotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
-        entity.setEventId(PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX));
+        entity.setEventId(PublicIdUtils.generate(PublicIdUtils.EVENT_PREFIX));
         entity.setTopic(topicWrite);
         entity.setMessageKey("SlotCacheWrite:" + slotId);
         try {
@@ -45,7 +45,7 @@ public class SlotCacheOutbox implements SlotCacheDebeziumPort {
     public void updateCacheWithRetry(Long slotId, String oldSlotCode, String newSlotCode){
         SlotCacheUpdatePayload payload = new SlotCacheUpdatePayload(slotId,oldSlotCode,newSlotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
-        entity.setEventId(PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX));
+        entity.setEventId(PublicIdUtils.generate(PublicIdUtils.EVENT_PREFIX));
         entity.setTopic(updateTopic);
         entity.setMessageKey("SlotCacheUpdate:" + slotId);
         try {
@@ -59,7 +59,7 @@ public class SlotCacheOutbox implements SlotCacheDebeziumPort {
     public void evictCacheWithRetry(String slotCode){
         SlotCacheEvictPayload payload = new SlotCacheEvictPayload( slotCode);
         OutboxMessageEntity entity = new OutboxMessageEntity();
-        entity.setEventId(PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX));
+        entity.setEventId(PublicIdUtils.generate(PublicIdUtils.EVENT_PREFIX));
         entity.setTopic(delectTopic);
         entity.setMessageKey("SlotCacheDelete:" + slotCode);
         try {

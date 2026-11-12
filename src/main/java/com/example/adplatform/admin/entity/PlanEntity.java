@@ -22,12 +22,6 @@ public class PlanEntity {
     @Setter(AccessLevel.NONE)
     @TableField(updateStrategy = FieldStrategy.NEVER)
     private String publicId;
-    public void initializePublicId(String publicId) {
-        if (this.publicId != null) {
-            throw new IllegalStateException("广告计划 publicId 创建后不允许修改");
-        }
-        this.publicId = Objects.requireNonNull(publicId, "publicId");
-    }
     @TableField("advertiser_id")
     private String advertiserPublicId;
     private String name;
@@ -42,4 +36,10 @@ public class PlanEntity {
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+    public void initializePublicId(String publicId) {
+        if (this.publicId != null) {
+            throw new IllegalStateException("广告计划 publicId 创建后不允许修改");
+        }
+        this.publicId = Objects.requireNonNull(publicId, "publicId");
+    }
 }

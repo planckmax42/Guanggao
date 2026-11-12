@@ -1,6 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
-import com.example.adplatform.admin.guard.AdvertiserGuard;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 
@@ -51,7 +51,7 @@ class DeleteReferenceGuardTests {
     @Test
     void protectsMaterialReferencesAndPreservesDeleteResults() {
         MaterialMapper mapper = mock(MaterialMapper.class);
-        var service = new MaterialServiceImpl(mapper, mock(MaterialConverter.class), mock(AdvertiserGuard.class));
+        var service = new MaterialServiceImpl(mapper, mock(MaterialConverter.class), mock(AdvertiserGuardUtils.class));
         var request = new DeleteMaterialRequest("public-id");
         var failure = new DataIntegrityViolationException("referenced",
                 new SQLException("foreign key conflict", "23000", 1451));
@@ -72,7 +72,7 @@ class DeleteReferenceGuardTests {
     @Test
     void protectsPlanReferencesAndPreservesDeleteResults() {
         PlanMapper mapper = mock(PlanMapper.class);
-        var service = new PlanServiceImpl(mapper, mock(AdvertiserGuard.class), mock(PlanConverter.class), mock(SearchOutboxService.class), mock(ApplicationEventPublisher.class));
+        var service = new PlanServiceImpl(mapper, mock(AdvertiserGuardUtils.class), mock(PlanConverter.class), mock(SearchOutboxService.class), mock(ApplicationEventPublisher.class));
         var request = new DeletePlanRequest("public-id");
         var failure = new DataIntegrityViolationException("referenced",
                 new SQLException("foreign key conflict", "23000", 1451));

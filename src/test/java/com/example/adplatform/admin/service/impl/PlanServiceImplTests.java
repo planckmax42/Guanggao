@@ -1,6 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
-import com.example.adplatform.admin.guard.AdvertiserGuard;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 
 import com.example.adplatform.admin.converter.PlanConverter;
 import com.example.adplatform.admin.entity.*;
@@ -30,7 +30,7 @@ class PlanServiceImplTests {
     private final PlanMapper mapper = mock(PlanMapper.class);
     private final AdvertiserMapper advertisers = mock(AdvertiserMapper.class);
     private final SearchOutboxService outbox = mock(SearchOutboxService.class);
-    private final PlanServiceImpl service = new PlanServiceImpl(mapper, new AdvertiserGuard(advertisers), Mappers.getMapper(PlanConverter.class),
+    private final PlanServiceImpl service = new PlanServiceImpl(mapper, new AdvertiserGuardUtils(advertisers), Mappers.getMapper(PlanConverter.class),
             outbox, mock(ApplicationEventPublisher.class));
 
     @Test

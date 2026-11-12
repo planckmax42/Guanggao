@@ -37,6 +37,9 @@ public class SlotEntity {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
     public void initializePublicId(String publicId) {
+        if (this.publicId != null) {
+            throw new IllegalStateException("广告位 publicId 创建后不允许修改");
+        }
         this.publicId = Objects.requireNonNull(publicId, "publicId");
     }
 }

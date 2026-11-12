@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.ADVERTISER_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.ADVERTISER_PATTERN;
 
 public record CreatePlanRequest(
         @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String advertiserPublicId,

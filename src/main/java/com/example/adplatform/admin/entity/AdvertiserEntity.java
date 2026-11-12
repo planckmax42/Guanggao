@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.AccessLevel;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 
 @Getter
@@ -32,6 +33,9 @@ public class AdvertiserEntity {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
     public void initializePublicId(String publicId) {
-        this.publicId = publicId;
+        if (this.publicId != null) {
+            throw new IllegalStateException("广告主 publicId 创建后不允许修改");
+        }
+        this.publicId = Objects.requireNonNull(publicId, "publicId");
     }
 }

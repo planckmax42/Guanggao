@@ -1,4 +1,4 @@
-package com.example.adplatform.common.id;
+package com.example.adplatform.common.util;
 
 import lombok.RequiredArgsConstructor;
 
@@ -7,7 +7,7 @@ import java.util.UUID;
 
 /** 生成不可枚举、带资源类型前缀的对外公开标识。 */
 @RequiredArgsConstructor
-public final class PublicIdGenerator {
+public final class PublicIdUtils {
 
     public static final String ADVERTISER_PREFIX = "adv";
     public static final String SLOT_PREFIX = "slot";

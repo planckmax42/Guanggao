@@ -1,21 +1,21 @@
-package com.example.adplatform.common.exception;
+package com.example.adplatform.common.util;
 
 import java.sql.SQLException;
 
 /** 识别 MySQL 外键冲突；业务错误码和提示由 Service 决定。 */
-public final class ForeignKeyExceptions {
+public final class MySqlForeignKeyUtils {
 
     private static final int ROW_IS_REFERENCED = 1451;
     private static final int NO_REFERENCED_ROW = 1452;
 
-    private ForeignKeyExceptions() {
+    private MySqlForeignKeyUtils() {
     }
 
-    public static boolean isReferenced(Throwable exception) {
+    public static boolean isReferencedByOtherRows(Throwable exception) {
         return hasSqlErrorCode(exception, ROW_IS_REFERENCED);
     }
 
-    public static boolean isMissingReference(Throwable exception) {
+    public static boolean isReferencedRowMissing(Throwable exception) {
         return hasSqlErrorCode(exception, NO_REFERENCED_ROW);
     }
 

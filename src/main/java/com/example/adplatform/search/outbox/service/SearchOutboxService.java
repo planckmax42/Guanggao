@@ -1,7 +1,7 @@
 package com.example.adplatform.search.outbox.service;
 
 import com.example.adplatform.search.outbox.entity.OutboxMessageEntity;
-import com.example.adplatform.common.id.PublicIdGenerator;
+import com.example.adplatform.common.util.PublicIdUtils;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;
@@ -33,7 +33,7 @@ public class SearchOutboxService {
      * 追加配置变更消息。消息 key 使用“类型:ID”，保证同一聚合落在同一个 Kafka 分区。
      */
     public void appendConfigChange(ConfigAggregateType type, String aggregateId) {
-        String eventId = PublicIdGenerator.generate(PublicIdGenerator.EVENT_PREFIX);
+        String eventId = PublicIdUtils.generate(PublicIdUtils.EVENT_PREFIX);
         append(configChangeTopic, type.name() + ":" + aggregateId, ConfigChangeMessage.class.getSimpleName(),
                 new ConfigChangeMessage(eventId, type, aggregateId), eventId);
     }

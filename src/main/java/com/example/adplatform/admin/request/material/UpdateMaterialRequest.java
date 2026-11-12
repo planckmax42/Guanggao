@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
-import static com.example.adplatform.common.id.PublicIdGenerator.SLOT_PATTERN;
-import static com.example.adplatform.common.id.PublicIdGenerator.MATERIAL_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.SLOT_PATTERN;
+import static com.example.adplatform.common.util.PublicIdUtils.MATERIAL_PATTERN;
 
 public record UpdateMaterialRequest(
         @NotBlank @Pattern(regexp = MATERIAL_PATTERN) String publicId,

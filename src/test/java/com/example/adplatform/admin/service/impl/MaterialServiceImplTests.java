@@ -1,6 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
-import com.example.adplatform.admin.guard.AdvertiserGuard;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 
 import com.example.adplatform.admin.converter.MaterialConverter;
 import com.example.adplatform.admin.entity.MaterialEntity;
@@ -26,7 +26,7 @@ class MaterialServiceImplTests {
     private final MaterialMapper mapper = mock(MaterialMapper.class);
     private final AdvertiserMapper advertisers = mock(AdvertiserMapper.class);
     private final MaterialServiceImpl service = new MaterialServiceImpl(mapper,
-            Mappers.getMapper(MaterialConverter.class), new AdvertiserGuard(advertisers));
+            Mappers.getMapper(MaterialConverter.class), new AdvertiserGuardUtils(advertisers));
 
     @Test
     void shouldRejectDuplicateMaterialNameForAdvertiser() {

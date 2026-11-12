@@ -1,6 +1,6 @@
 package com.example.adplatform.admin.service.impl;
 
-import com.example.adplatform.admin.guard.AdvertiserGuard;
+import com.example.adplatform.admin.util.AdvertiserGuardUtils;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -13,7 +13,6 @@ import com.example.adplatform.admin.request.material.*;
 import com.example.adplatform.admin.request.rule.*;
 import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.common.exception.BusinessException;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import org.junit.jupiter.api.BeforeAll;
@@ -101,7 +100,7 @@ class AdminCrudTests {
         MaterialMapper mapper = mock(MaterialMapper.class);
         AdvertiserMapper advertisers = mock(AdvertiserMapper.class);
         MaterialServiceImpl service = new MaterialServiceImpl(mapper,
-                Mappers.getMapper(MaterialConverter.class), new AdvertiserGuard(advertisers));
+                Mappers.getMapper(MaterialConverter.class), new AdvertiserGuardUtils(advertisers));
         CreateMaterialRequest request = new CreateMaterialRequest("adv_1", "slot_1", "素材", "描述", "image", "landing");
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(CommonStatus.ENABLED);
@@ -138,19 +137,18 @@ class AdminCrudTests {
     }
 
     @Test
-    void ruleCreateRejectsDuplicateInsteadOfOverwriting() {
+    void ruleCreateRejectsDatabaseDuplicateInsteadOfOverwriting() {
         RuleMapper mapper = mock(RuleMapper.class);
-        PlanMapper plans = mock(PlanMapper.class);
         RuleConverter converter = mock(RuleConverter.class);
-        SearchOutboxService outbox = mock(SearchOutboxService.class);
-        RuleServiceImpl service = new RuleServiceImpl(mapper, plans, converter, outbox);
-        PlanEntity plan = new PlanEntity();
-        plan.setId(1L);
-        when(plans.exists(any())).thenReturn(true);
-        when(mapper.exists(any())).thenReturn(true);
-        assertThatThrownBy(() -> service.create(new CreateRuleRequest("plan_1", null, null, null, null, null, null)))
+        AdvertiserGuardUtils guard = mock(AdvertiserGuardUtils.class);
+        RuleServiceImpl service = new RuleServiceImpl(mapper, converter, guard);
+        var request = new CreateRuleRequest("adv_1", "规则一", null, null, null, null);
+        when(converter.createRequestToEntity(request)).thenReturn(new RuleEntity());
+        when(mapper.insert(any(RuleEntity.class)))
+                .thenThrow(new org.springframework.dao.DuplicateKeyException("duplicate"));
+        assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(BusinessException.class).hasMessage("定向规则已存在");
+        verify(guard).requireEnabled("adv_1");
         verify(mapper, never()).updateById(any(RuleEntity.class));
-        verifyNoInteractions(converter, outbox);
     }
 }
