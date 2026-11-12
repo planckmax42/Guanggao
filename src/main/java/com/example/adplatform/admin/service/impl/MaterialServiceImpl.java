@@ -18,7 +18,6 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,9 +41,9 @@ public class MaterialServiceImpl implements MaterialService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MaterialOperationResponse create(CreateMaterialRequest request) {
-        advertiserGuardUtils.requireEnabled(request.advertiserPublicId());
+        advertiserGuardUtils.requireEnabled(request.advertiserId());
         MaterialEntity entity = materialConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.MATERIAL_PREFIX));
+
         try {
             materialMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -69,18 +68,17 @@ public class MaterialServiceImpl implements MaterialService {
 
     @Override
     public MaterialOperationResponse update(UpdateMaterialRequest request) {
-        MaterialEntity existing = materialMapper.selectOne(new LambdaQueryWrapper<MaterialEntity>()
-                .eq(MaterialEntity::getPublicId, request.publicId()));
+        MaterialEntity existing = materialMapper.selectById(request.id());
         if (existing == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
         }
-        boolean changed = (request.slotPublicId() != null && !request.slotPublicId().equals(existing.getSlotPublicId()))
+        boolean changed = (request.slotId() != null && !request.slotId().equals(existing.getSlotId()))
                 || (request.name() != null && !request.name().equals(existing.getName()))
                 || (request.description() != null && !request.description().equals(existing.getDescription()))
                 || (request.imageUrl() != null && !request.imageUrl().equals(existing.getImageUrl()))
                 || (request.landingPageUrl() != null && !request.landingPageUrl().equals(existing.getLandingPageUrl()));
         if (!changed) {
-            return new MaterialOperationResponse(request.publicId());
+            return new MaterialOperationResponse(request.id());
         }
         MaterialEntity entity = materialConverter.updateRequestToEntity(request);
         entity.setId(existing.getId());
@@ -97,14 +95,13 @@ public class MaterialServiceImpl implements MaterialService {
             }
             throw ex;
         }
-        return new MaterialOperationResponse(request.publicId());
+        return new MaterialOperationResponse(request.id());
     }
 
     @Override
     public MaterialOperationResponse delete(DeleteMaterialRequest request) {
         try {
-            if (materialMapper.delete(new LambdaQueryWrapper<MaterialEntity>()
-                    .eq(MaterialEntity::getPublicId, request.publicId())) == 0) {
+            if (materialMapper.deleteById(request.id()) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "素材不存在");
             }
         } catch (DataIntegrityViolationException ex) {
@@ -113,6 +110,6 @@ public class MaterialServiceImpl implements MaterialService {
             }
             throw ex;
         }
-        return new MaterialOperationResponse(request.publicId());
+        return new MaterialOperationResponse(request.id());
     }
 }

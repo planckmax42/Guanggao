@@ -42,20 +42,20 @@ class RuleServiceImplTests {
         RuleEntity stored = rule();
         RuleEntity renamed = rule();
         renamed.setName("规则二");
-        when(mapper.selectOne(any())).thenReturn(stored, renamed);
+        when(mapper.selectById(any())).thenReturn(stored, renamed);
         when(mapper.updateById(any(RuleEntity.class))).thenAnswer(call -> {
             RuleEntity update = call.getArgument(0);
             assertThat(update.getId()).isEqualTo(1L);
             assertThat(update.getName()).isEqualTo("规则二");
-            assertThat(update.getAdvertiserPublicId()).isNull();
+            assertThat(update.getAdvertiserId()).isNull();
             assertThat(update.getDeviceTypes()).isNull();
             assertThat(update.getGender()).isNull();
             assertThat(update.getAgeMin()).isNull();
             assertThat(update.getAgeMax()).isNull();
             return 1;
         });
-        var request = new UpdateRuleRequest("rule_1", "规则二", null, null, null, null);
-        assertThat(service.update(request).publicId()).isEqualTo("rule_1");
+        var request = new UpdateRuleRequest(1L, "规则二", null, null, null, null);
+        assertThat(service.update(request).id()).isEqualTo(1L);
         service.update(request);
         verify(mapper, times(1)).updateById(any(RuleEntity.class));
         assertThat(stored.getName()).isEqualTo("规则一");
@@ -63,9 +63,9 @@ class RuleServiceImplTests {
 
     @Test
     void translatesDuplicateNameOnRename() {
-        when(mapper.selectOne(any())).thenReturn(rule());
+        when(mapper.selectById(any())).thenReturn(rule());
         when(mapper.updateById(any(RuleEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
-        var request = new UpdateRuleRequest("rule_1", "规则二", null, null, null, null);
+        var request = new UpdateRuleRequest(1L, "规则二", null, null, null, null);
         assertThatThrownBy(() -> service.update(request))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_RESOURCE))
@@ -75,15 +75,20 @@ class RuleServiceImplTests {
     @Test
     void createsDifferentlyNamedRulesForEnabledAdvertiser() {
         stubAdvertiser(1);
-        var request = new CreateRuleRequest("adv_1", "规则一", List.of("ANDROID"), "MALE", 18, 45);
+        var request = new CreateRuleRequest(1L, "规则一", List.of("ANDROID"), "MALE", 18, 45);
+        var ids = new java.util.concurrent.atomic.AtomicLong(100);
+        when(mapper.insert(any(RuleEntity.class))).thenAnswer(call -> {
+            ((RuleEntity) call.getArgument(0)).setId(ids.incrementAndGet());
+            return 1;
+        });
         var first = service.create(request);
-        var second = service.create(new CreateRuleRequest("adv_1", "规则二", List.of("ANDROID"), "MALE", 18, 45));
-        assertThat(first.publicId()).startsWith("rule_").isNotEqualTo(second.publicId());
+        var second = service.create(new CreateRuleRequest(1L, "规则二", List.of("ANDROID"), "MALE", 18, 45));
+        assertThat(first.id()).isPositive().isNotEqualTo(second.id());
         var inserted = ArgumentCaptor.forClass(RuleEntity.class);
         verify(mapper, times(2)).insert(inserted.capture());
         assertThat(inserted.getAllValues()).extracting(RuleEntity::getName).containsExactly("规则一", "规则二");
         assertThat(inserted.getAllValues()).allSatisfy(entity -> {
-            assertThat(entity.getAdvertiserPublicId()).isEqualTo("adv_1");
+            assertThat(entity.getAdvertiserId()).isEqualTo(1L);
             assertThat(entity.getDeviceTypes()).containsExactly("ANDROID");
         });
         verifyNoMoreInteractions(mapper);
@@ -91,7 +96,7 @@ class RuleServiceImplTests {
 
     @Test
     void rejectsMissingAndDisabledAdvertisersBeforeInsert() {
-        var request = new CreateRuleRequest("adv_1", "规则一", null, null, null, null);
+        var request = new CreateRuleRequest(1L, "规则一", null, null, null, null);
         assertThatThrownBy(() -> service.create(request)).hasMessage("广告主不存在");
         stubAdvertiser(0);
         assertThatThrownBy(() -> service.create(request)).hasMessage("广告主已停用");
@@ -101,7 +106,7 @@ class RuleServiceImplTests {
     @Test
     void translatesCreateConstraintsAndPreservesUnexpectedErrors() {
         stubAdvertiser(1);
-        var request = new CreateRuleRequest("adv_1", "规则一", null, null, null, null);
+        var request = new CreateRuleRequest(1L, "规则一", null, null, null, null);
         var missing = integrity(1452);
         when(mapper.insert(any(RuleEntity.class))).thenThrow(missing);
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(BusinessException.class)
@@ -117,9 +122,9 @@ class RuleServiceImplTests {
     void unchangedRulesDoNotWrite() {
         RuleEntity stored = rule();
         stored.setDeviceTypes(List.of("ANDROID"));
-        when(mapper.selectOne(any())).thenReturn(stored);
-        var request = new UpdateRuleRequest("rule_1", null, List.of("ANDROID"), "MALE", 18, 45);
-        assertThat(service.update(request).publicId()).isEqualTo("rule_1");
+        when(mapper.selectById(any())).thenReturn(stored);
+        var request = new UpdateRuleRequest(1L, null, List.of("ANDROID"), "MALE", 18, 45);
+        assertThat(service.update(request).id()).isEqualTo(1L);
         service.update(request);
         verify(mapper, never()).updateById(any(RuleEntity.class));
     }
@@ -129,7 +134,7 @@ class RuleServiceImplTests {
         RuleEntity stored = rule();
         RuleEntity cleared = rule();
         cleared.setDeviceTypes(List.of());
-        when(mapper.selectOne(any())).thenReturn(stored, cleared);
+        when(mapper.selectById(any())).thenReturn(stored, cleared);
         when(mapper.updateById(any(RuleEntity.class))).thenAnswer(call -> {
             RuleEntity update = call.getArgument(0);
             assertThat(update.getId()).isEqualTo(1L);
@@ -138,15 +143,15 @@ class RuleServiceImplTests {
             assertThat(update.getGender()).isNull();
             assertThat(update.getAgeMin()).isNull();
             assertThat(update.getAgeMax()).isNull();
-            assertThat(update.getAdvertiserPublicId()).isNull();
+            assertThat(update.getAdvertiserId()).isNull();
             return 1;
         });
-        var request = new UpdateRuleRequest("rule_1", null, List.of(), null, null, null);
+        var request = new UpdateRuleRequest(1L, null, List.of(), null, null, null);
         service.update(request);
         service.update(request);
         verify(mapper, times(1)).updateById(any(RuleEntity.class));
         assertThat(stored.getDeviceTypes()).containsExactly("ANDROID");
-        assertThat(stored.getAdvertiserPublicId()).isEqualTo("adv_1");
+        assertThat(stored.getAdvertiserId()).isEqualTo(1L);
     }
 
     @Test
@@ -155,9 +160,9 @@ class RuleServiceImplTests {
         stored.setDeviceTypes(null);
         RuleEntity cleared = rule();
         cleared.setDeviceTypes(List.of());
-        when(mapper.selectOne(any())).thenReturn(stored, cleared);
+        when(mapper.selectById(any())).thenReturn(stored, cleared);
         when(mapper.updateById(any(RuleEntity.class))).thenReturn(1);
-        var request = new UpdateRuleRequest("rule_1", null, List.of(), null, null, null);
+        var request = new UpdateRuleRequest(1L, null, List.of(), null, null, null);
         service.update(request);
         service.update(request);
         var entity = ArgumentCaptor.forClass(RuleEntity.class);
@@ -167,60 +172,60 @@ class RuleServiceImplTests {
 
     @Test
     void validatesMergedAgeBeforeWriting() {
-        when(mapper.selectOne(any())).thenReturn(rule());
-        assertThatThrownBy(() -> service.update(new UpdateRuleRequest("rule_1", null, null, null, 46, null)))
+        when(mapper.selectById(any())).thenReturn(rule());
+        assertThatThrownBy(() -> service.update(new UpdateRuleRequest(1L, null, null, null, 46, null)))
                 .hasMessage("最大年龄必须大于等于最小年龄");
-        assertThatThrownBy(() -> service.update(new UpdateRuleRequest("rule_1", null, null, null, null, 17)))
+        assertThatThrownBy(() -> service.update(new UpdateRuleRequest(1L, null, null, null, null, 17)))
                 .hasMessage("最大年龄必须大于等于最小年龄");
         verify(mapper, never()).updateById(any(RuleEntity.class));
     }
 
     @Test
     void acceptsSingleAgeUpdateWithoutWritingOwnerOrOmittedFields() {
-        when(mapper.selectOne(any())).thenReturn(rule());
+        when(mapper.selectById(any())).thenReturn(rule());
         when(mapper.updateById(any(RuleEntity.class))).thenAnswer(call -> {
             RuleEntity update = call.getArgument(0);
             assertThat(update.getId()).isEqualTo(1L);
             assertThat(update.getAgeMin()).isEqualTo(20);
             assertThat(update.getAgeMax()).isNull();
-            assertThat(update.getAdvertiserPublicId()).isNull();
+            assertThat(update.getAdvertiserId()).isNull();
             assertThat(update.getDeviceTypes()).isNull();
             return 1;
         });
-        assertThat(service.update(new UpdateRuleRequest("rule_1", null, null, null, 20, null)).publicId())
-                .isEqualTo("rule_1");
+        assertThat(service.update(new UpdateRuleRequest(1L, null, null, null, 20, null)).id())
+                .isEqualTo(1L);
     }
 
     @Test
     void reportsMissingRecordAndZeroUpdateCount() {
-        var request = new UpdateRuleRequest("rule_1", null, null, "FEMALE", null, null);
+        var request = new UpdateRuleRequest(1L, null, null, "FEMALE", null, null);
         assertThatThrownBy(() -> service.update(request)).hasMessage("定向规则不存在");
-        when(mapper.selectOne(any())).thenReturn(rule());
+        when(mapper.selectById(any())).thenReturn(rule());
         when(mapper.updateById(any(RuleEntity.class))).thenReturn(0);
         assertThatThrownBy(() -> service.update(request)).hasMessage("定向规则不存在");
     }
 
     @Test
     void deletesDirectlyAndReportsMissingOnRepeat() {
-        when(mapper.delete(any(Wrapper.class))).thenReturn(1, 0);
-        var request = new DeleteRuleRequest("rule_1");
-        assertThat(service.delete(request).publicId()).isEqualTo("rule_1");
+        when(mapper.deleteById(any(Long.class))).thenReturn(1, 0);
+        var request = new DeleteRuleRequest(1L);
+        assertThat(service.delete(request).id()).isEqualTo(1L);
         assertThatThrownBy(() -> service.delete(request)).hasMessage("定向规则不存在");
-        verify(mapper, times(2)).delete(any(Wrapper.class));
+        verify(mapper, times(2)).deleteById(any(Long.class));
         verifyNoMoreInteractions(mapper);
     }
 
     @Test
     void translatesReferencedRuleDeleteFailure() {
         var failure = integrity(1451);
-        when(mapper.delete(any(Wrapper.class))).thenThrow(failure);
-        assertThatThrownBy(() -> service.delete(new DeleteRuleRequest("rule_1")))
+        when(mapper.deleteById(any(Long.class))).thenThrow(failure);
+        assertThatThrownBy(() -> service.delete(new DeleteRuleRequest(1L)))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_IN_USE))
                 .hasMessage("定向规则存在关联数据，不能删除").hasCause(failure);
         var unexpected = integrity(1048);
-        doThrow(unexpected).when(mapper).delete(any(Wrapper.class));
-        assertThatThrownBy(() -> service.delete(new DeleteRuleRequest("rule_1"))).isSameAs(unexpected);
+        doThrow(unexpected).when(mapper).deleteById(any(Long.class));
+        assertThatThrownBy(() -> service.delete(new DeleteRuleRequest(1L))).isSameAs(unexpected);
     }
 
     @Test
@@ -235,7 +240,7 @@ class RuleServiceImplTests {
         assertThat(page.total()).isEqualTo(1);
         assertThat(page.records()).singleElement().satisfies(row -> {
             assertThat(row.name()).isEqualTo("规则一");
-            assertThat(row.advertiserPublicId()).isEqualTo("adv_1");
+            assertThat(row.advertiserId()).isEqualTo(1L);
             assertThat(row.deviceTypes()).containsExactly("ANDROID");
         });
     }
@@ -243,7 +248,7 @@ class RuleServiceImplTests {
     private void stubAdvertiser(int status) {
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(status);
-        when(advertisers.selectOne(any())).thenReturn(advertiser);
+        when(advertisers.selectById(any())).thenReturn(advertiser);
     }
 
     private DataIntegrityViolationException integrity(int code) {
@@ -254,8 +259,8 @@ class RuleServiceImplTests {
         RuleEntity rule = new RuleEntity();
         rule.setId(1L);
         rule.setName("规则一");
-        rule.initializePublicId("rule_1");
-        rule.setAdvertiserPublicId("adv_1");
+        rule.setId(1L);
+        rule.setAdvertiserId(1L);
         rule.setDeviceTypes(List.of("ANDROID"));
         rule.setGender("MALE");
         rule.setAgeMin(18);

@@ -40,20 +40,15 @@ class AdminCrudTests {
         AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
         AdvertiserEntity existing = new AdvertiserEntity();
         existing.setId(1L);
-        existing.initializePublicId("adv_1");
+        existing.setId(1L);
         existing.setStatus(CommonStatus.ENABLED);
-        when(mapper.selectOne(any())).thenReturn(existing);
-        when(mapper.update(any(AdvertiserEntity.class), any())).thenAnswer(call -> {
-            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AdvertiserEntity> query = call.getArgument(1);
-            assertThat(query.getSqlSegment()).contains("public_id");
-            assertThat(query.getParamNameValuePairs()).containsValue("adv_1");
-            return 1;
-        });
-        UpdateAdvertiserRequest request = new UpdateAdvertiserRequest("adv_1", "新名称", "科技", "张三", "a@example.com");
-        assertThat(service.update(request).publicId()).isEqualTo("adv_1");
+        when(mapper.selectById(any())).thenReturn(existing);
+        when(mapper.updateById(any(AdvertiserEntity.class))).thenReturn(1);
+        UpdateAdvertiserRequest request = new UpdateAdvertiserRequest(1L, "新名称", "科技", "张三", "a@example.com");
+        assertThat(service.update(request).id()).isEqualTo(1L);
         service.update(request);
         ArgumentCaptor<AdvertiserEntity> updates = ArgumentCaptor.forClass(AdvertiserEntity.class);
-        verify(mapper, times(2)).update(updates.capture(), any());
+        verify(mapper, times(2)).updateById(updates.capture());
         assertThat(updates.getAllValues()).allSatisfy(entity -> {
             assertThat(entity.getName()).isEqualTo("新名称");
             assertThat(entity.getStatus()).isNull();
@@ -65,10 +60,10 @@ class AdminCrudTests {
     void advertiserUpdateReportsMissingWhenAdvertiserNotFound() {
         AdvertiserMapper mapper = mock(AdvertiserMapper.class);
         AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
-        when(mapper.selectOne(any())).thenReturn(null);
-        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest("adv_1", null, null, null, null)))
+        when(mapper.selectById(any())).thenReturn(null);
+        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest(1L, null, null, null, null)))
                 .hasMessage("广告主不存在");
-        verify(mapper, never()).update(any(AdvertiserEntity.class), any());
+        verify(mapper, never()).updateById(any(AdvertiserEntity.class));
     }
 
     @Test
@@ -76,22 +71,22 @@ class AdminCrudTests {
         AdvertiserMapper mapper = mock(AdvertiserMapper.class);
         AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
         AdvertiserEntity disabled = new AdvertiserEntity();
-        disabled.initializePublicId("adv_1");
+        disabled.setId(1L);
         disabled.setStatus(CommonStatus.DISABLED);
-        when(mapper.selectOne(any())).thenReturn(disabled);
-        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest("adv_1", "新名称", null, null, null)))
+        when(mapper.selectById(any())).thenReturn(disabled);
+        assertThatThrownBy(() -> service.update(new UpdateAdvertiserRequest(1L, "新名称", null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("广告主已停用");
-        verify(mapper, never()).update(any(AdvertiserEntity.class), any());
+        verify(mapper, never()).updateById(any(AdvertiserEntity.class));
     }
 
     @Test
     void advertiserDeleteReportsMissingOnRepeat() {
         AdvertiserMapper mapper = mock(AdvertiserMapper.class);
         AdvertiserServiceImpl service = new AdvertiserServiceImpl(mapper, Mappers.getMapper(AdvertiserConverter.class));
-        when(mapper.delete(any(Wrapper.class))).thenReturn(1, 0);
-        DeleteAdvertiserRequest request = new DeleteAdvertiserRequest("adv_1");
-        assertThat(service.delete(request).publicId()).isEqualTo("adv_1");
+        when(mapper.deleteById(any(Long.class))).thenReturn(1, 0);
+        DeleteAdvertiserRequest request = new DeleteAdvertiserRequest(1L);
+        assertThat(service.delete(request).id()).isEqualTo(1L);
         assertThatThrownBy(() -> service.delete(request)).isInstanceOf(BusinessException.class).hasMessage("广告主不存在");
     }
 
@@ -101,16 +96,20 @@ class AdminCrudTests {
         AdvertiserMapper advertisers = mock(AdvertiserMapper.class);
         MaterialServiceImpl service = new MaterialServiceImpl(mapper,
                 Mappers.getMapper(MaterialConverter.class), new AdvertiserGuardUtils(advertisers));
-        CreateMaterialRequest request = new CreateMaterialRequest("adv_1", "slot_1", "素材", "描述", "image", "landing");
+        CreateMaterialRequest request = new CreateMaterialRequest(1L, 1L, "素材", "描述", "image", "landing");
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(CommonStatus.ENABLED);
-        when(advertisers.selectOne(any())).thenReturn(advertiser);
-        assertThat(service.create(request).publicId()).startsWith("mat_");
+        when(advertisers.selectById(any())).thenReturn(advertiser);
+        when(mapper.insert(any(MaterialEntity.class))).thenAnswer(call -> {
+            ((MaterialEntity) call.getArgument(0)).setId(1L);
+            return 1;
+        });
+        assertThat(service.create(request).id()).isEqualTo(1L);
         ArgumentCaptor<MaterialEntity> inserted = ArgumentCaptor.forClass(MaterialEntity.class);
         verify(mapper).insert(inserted.capture());
         assertThat(inserted.getValue().getAuditStatus()).isEqualTo("PENDING");
         assertThat(inserted.getValue().getStatus()).isEqualTo(1);
-        when(advertisers.selectOne(any())).thenReturn(null);
+        when(advertisers.selectById(any())).thenReturn(null);
         assertThatThrownBy(() -> service.create(request)).hasMessage("广告主不存在");
         verify(mapper, times(1)).insert(any(MaterialEntity.class));
     }
@@ -142,13 +141,13 @@ class AdminCrudTests {
         RuleConverter converter = mock(RuleConverter.class);
         AdvertiserGuardUtils guard = mock(AdvertiserGuardUtils.class);
         RuleServiceImpl service = new RuleServiceImpl(mapper, converter, guard);
-        var request = new CreateRuleRequest("adv_1", "规则一", null, null, null, null);
+        var request = new CreateRuleRequest(1L, "规则一", null, null, null, null);
         when(converter.createRequestToEntity(request)).thenReturn(new RuleEntity());
         when(mapper.insert(any(RuleEntity.class)))
                 .thenThrow(new org.springframework.dao.DuplicateKeyException("duplicate"));
         assertThatThrownBy(() -> service.create(request))
-                .isInstanceOf(BusinessException.class).hasMessage("定向规则已存在");
-        verify(guard).requireEnabled("adv_1");
+                .isInstanceOf(BusinessException.class).hasMessage("该广告主下已存在同名定向规则");
+        verify(guard).requireEnabled(1L);
         verify(mapper, never()).updateById(any(RuleEntity.class));
     }
 }

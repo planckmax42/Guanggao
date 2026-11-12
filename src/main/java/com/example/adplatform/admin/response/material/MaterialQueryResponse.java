@@ -1,9 +1,12 @@
 package com.example.adplatform.admin.response.material;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 public record MaterialQueryResponse(
-        String publicId,
-        String advertiserPublicId,
-        String slotPublicId,
+        @JsonSerialize(using = ToStringSerializer.class) Long id,
+        @JsonSerialize(using = ToStringSerializer.class) Long advertiserId,
+        @JsonSerialize(using = ToStringSerializer.class) Long slotId,
         String name,
         String description,
         String imageUrl,

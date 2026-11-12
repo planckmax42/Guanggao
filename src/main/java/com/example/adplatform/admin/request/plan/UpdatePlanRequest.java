@@ -1,10 +1,13 @@
 package com.example.adplatform.admin.request.plan;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.example.adplatform.admin.json.AdminIdDeserializer;
 import com.example.adplatform.admin.enums.BillingType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -12,10 +15,9 @@ import java.time.LocalDateTime;
 
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
-import static com.example.adplatform.common.util.PublicIdUtils.PLAN_PATTERN;
 
 public record UpdatePlanRequest(
-        @NotBlank @Pattern(regexp = PLAN_PATTERN) String publicId,
+        @NotNull @Positive @JsonDeserialize(using = AdminIdDeserializer.class) Long id,
         @Size(max = 128) String name,
         @Min(1) Long budgetTotal,
         @Min(1) Long budgetDaily,

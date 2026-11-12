@@ -31,6 +31,8 @@ class RuleJsonMappingTests {
     void bindsInsertedDeviceListAsJson() throws Exception {
         var configuration = new MybatisConfiguration();
         configuration.addMapper(RuleMapper.class);
+        com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils.getGlobalConfig(configuration)
+                .setIdentifierGenerator(new com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator(1, 1));
         var entity = new RuleEntity();
         entity.setDeviceTypes(List.of("ANDROID", "IOS"));
         var statement = configuration.getMappedStatement(RuleMapper.class.getName() + ".insert");
@@ -48,10 +50,10 @@ class RuleJsonMappingTests {
         var stored = new RuleEntity();
         stored.setId(1L);
         stored.setDeviceTypes(List.of("ANDROID"));
-        when(mapper.selectOne(any())).thenReturn(stored);
+        when(mapper.selectById(any())).thenReturn(stored);
         when(mapper.updateById(any(RuleEntity.class))).thenReturn(1);
         var service = new RuleServiceImpl(mapper, Mappers.getMapper(RuleConverter.class), mock(AdvertiserGuardUtils.class));
-        service.update(new UpdateRuleRequest("rule_1", null, List.of("IOS"), null, null, null));
+        service.update(new UpdateRuleRequest(1L, null, List.of("IOS"), null, null, null));
         var entity = ArgumentCaptor.forClass(RuleEntity.class);
         verify(mapper).updateById(entity.capture());
         var params = Map.of("et", entity.getValue());
@@ -64,7 +66,7 @@ class RuleJsonMappingTests {
         verify(jdbc).setString(jsonParameterIndex(boundSql), "[\"IOS\"]");
 
         org.mockito.Mockito.clearInvocations(mapper);
-        service.update(new UpdateRuleRequest("rule_1", null, List.of(), null, null, null));
+        service.update(new UpdateRuleRequest(1L, null, List.of(), null, null, null));
         verify(mapper).updateById(entity.capture());
         params = Map.of("et", entity.getValue());
         boundSql = statement.getBoundSql(params);

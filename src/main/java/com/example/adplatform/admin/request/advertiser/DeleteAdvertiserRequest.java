@@ -1,10 +1,11 @@
 package com.example.adplatform.admin.request.advertiser;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.example.adplatform.admin.json.AdminIdDeserializer;
 
-import static com.example.adplatform.common.util.PublicIdUtils.ADVERTISER_PATTERN;
 
 public record DeleteAdvertiserRequest(
-        @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String publicId) {
+        @NotNull @Positive @JsonDeserialize(using = AdminIdDeserializer.class) Long id) {
 }

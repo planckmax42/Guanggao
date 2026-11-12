@@ -19,10 +19,8 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.util.PublicIdUtils;
 import com.example.adplatform.search.candidate.event.ConfigStopGuardEvent;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,8 +33,7 @@ import java.time.LocalDateTime;
 /**
  * 广告计划管理及状态流转服务。
  *
- * <p>所有影响投放的写操作都会在当前事务内追加 Outbox。暂停/下线还会在提交后立即
- * 写 Redis 停投标记，待异步消费者完成 ES 同步后再清理该临时标记。</p>
+ * <p>雪花 ID 迁移期间暂停旧 publicId Outbox 同步；基于数值 ID 的停投事件保留。</p>
  */
 @RequiredArgsConstructor
 @Service
@@ -45,15 +42,16 @@ public class PlanServiceImpl implements PlanService {
     private final PlanMapper planMapper;
     private final AdvertiserGuardUtils advertiserGuardUtils;
     private final PlanConverter planConverter;
-    private final SearchOutboxService searchOutboxService;
+    // Outbox 尚使用旧 publicId 契约，待 search 组件迁移后恢复同步。
+    // private final SearchOutboxService searchOutboxService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse create(CreatePlanRequest request) {
-        advertiserGuardUtils.requireEnabled(request.advertiserPublicId());
+        advertiserGuardUtils.requireEnabled(request.advertiserId());
         PlanEntity entity = planConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.PLAN_PREFIX));
+
         try{
             planMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -79,7 +77,7 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse update(UpdatePlanRequest request) {
-        PlanEntity existing = getPlanOrThrow(request.publicId());
+        PlanEntity existing = getPlanOrThrow(request.id());
         boolean changed = (request.name() != null && !request.name().equals(existing.getName()))
                 || (request.budgetTotal() != null && !request.budgetTotal().equals(existing.getBudgetTotal()))
                 || (request.budgetDaily() != null && !request.budgetDaily().equals(existing.getBudgetDaily()))
@@ -88,7 +86,7 @@ public class PlanServiceImpl implements PlanService {
                 || (request.startTime() != null && !request.startTime().equals(existing.getStartTime()))
                 || (request.endTime() != null && !request.endTime().equals(existing.getEndTime()));
         if (!changed) {
-            return new PlanOperationResponse(request.publicId());
+            return new PlanOperationResponse(request.id());
         }
         Long budgetTotal = request.budgetTotal() != null ? request.budgetTotal() : existing.getBudgetTotal();
         Long budgetDaily = request.budgetDaily() != null ? request.budgetDaily() : existing.getBudgetDaily();
@@ -109,18 +107,16 @@ public class PlanServiceImpl implements PlanService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "该广告主下已存在同名计划");
         }
-//        Long internalId = entity.getId();
-//        eventMetadataCacheService.evictPlanAfterCommit(internalId);
+//        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
 //        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
-        return new PlanOperationResponse(request.publicId());
+        return new PlanOperationResponse(request.id());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanOperationResponse delete(DeletePlanRequest request) {
         try {
-            if (planMapper.delete(new LambdaQueryWrapper<PlanEntity>()
-                    .eq(PlanEntity::getPublicId, request.publicId())) == 0) {
+            if (planMapper.deleteById(request.id()) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
             }
         } catch (DataIntegrityViolationException ex) {
@@ -129,7 +125,7 @@ public class PlanServiceImpl implements PlanService {
             }
             throw ex;
         }
-        return new PlanOperationResponse(request.publicId());
+        return new PlanOperationResponse(request.id());
 //        eventMetadataCacheService.evictPlanAfterCommit(entity.getId());
 //        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, request.publicId());
     }
@@ -137,52 +133,48 @@ public class PlanServiceImpl implements PlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanResponse online(UpdatePlanStatusRequest request) {
-        String publicId = request.publicId();
-        PlanEntity entity = getPlanOrThrow(publicId);
-        Long internalId = entity.getId();
-        advertiserGuardUtils.requireEnabled(entity.getAdvertiserPublicId());
+        Long id = request.id();
+        PlanEntity entity = getPlanOrThrow(id);
+        advertiserGuardUtils.requireEnabled(entity.getAdvertiserId());
         if (entity.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.INVALID_TIME_RANGE, "广告计划结束时间已过期");
         }
         entity.setStatus(PlanStatus.ONLINE.name());
         planMapper.updateById(entity);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
-        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, internalId, false));
-        return toResponse(planMapper.selectById(internalId));
+        // searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, false));
+        return toResponse(planMapper.selectById(id));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanResponse pause(UpdatePlanStatusRequest request) {
-        String publicId = request.publicId();
-        PlanEntity entity = getPlanOrThrow(publicId);
-        Long internalId = entity.getId();
+        Long id = request.id();
+        PlanEntity entity = getPlanOrThrow(id);
         if (!PlanStatus.ONLINE.name().equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION, "只有投放中的广告计划可以暂停");
         }
         entity.setStatus(PlanStatus.PAUSED.name());
         planMapper.updateById(entity);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
-        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, internalId, true));
-        return toResponse(planMapper.selectById(internalId));
+        // searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, true));
+        return toResponse(planMapper.selectById(id));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PlanResponse offline(UpdatePlanStatusRequest request) {
-        String publicId = request.publicId();
-        PlanEntity entity = getPlanOrThrow(publicId);
-        Long internalId = entity.getId();
+        Long id = request.id();
+        PlanEntity entity = getPlanOrThrow(id);
         entity.setStatus(PlanStatus.OFFLINE.name());
         planMapper.updateById(entity);
-        searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
-        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, internalId, true));
-        return toResponse(planMapper.selectById(internalId));
+        // searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, publicId);
+        applicationEventPublisher.publishEvent(new ConfigStopGuardEvent(ConfigAggregateType.PLAN, id, true));
+        return toResponse(planMapper.selectById(id));
     }
 
-    private PlanEntity getPlanOrThrow(String publicId) {
-        PlanEntity entity = planMapper.selectOne(new LambdaQueryWrapper<PlanEntity>()
-                .eq(PlanEntity::getPublicId, publicId));
+    private PlanEntity getPlanOrThrow(Long id) {
+        PlanEntity entity = planMapper.selectById(id);
         if (entity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告计划不存在");
         }

@@ -15,14 +15,12 @@ import org.mapstruct.Mapping;
 public interface AdvertiserConverter {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     AdvertiserEntity createRequestToEntity(CreateAdvertiserRequest request);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

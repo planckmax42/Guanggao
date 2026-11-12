@@ -33,7 +33,7 @@ class MaterialServiceImplTests {
         stubAdvertiser(CommonStatus.ENABLED);
         when(mapper.insert(any(MaterialEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
 
-        var request = new CreateMaterialRequest("adv_1", "slot_1", "素材", "描述", "image", "landing");
+        var request = new CreateMaterialRequest(1L, 1L, "素材", "描述", "image", "landing");
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("该广告主下已存在同名素材");
@@ -57,10 +57,14 @@ class MaterialServiceImplTests {
     @Test
     void shouldCreateWithEnabledAdvertiserAndPreserveSlotReference() {
         stubAdvertiser(CommonStatus.ENABLED);
-        assertThat(service.create(createRequest()).publicId()).startsWith("mat_");
+        when(mapper.insert(any(MaterialEntity.class))).thenAnswer(call -> {
+            ((MaterialEntity) call.getArgument(0)).setId(1L);
+            return 1;
+        });
+        assertThat(service.create(createRequest()).id()).isEqualTo(1L);
         var inserted = ArgumentCaptor.forClass(MaterialEntity.class);
         verify(mapper).insert(inserted.capture());
-        assertThat(inserted.getValue().getSlotPublicId()).isEqualTo("slot_1");
+        assertThat(inserted.getValue().getSlotId()).isEqualTo(1L);
     }
 
     @Test
@@ -70,30 +74,30 @@ class MaterialServiceImplTests {
                 new SQLException("missing value", "23000", 1048));
         when(mapper.insert(any(MaterialEntity.class))).thenThrow(failure);
         assertThatThrownBy(() -> service.create(createRequest())).isSameAs(failure);
-        when(mapper.selectOne(any())).thenReturn(new MaterialEntity());
+        when(mapper.selectById(any())).thenReturn(new MaterialEntity());
         when(mapper.updateById(any(MaterialEntity.class))).thenThrow(failure);
         assertThatThrownBy(() -> service.update(
-                new UpdateMaterialRequest("mat_1", "slot_1", "素材", null, null, null)))
+                new UpdateMaterialRequest(1L, 1L, "素材", null, null, null)))
                 .isSameAs(failure);
     }
 
     @Test
     void shouldKeepDuplicateNameMessageOnUpdate() {
-        when(mapper.selectOne(any())).thenReturn(new MaterialEntity());
+        when(mapper.selectById(any())).thenReturn(new MaterialEntity());
         when(mapper.updateById(any(MaterialEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
         assertThatThrownBy(() -> service.update(
-                new UpdateMaterialRequest("mat_1", null, "素材", null, null, null)))
+                new UpdateMaterialRequest(1L, null, "素材", null, null, null)))
                 .isInstanceOf(BusinessException.class).hasMessage("该广告主下已存在同名素材");
     }
 
     private CreateMaterialRequest createRequest() {
-        return new CreateMaterialRequest("adv_1", "slot_1", "素材", "描述", "image", "landing");
+        return new CreateMaterialRequest(1L, 1L, "素材", "描述", "image", "landing");
     }
 
     private void stubAdvertiser(int status) {
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(status);
-        when(advertisers.selectOne(any())).thenReturn(advertiser);
+        when(advertisers.selectById(any())).thenReturn(advertiser);
     }
 
     @Test
@@ -101,48 +105,48 @@ class MaterialServiceImplTests {
         MaterialEntity existing = new MaterialEntity();
         existing.setId(1L);
         existing.setAuditStatus("APPROVED");
-        when(mapper.selectOne(any())).thenReturn(existing);
+        when(mapper.selectById(any())).thenReturn(existing);
         when(mapper.updateById(any(MaterialEntity.class))).thenReturn(1);
-        service.update(new UpdateMaterialRequest("mat_1", null, "新名称", null, null, null));
+        service.update(new UpdateMaterialRequest(1L, null, "新名称", null, null, null));
         ArgumentCaptor<MaterialEntity> update = ArgumentCaptor.forClass(MaterialEntity.class);
         verify(mapper).updateById(update.capture());
         assertThat(update.getValue().getId()).isEqualTo(1L);
         assertThat(update.getValue().getName()).isEqualTo("新名称");
         assertThat(update.getValue().getAuditStatus()).isEqualTo("PENDING");
-        assertThat(update.getValue().getSlotPublicId()).isNull();
-        assertThat(update.getValue().getAdvertiserPublicId()).isNull();
+        assertThat(update.getValue().getSlotId()).isNull();
+        assertThat(update.getValue().getAdvertiserId()).isNull();
         verifyNoInteractions(advertisers);
-        verify(mapper).selectOne(any());
+        verify(mapper).selectById(any());
     }
 
     @Test
     void shouldUpdateContentAndSlotWithoutChangingAdvertiserOrStatus() {
         MaterialEntity existing = new MaterialEntity();
         existing.setId(1L);
-        existing.setAdvertiserPublicId("adv_original");
+        existing.setAdvertiserId(2L);
         existing.setStatus(0);
         existing.setAuditStatus("REJECTED");
-        when(mapper.selectOne(any())).thenReturn(existing);
-        var request = new UpdateMaterialRequest("mat_1", "slot_1", "素材", "描述", "image", "landing");
+        when(mapper.selectById(any())).thenReturn(existing);
+        var request = new UpdateMaterialRequest(1L, 1L, "素材", "描述", "image", "landing");
         when(mapper.updateById(any(MaterialEntity.class))).thenReturn(1);
         service.update(request);
         ArgumentCaptor<MaterialEntity> update = ArgumentCaptor.forClass(MaterialEntity.class);
         verify(mapper).updateById(update.capture());
         assertThat(update.getValue().getStatus()).isNull();
         assertThat(update.getValue().getAuditStatus()).isEqualTo("PENDING");
-        assertThat(update.getValue().getAdvertiserPublicId()).isNull();
-        assertThat(existing.getAdvertiserPublicId()).isEqualTo("adv_original");
+        assertThat(update.getValue().getAdvertiserId()).isNull();
+        assertThat(existing.getAdvertiserId()).isEqualTo(2L);
         verifyNoInteractions(advertisers);
-        assertThat(update.getValue().getSlotPublicId()).isEqualTo("slot_1");
+        assertThat(update.getValue().getSlotId()).isEqualTo(1L);
     }
 
     @Test
     void shouldTranslateMissingSlotConstraintOnUpdate() {
-        when(mapper.selectOne(any())).thenReturn(new MaterialEntity());
+        when(mapper.selectById(any())).thenReturn(new MaterialEntity());
         var failure = new DataIntegrityViolationException("missing slot",
                 new SQLException("foreign key conflict", "23000", 1452));
         when(mapper.updateById(any(MaterialEntity.class))).thenThrow(failure);
-        var request = new UpdateMaterialRequest("mat_1", "slot_1", "素材", null, null, null);
+        var request = new UpdateMaterialRequest(1L, 1L, "素材", null, null, null);
         assertThatThrownBy(() -> service.update(request))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND))
@@ -163,7 +167,7 @@ class MaterialServiceImplTests {
 
     @Test
     void shouldRejectMissingMaterialBeforeUpdate() {
-        var request = new UpdateMaterialRequest("mat_1", null, "素材", "描述", "image", "landing");
+        var request = new UpdateMaterialRequest(1L, null, "素材", "描述", "image", "landing");
         assertThatThrownBy(() -> service.update(request)).hasMessage("素材不存在");
         verify(mapper, never()).updateById(any(MaterialEntity.class));
     }
@@ -171,18 +175,18 @@ class MaterialServiceImplTests {
     @Test
     void shouldPreserveApprovalWhenResubmittingUnchangedContent() {
         MaterialEntity existing = new MaterialEntity();
-        existing.setSlotPublicId("slot_1");
+        existing.setSlotId(1L);
         existing.setName("素材");
         existing.setDescription("描述");
         existing.setImageUrl("image");
         existing.setLandingPageUrl("landing");
         existing.setAuditStatus("APPROVED");
-        when(mapper.selectOne(any())).thenReturn(existing);
-        var request = new UpdateMaterialRequest("mat_1", "slot_1", "素材", "描述", "image", "landing");
+        when(mapper.selectById(any())).thenReturn(existing);
+        var request = new UpdateMaterialRequest(1L, 1L, "素材", "描述", "image", "landing");
 
-        assertThat(service.update(request).publicId()).isEqualTo("mat_1");
-        assertThat(service.update(request).publicId()).isEqualTo("mat_1");
-        service.update(new UpdateMaterialRequest("mat_1", null, "素材", null, null, null));
+        assertThat(service.update(request).id()).isEqualTo(1L);
+        assertThat(service.update(request).id()).isEqualTo(1L);
+        service.update(new UpdateMaterialRequest(1L, null, "素材", null, null, null));
 
         verify(mapper, never()).updateById(any(MaterialEntity.class));
         verifyNoInteractions(advertisers);
@@ -193,12 +197,12 @@ class MaterialServiceImplTests {
     void shouldRejectEmptyUpdateThroughBeanValidation() {
         try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
             var validator = factory.getValidator();
-            String publicId = "mat_" + "a".repeat(32);
-            var empty = new UpdateMaterialRequest(publicId, null, null, null, null, null);
+            Long id = 1L;
+            var empty = new UpdateMaterialRequest(id, null, null, null, null, null);
             assertThat(validator.validate(empty))
                     .extracting(jakarta.validation.ConstraintViolation::getMessage)
                     .containsExactly("请至少提供一个需要修改的字段");
-            var update = new UpdateMaterialRequest(publicId, null, "新名称", null, null, null);
+            var update = new UpdateMaterialRequest(id, null, "新名称", null, null, null);
             assertThat(validator.validate(update)).isEmpty();
         }
     }

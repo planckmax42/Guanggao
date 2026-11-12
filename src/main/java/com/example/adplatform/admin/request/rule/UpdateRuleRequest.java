@@ -1,19 +1,21 @@
 package com.example.adplatform.admin.request.rule;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.example.adplatform.admin.json.AdminIdDeserializer;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-import static com.example.adplatform.common.util.PublicIdUtils.RULE_PATTERN;
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
 public record UpdateRuleRequest(
-        @NotBlank @Pattern(regexp = RULE_PATTERN) String publicId,
+        @NotNull @Positive @JsonDeserialize(using = AdminIdDeserializer.class) Long id,
         @Size(max = 128) String name,
         @Size(min = 1 ,max = 16) List<@Size(max = 32)@NotBlank String> deviceTypes,
         @Size(max = 32) String gender,

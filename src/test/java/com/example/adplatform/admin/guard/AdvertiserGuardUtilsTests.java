@@ -26,16 +26,16 @@ class AdvertiserGuardUtilsTests {
     void acceptsEnabledAdvertiserOnRepeatedChecks() {
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(1);
-        when(mapper.selectOne(any())).thenReturn(advertiser);
+        when(mapper.selectById(any())).thenReturn(advertiser);
         assertThatCode(() -> {
-            guard.requireEnabled("adv_1");
-            guard.requireEnabled("adv_1");
+            guard.requireEnabled(1L);
+            guard.requireEnabled(1L);
         }).doesNotThrowAnyException();
     }
 
     @Test
     void rejectsMissingAdvertiser() {
-        assertThatThrownBy(() -> guard.requireEnabled("adv_1"))
+        assertThatThrownBy(() -> guard.requireEnabled(1L))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
@@ -46,8 +46,8 @@ class AdvertiserGuardUtilsTests {
     void rejectsAdvertiserWithoutEnabledStatus(Integer status) {
         AdvertiserEntity advertiser = new AdvertiserEntity();
         advertiser.setStatus(status);
-        when(mapper.selectOne(any())).thenReturn(advertiser);
-        assertThatThrownBy(() -> guard.requireEnabled("adv_1"))
+        when(mapper.selectById(any())).thenReturn(advertiser);
+        assertThatThrownBy(() -> guard.requireEnabled(1L))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_STATUS_TRANSITION));
     }

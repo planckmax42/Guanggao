@@ -1,16 +1,13 @@
 package com.example.adplatform.admin.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.AccessLevel;
 
-import java.util.Objects;
 
 import java.time.LocalDateTime;
 
@@ -21,11 +18,8 @@ import java.time.LocalDateTime;
 @Setter
 @TableName("slot")
 public class SlotEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
-    @Setter(AccessLevel.NONE)
-    @TableField(updateStrategy = FieldStrategy.NEVER)
-    private String publicId;
     private String slotCode;
     private String name;
     private Integer width;
@@ -36,10 +30,4 @@ public class SlotEntity {
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
-    public void initializePublicId(String publicId) {
-        if (this.publicId != null) {
-            throw new IllegalStateException("广告位 publicId 创建后不允许修改");
-        }
-        this.publicId = Objects.requireNonNull(publicId, "publicId");
-    }
 }

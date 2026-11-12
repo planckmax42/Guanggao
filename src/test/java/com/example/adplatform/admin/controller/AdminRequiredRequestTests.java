@@ -59,7 +59,7 @@ class AdminRequiredRequestTests {
     @ValueSource(strings = {"slotCode", "name", "width", "height", "scene"})
     void slotUpdateAllowsOmittedBusinessFields(String field) throws Exception {
         var body = json.readTree("""
-                {"publicId":"slot_00000000000000000000000000000001","slotCode":"HOME",
+                {"id":"1","slotCode":"HOME",
                  "name":"首页","width":100,"height":100,"scene":"APP_HOME"}
                 """);
         assertThat(VALIDATOR.validate(json.treeToValue(body, UpdateSlotRequest.class))).isEmpty();
@@ -76,23 +76,19 @@ class AdminRequiredRequestTests {
 
     @ParameterizedTest
     @MethodSource("updateRequests")
-    void updateOnlyRequiresPublicId(Class<?> type) throws Exception {
-        String prefix = type.getSimpleName().contains("Advertiser") ? "adv"
-                : type.getSimpleName().contains("Material") ? "mat"
-                : type.getSimpleName().contains("Plan") ? "plan"
-                : type.getSimpleName().contains("Rule") ? "rule" : "slot";
-        Object request = json.findAndRegisterModules().readValue("{\"publicId\":\"" + prefix
-                + "_00000000000000000000000000000001\"}", type);
-        assertThat(VALIDATOR.validate(request)).isEmpty();
+    void updateOnlyRequiresId(Class<?> type) throws Exception {
+        Object request = json.findAndRegisterModules().readValue("{\"id\":\"1\"}", type);
+        assertThat(VALIDATOR.validate(request)).extracting(v -> v.getMessage())
+                .containsExactly("请至少提供一个需要修改的字段");
         assertThat(VALIDATOR.validate(json.readValue("{}", type))).isNotEmpty();
     }
 
     private Object plan(String action, String billingType) {
         LocalDateTime start = LocalDateTime.now();
         return action.equals("create")
-                ? new CreatePlanRequest("adv_00000000000000000000000000000001", "计划", 100L, 10L, 1L,
+                ? new CreatePlanRequest(1L, "计划", 100L, 10L, 1L,
                     billingType, start, start.plusDays(1))
-                : new UpdatePlanRequest("plan_00000000000000000000000000000001", "计划", 100L, 10L, 1L,
+                : new UpdatePlanRequest(1L, "计划", 100L, 10L, 1L,
                     billingType, start, start.plusDays(1));
     }
 }

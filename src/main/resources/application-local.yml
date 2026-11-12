@@ -66,6 +66,12 @@ spring:
     connection-timeout: 1s
     socket-timeout: 3s
 
+admin:
+  id:
+    # 雪花 ID 节点编号：多部署合库时每个部署必须分配不同的 worker-id/datacenter-id 组合（0~31）
+    worker-id: ${ADMIN_ID_WORKER_ID:0}
+    datacenter-id: ${ADMIN_ID_DATACENTER_ID:0}
+
 app:
   health:
     mysql-timeout-ms: 2000

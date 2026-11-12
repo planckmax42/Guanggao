@@ -17,7 +17,6 @@ import com.example.adplatform.admin.service.RuleService;
 import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.util.MySqlForeignKeyUtils;
-import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
@@ -39,9 +38,9 @@ public class RuleServiceImpl implements RuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RuleOperationResponse create(CreateRuleRequest request) {
-        advertiserGuardUtils.requireEnabled(request.advertiserPublicId());
+        advertiserGuardUtils.requireEnabled(request.advertiserId());
         RuleEntity entity = ruleConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.RULE_PREFIX));
+
         try {
             ruleMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -67,8 +66,7 @@ public class RuleServiceImpl implements RuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RuleOperationResponse update(UpdateRuleRequest request) {
-        RuleEntity existing = ruleMapper.selectOne(new LambdaQueryWrapper<RuleEntity>()
-                .eq(RuleEntity::getPublicId, request.publicId()));
+        RuleEntity existing = ruleMapper.selectById(request.id());
         if (existing == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
         }
@@ -78,7 +76,7 @@ public class RuleServiceImpl implements RuleService {
                 || (request.ageMin() != null && !request.ageMin().equals(existing.getAgeMin()))
                 || (request.ageMax() != null && !request.ageMax().equals(existing.getAgeMax()));
         if (!changed) {
-            return new RuleOperationResponse(request.publicId());
+            return new RuleOperationResponse(request.id());
         }
         Integer ageMin = request.ageMin() != null ? request.ageMin() : existing.getAgeMin();
         Integer ageMax = request.ageMax() != null ? request.ageMax() : existing.getAgeMax();
@@ -99,15 +97,14 @@ public class RuleServiceImpl implements RuleService {
         //     searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, oldPlanPublicId);
         // }
         // searchOutboxService.appendConfigChange(ConfigAggregateType.RULE, request.publicId());
-        return new RuleOperationResponse(request.publicId());
+        return new RuleOperationResponse(request.id());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RuleOperationResponse delete(DeleteRuleRequest request) {
         try {
-            if (ruleMapper.delete(new LambdaQueryWrapper<RuleEntity>()
-                    .eq(RuleEntity::getPublicId, request.publicId())) == 0) {
+            if (ruleMapper.deleteById(request.id()) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
             }
         } catch (DataIntegrityViolationException ex) {
@@ -118,6 +115,6 @@ public class RuleServiceImpl implements RuleService {
         }
         // 原删除同步逻辑，恢复时应先通过关联表确定受影响的计划：
         // searchOutboxService.appendConfigChange(ConfigAggregateType.PLAN, entity.getPlanPublicId());
-        return new RuleOperationResponse(request.publicId());
+        return new RuleOperationResponse(request.id());
     }
 }

@@ -32,7 +32,7 @@ class SlotServiceImplTests {
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final SlotCacheStopGuardPort stopGuard = mock(SlotCacheStopGuardPort.class);
     private final SlotServiceImpl service = new SlotServiceImpl(mapper, Mappers.getMapper(SlotConverter.class), filter,
-            events, cache, elasticsearch, stopGuard);
+            events, cache, stopGuard);
 
     @AfterEach
     void basicCrudMustNotSynchronizeExternally() {
@@ -41,8 +41,12 @@ class SlotServiceImplTests {
 
     @Test
     void createsSlotWithRequestedFieldsAndStatus() {
+        when(mapper.insert(any(SlotEntity.class))).thenAnswer(call -> {
+            ((SlotEntity) call.getArgument(0)).setId(1L);
+            return 1;
+        });
         var response = service.create(new CreateSlotRequest("HOME", "首页", 100, 200, "APP", 1));
-        assertThat(response.publicId()).startsWith("slot_");
+        assertThat(response.id()).isEqualTo(1L);
         var inserted = ArgumentCaptor.forClass(SlotEntity.class);
         verify(mapper).insert(inserted.capture());
         assertThat(inserted.getValue().getSlotCode()).isEqualTo("HOME");
@@ -54,17 +58,17 @@ class SlotServiceImplTests {
         when(mapper.insert(any(SlotEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
         assertThatThrownBy(() -> service.create(new CreateSlotRequest("HOME", "首页", 100, 200, "APP", 1)))
                 .hasMessage("广告位编码已存在");
-        when(mapper.selectOne(any())).thenReturn(slot());
+        when(mapper.selectById(any())).thenReturn(slot());
         when(mapper.updateById(any(SlotEntity.class))).thenThrow(new DuplicateKeyException("duplicate"));
-        assertThatThrownBy(() -> service.update(new UpdateSlotRequest("slot_1", "NEW", null, null, null, null)))
+        assertThatThrownBy(() -> service.update(new UpdateSlotRequest(1L, "NEW", null, null, null, null)))
                 .hasMessage("广告位编码已存在");
     }
 
     @Test
     void rejectsMissingRecordsAndZeroUpdateCount() {
-        var request = new UpdateSlotRequest("slot_1", "NEW", null, null, null, null);
+        var request = new UpdateSlotRequest(1L, "NEW", null, null, null, null);
         assertThatThrownBy(() -> service.update(request)).hasMessage("广告位不存在");
-        when(mapper.selectOne(any())).thenReturn(slot());
+        when(mapper.selectById(any())).thenReturn(slot());
         when(mapper.updateById(any(SlotEntity.class))).thenReturn(0);
         assertThatThrownBy(() -> service.update(request)).hasMessage("广告位不存在");
     }
@@ -72,51 +76,50 @@ class SlotServiceImplTests {
     @Test
     void updatesOnlySuppliedFieldsByInternalId() {
         SlotEntity existing = slot();
-        when(mapper.selectOne(any())).thenReturn(existing);
+        when(mapper.selectById(any())).thenReturn(existing);
         when(mapper.updateById(any(SlotEntity.class))).thenReturn(1);
-        assertThat(service.update(new UpdateSlotRequest("slot_1", "NEW", "首页", null, null, null)).publicId())
-                .isEqualTo("slot_1");
+        assertThat(service.update(new UpdateSlotRequest(1L, "NEW", "首页", null, null, null)).id())
+                .isEqualTo(1L);
         var update = ArgumentCaptor.forClass(SlotEntity.class);
         verify(mapper).updateById(update.capture());
         assertThat(update.getValue().getId()).isEqualTo(1L);
         assertThat(update.getValue().getSlotCode()).isEqualTo("NEW");
         assertThat(update.getValue().getName()).isEqualTo("首页");
         assertThat(update.getValue().getStatus()).isNull();
-        assertThat(update.getValue().getPublicId()).isNull();
         assertThat(update.getValue().getWidth()).isNull();
         assertThat(existing.getSlotCode()).isEqualTo("OLD");
     }
 
     @Test
     void repeatedUnchangedRequestsDoNotWrite() {
-        when(mapper.selectOne(any())).thenReturn(slot());
-        var request = new UpdateSlotRequest("slot_1", "OLD", "首页", 100, 200, "APP");
-        assertThat(service.update(request).publicId()).isEqualTo("slot_1");
+        when(mapper.selectById(any())).thenReturn(slot());
+        var request = new UpdateSlotRequest(1L, "OLD", "首页", 100, 200, "APP");
+        assertThat(service.update(request).id()).isEqualTo(1L);
         service.update(request);
         verify(mapper, never()).updateById(any(SlotEntity.class));
     }
 
     @Test
     void deletesWithoutPrequeryAndReportsMissingOnRepeat() {
-        when(mapper.delete(any(Wrapper.class))).thenReturn(1, 0);
-        var request = new DeleteSlotRequest("slot_1");
-        assertThat(service.delete(request).publicId()).isEqualTo("slot_1");
+        when(mapper.deleteById(any(Long.class))).thenReturn(1, 0);
+        var request = new DeleteSlotRequest(1L);
+        assertThat(service.delete(request).id()).isEqualTo(1L);
         assertThatThrownBy(() -> service.delete(request)).hasMessage("广告位不存在");
-        verify(mapper, times(2)).delete(any(Wrapper.class));
+        verify(mapper, times(2)).deleteById(any(Long.class));
         verifyNoMoreInteractions(mapper);
     }
 
     @Test
     void translatesForeignKeyDeleteFailureAndRethrowsOtherErrors() {
         var failure = new DataIntegrityViolationException("referenced", new SQLException("constraint", "23000", 1451));
-        when(mapper.delete(any(Wrapper.class))).thenThrow(failure);
-        assertThatThrownBy(() -> service.delete(new DeleteSlotRequest("slot_1")))
+        when(mapper.deleteById(any(Long.class))).thenThrow(failure);
+        assertThatThrownBy(() -> service.delete(new DeleteSlotRequest(1L)))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_IN_USE))
                 .hasMessage("广告位存在关联数据，不能删除").hasCause(failure);
         var unexpected = new DataIntegrityViolationException("unexpected");
-        doThrow(unexpected).when(mapper).delete(any(Wrapper.class));
-        assertThatThrownBy(() -> service.delete(new DeleteSlotRequest("slot_1"))).isSameAs(unexpected);
+        doThrow(unexpected).when(mapper).deleteById(any(Long.class));
+        assertThatThrownBy(() -> service.delete(new DeleteSlotRequest(1L))).isSameAs(unexpected);
     }
 
     @Test
@@ -135,7 +138,7 @@ class SlotServiceImplTests {
     private SlotEntity slot() {
         SlotEntity entity = new SlotEntity();
         entity.setId(1L);
-        entity.initializePublicId("slot_1");
+        entity.setId(1L);
         entity.setSlotCode("OLD");
         entity.setName("首页");
         entity.setWidth(100);

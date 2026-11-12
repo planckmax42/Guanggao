@@ -17,7 +17,6 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
-import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,7 +33,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
     @Override
     public AdvertiserOperationResponse create(CreateAdvertiserRequest request) {
         AdvertiserEntity entity = advertiserConverter.createRequestToEntity(request);
-        entity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.ADVERTISER_PREFIX));
+
         try {
             advertiserMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -54,8 +53,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
 
     @Override
     public AdvertiserOperationResponse update(UpdateAdvertiserRequest request) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, request.publicId()));
+        AdvertiserEntity advertiser = advertiserMapper.selectById(request.id());
         if (advertiser == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
         }
@@ -67,7 +65,7 @@ public class AdvertiserServiceImpl implements AdvertiserService {
                 || (request.contactName() != null && !request.contactName().equals(advertiser.getContactName()))
                 || (request.contactEmail() != null && !request.contactEmail().equals(advertiser.getContactEmail()));
         if (!changed) {
-            return new AdvertiserOperationResponse(request.publicId());
+            return new AdvertiserOperationResponse(request.id());
         }
         AdvertiserEntity entity = advertiserConverter.updateRequestToEntity(request);
         entity.setId(advertiser.getId());
@@ -78,14 +76,13 @@ public class AdvertiserServiceImpl implements AdvertiserService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "广告主名称已存在");
         }
-        return new AdvertiserOperationResponse(request.publicId());
+        return new AdvertiserOperationResponse(request.id());
     }
 
     @Override
     public AdvertiserOperationResponse delete(DeleteAdvertiserRequest request) {
         try {
-            if (advertiserMapper.delete(new LambdaQueryWrapper<AdvertiserEntity>()
-                    .eq(AdvertiserEntity::getPublicId, request.publicId())) == 0) {
+            if (advertiserMapper.deleteById(request.id()) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
             }
         } catch (DataIntegrityViolationException ex) {
@@ -94,6 +91,6 @@ public class AdvertiserServiceImpl implements AdvertiserService {
             }
             throw ex;
         }
-        return new AdvertiserOperationResponse(request.publicId());
+        return new AdvertiserOperationResponse(request.id());
     }
 }

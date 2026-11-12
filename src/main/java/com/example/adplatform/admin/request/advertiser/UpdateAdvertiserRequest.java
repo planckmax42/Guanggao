@@ -1,17 +1,18 @@
 package com.example.adplatform.admin.request.advertiser;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.example.adplatform.admin.json.AdminIdDeserializer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import static com.example.adplatform.common.util.StringUtils.blankToNull;
 
-import static com.example.adplatform.common.util.PublicIdUtils.ADVERTISER_PATTERN;
 
 public record UpdateAdvertiserRequest(
-        @NotBlank @Pattern(regexp = ADVERTISER_PATTERN) String publicId,
+        @NotNull @Positive @JsonDeserialize(using = AdminIdDeserializer.class) Long id,
         @Size(max = 128) String name,
         @Size(max = 64) String industry,
         @Size(max = 64) String contactName,

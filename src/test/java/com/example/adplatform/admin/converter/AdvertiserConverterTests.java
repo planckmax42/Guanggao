@@ -16,7 +16,7 @@ class AdvertiserConverterTests {
     @Test
     void shouldConvertMybatisPlusPageAndPreservePaginationMetadata() {
         AdvertiserEntity entity = new AdvertiserEntity();
-        entity.initializePublicId("adv_1");
+        entity.setId(1L);
         entity.setName("广告主");
         Page<AdvertiserEntity> page = new Page<>(2, 10, 25);
         page.setRecords(List.of(entity));

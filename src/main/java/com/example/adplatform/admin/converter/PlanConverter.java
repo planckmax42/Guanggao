@@ -15,15 +15,13 @@ import org.mapstruct.Mapping;
 public interface PlanConverter {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", expression = "java(PlanStatus.OFFLINE.name())")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     PlanEntity createRequestToEntity(CreatePlanRequest request);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
-    @Mapping(target = "advertiserPublicId", ignore = true)
+    @Mapping(target = "advertiserId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -38,8 +36,7 @@ public interface PlanConverter {
 
 //    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 //    @Mapping(target = "id", ignore = true)
-//    @Mapping(target = "publicId", ignore = true)
-//    @Mapping(target = "advertiserPublicId", ignore = true)
+//    @Mapping(target = "advertiserId", ignore = true)
 //    @Mapping(target = "billingType", expression = "java(request.billingType() == null ? entity.getBillingType() : BillingType.normalize(request.billingType()))")
 //    @Mapping(target = "status", ignore = true)
 //    @Mapping(target = "createdAt", ignore = true)

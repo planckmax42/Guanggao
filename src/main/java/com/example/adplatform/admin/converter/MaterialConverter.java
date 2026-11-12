@@ -16,16 +16,14 @@ import org.mapstruct.Mapping;
 public interface MaterialConverter {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "auditStatus", expression = "java(MaterialAuditStatus.PENDING.name())")
     @Mapping(target = "status", expression = "java(CommonStatus.ENABLED)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     MaterialEntity createRequestToEntity(CreateMaterialRequest request);
 
-    @Mapping(target = "advertiserPublicId", ignore = true)
+    @Mapping(target = "advertiserId", ignore = true)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "auditStatus", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

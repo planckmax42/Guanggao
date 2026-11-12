@@ -20,7 +20,6 @@ import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.common.util.MySqlForeignKeyUtils;
 import com.example.adplatform.admin.response.PageResponse;
 import com.example.adplatform.common.enums.CommonStatus;
-import com.example.adplatform.common.util.PublicIdUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -54,7 +53,7 @@ public class SlotServiceImpl implements SlotService {
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse create(CreateSlotRequest request) {
         SlotEntity slotEntity = slotConverter.createRequestToEntity(request);
-        slotEntity.initializePublicId(PublicIdUtils.generate(PublicIdUtils.SLOT_PREFIX));
+
         try {
             slotMapper.insert(slotEntity);
         } catch (DuplicateKeyException ex) {
@@ -81,7 +80,7 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse update(UpdateSlotRequest request) {
-        SlotEntity oldEntity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>().eq(SlotEntity::getPublicId, request.publicId()));
+        SlotEntity oldEntity = slotMapper.selectById(request.id());
         if (oldEntity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
@@ -91,7 +90,7 @@ public class SlotServiceImpl implements SlotService {
                 || (request.height() != null && !request.height().equals(oldEntity.getHeight()))
                 || (request.scene() != null && !request.scene().equals(oldEntity.getScene()));
         if (!changed) {
-            return new SlotOperationResponse(request.publicId());
+            return new SlotOperationResponse(request.id());
         }
         SlotEntity entity = slotConverter.updateRequestToEntity(request);
         entity.setId(oldEntity.getId());
@@ -110,15 +109,14 @@ public class SlotServiceImpl implements SlotService {
         //     slotCacheDebeziumPort.updateCacheWithRetry(oldEntity.getId(), oldSlotCode, newSlotCode);
         //     slotElasticsearchDebeziumPort.syncElasticsearchWithRetry(oldSlotCode, newSlotCode);
         // }
-        return new SlotOperationResponse(request.publicId());
+        return new SlotOperationResponse(request.id());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse delete(DeleteSlotRequest request) {
         try {
-            if (slotMapper.delete(new LambdaQueryWrapper<SlotEntity>()
-                    .eq(SlotEntity::getPublicId, request.publicId())) == 0) {
+            if (slotMapper.deleteById(request.id()) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
             }
         } catch (DataIntegrityViolationException ex) {
@@ -129,7 +127,7 @@ public class SlotServiceImpl implements SlotService {
         }
         // TODO：恢复删除同步时，需先查询并保留原 slotCode。
         // slotCacheDebeziumPort.evictCacheWithRetry(entity.getSlotCode());
-        return new SlotOperationResponse(request.publicId());
+        return new SlotOperationResponse(request.id());
     }
 
 //    //todo“需要处理缓存不一致问题状态请求查询到 slotCode=A
@@ -139,8 +137,7 @@ public class SlotServiceImpl implements SlotService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SlotOperationResponse updateStatus(UpdateSlotStatusRequest request) {
-        SlotEntity slotEntity = slotMapper.selectOne(new LambdaQueryWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId, request.publicId()));
+        SlotEntity slotEntity = slotMapper.selectById(request.id());
         if (slotEntity == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告位不存在");
         }
@@ -149,7 +146,7 @@ public class SlotServiceImpl implements SlotService {
         Long slotId = slotEntity.getId();
         slotEntity.setStatus(newStatus);
         slotMapper.update(null,new LambdaUpdateWrapper<SlotEntity>()
-                .eq(SlotEntity::getPublicId,request.publicId())
+                .eq(SlotEntity::getId,request.id())
                 .set(SlotEntity::getStatus,newStatus));
         if (Objects.equals(newStatus, CommonStatus.ENABLED)){
             applicationEventPublisher.publishEvent(new SlotCacheStopGuardEvictEvent(slotCode));

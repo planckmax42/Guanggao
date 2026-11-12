@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CreateRuleRequestValidationTests {
 
-    private static final String ADVERTISER_ID = "adv_" + "a".repeat(32);
+    private static final Long ADVERTISER_ID = 1L;
 
     @Test
     void rejectsBlankAndTooLongNamesAndAcceptsMaximumLength() {
@@ -32,7 +32,7 @@ class CreateRuleRequestValidationTests {
     void acceptsCurrentRuleFieldsWithoutRemovedRegionsAndTags() throws Exception {
         var json = new ObjectMapper();
         var request = json.readValue("""
-                {"advertiserPublicId":"%s","name":"规则一","deviceTypes":["ANDROID"],
+                {"advertiserId":"%s","name":"规则一","deviceTypes":["ANDROID"],
                  "gender":"MALE","ageMin":18,"ageMax":45}
                 """.formatted(ADVERTISER_ID), CreateRuleRequest.class);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
@@ -49,7 +49,7 @@ class CreateRuleRequestValidationTests {
             var request = new CreateRuleRequest(null, null, null, null, null, null);
             assertThat(factory.getValidator().validate(request))
                     .extracting(v -> v.getPropertyPath().toString())
-                    .containsExactlyInAnyOrder("advertiserPublicId", "name", "deviceTypes", "gender",
+                    .containsExactlyInAnyOrder("advertiserId", "name", "deviceTypes", "gender",
                             "ageMin", "ageMax");
         }
     }

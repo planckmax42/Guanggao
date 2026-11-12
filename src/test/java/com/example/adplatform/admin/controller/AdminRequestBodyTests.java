@@ -55,7 +55,7 @@ class AdminRequestBodyTests {
             mvc.perform(post(path + "/page").contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest());
         }
-        mvc.perform(delete(path + "/delete").contentType(MediaType.APPLICATION_JSON).content("{\"publicId\":\"bad\"}"))
+        mvc.perform(delete(path + "/delete").contentType(MediaType.APPLICATION_JSON).content("{\"id\":\"bad\"}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(advertisers, slots, plans, materials, rules);
     }
@@ -63,18 +63,18 @@ class AdminRequestBodyTests {
     @ParameterizedTest
     @CsvSource({"/api/platform/advertisers,adv", "/api/platform/slots,slot", "/api/advertiser/plans,plan",
             "/api/advertiser/materials,mat", "/api/advertiser/rules,rule"})
-    void shouldExposeDeleteWithPublicIdOnly(String path, String prefix) throws Exception {
+    void shouldExposeDeleteWithIdOnly(String path, String prefix) throws Exception {
         mvc.perform(delete(path + "/delete").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"publicId\":\"" + prefix + "_00000000000000000000000000000001\"}"))
+                        .content("{\"id\":\"1987654321098765432\"}"))
                 .andExpect(status().isOk());
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"online", "pause", "offline"})
     void shouldKeepPlanLifecycleEndpoints(String action) throws Exception {
-        String id = "plan_00000000000000000000000000000001";
+        Long id = 1L;
         mvc.perform(put("/api/advertiser/plans/" + action).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"publicId\":\"" + id + "\"}"))
+                        .content("{\"id\":\"" + id + "\"}"))
                 .andExpect(status().isOk());
         switch (action) {
             case "online" -> verify(plans).online(new UpdatePlanStatusRequest(id));

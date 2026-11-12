@@ -14,14 +14,12 @@ import org.mapstruct.Mapping;
 public interface RuleConverter {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     RuleEntity createRequestToEntity(CreateRuleRequest request);
 
-    @Mapping(target = "advertiserPublicId", ignore = true)
+    @Mapping(target = "advertiserId", ignore = true)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     RuleEntity updateRequestToEntity(UpdateRuleRequest request);

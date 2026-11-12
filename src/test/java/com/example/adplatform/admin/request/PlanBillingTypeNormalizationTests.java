@@ -52,7 +52,7 @@ class PlanBillingTypeNormalizationTests {
                     .extracting(v -> v.getPropertyPath().toString())
                     .contains("billingType");
             assertThat(factory.getValidator().validate(update)).isEmpty();
-            var emptyUpdate = new UpdatePlanRequest("plan_" + "a".repeat(32), null,
+            var emptyUpdate = new UpdatePlanRequest(1L, null,
                     null, null, null, input, null, null);
             assertThat(factory.getValidator().validate(emptyUpdate))
                     .extracting(v -> v.getMessage())
@@ -61,12 +61,12 @@ class PlanBillingTypeNormalizationTests {
     }
 
     private CreatePlanRequest createRequest(String billingType) {
-        return new CreatePlanRequest("adv_" + "a".repeat(32), "计划", 100L, 10L, 1L,
+        return new CreatePlanRequest(1L, "计划", 100L, 10L, 1L,
                 billingType, LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(2));
     }
 
     private UpdatePlanRequest updateRequest(String billingType) {
-        return new UpdatePlanRequest("plan_" + "a".repeat(32), "计划",
+        return new UpdatePlanRequest(1L, "计划",
                 null, null, null, billingType, null, null);
     }
 }

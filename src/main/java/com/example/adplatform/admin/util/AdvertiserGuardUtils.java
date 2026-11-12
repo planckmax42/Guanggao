@@ -1,6 +1,5 @@
 package com.example.adplatform.admin.util;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.adplatform.admin.entity.AdvertiserEntity;
 import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.common.enums.CommonStatus;
@@ -15,9 +14,8 @@ public class AdvertiserGuardUtils {
 
     private final AdvertiserMapper advertiserMapper;
 
-    public void requireEnabled(String publicId) {
-        AdvertiserEntity advertiser = advertiserMapper.selectOne(new LambdaQueryWrapper<AdvertiserEntity>()
-                .eq(AdvertiserEntity::getPublicId, publicId));
+    public void requireEnabled(Long id) {
+        AdvertiserEntity advertiser = advertiserMapper.selectById(id);
         if (advertiser == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "广告主不存在");
         }

@@ -1,12 +1,15 @@
 package com.example.adplatform.admin.request.material;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.example.adplatform.admin.json.AdminIdDeserializer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-import static com.example.adplatform.common.util.PublicIdUtils.MATERIAL_PATTERN;
 
 public record AuditMaterialRequest(
-        @NotBlank @Pattern(regexp = MATERIAL_PATTERN) String publicId,
+        @NotNull @Positive @JsonDeserialize(using = AdminIdDeserializer.class) Long id,
         @NotBlank
         @Pattern(regexp = "APPROVED|REJECTED|PENDING", message = "审核状态只能是 APPROVED、REJECTED 或 PENDING")
         String auditStatus) {

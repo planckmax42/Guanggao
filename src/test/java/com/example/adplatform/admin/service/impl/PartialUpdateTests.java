@@ -10,7 +10,6 @@ import com.example.adplatform.admin.mapper.AdvertiserMapper;
 import com.example.adplatform.admin.mapper.PlanMapper;
 import com.example.adplatform.admin.request.advertiser.UpdateAdvertiserRequest;
 import com.example.adplatform.admin.request.plan.UpdatePlanRequest;
-import com.example.adplatform.search.outbox.service.SearchOutboxService;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -29,15 +28,15 @@ class PartialUpdateTests {
     private final AdvertiserServiceImpl advertiserService = new AdvertiserServiceImpl(
             advertisers, Mappers.getMapper(AdvertiserConverter.class));
     private final PlanServiceImpl planService = new PlanServiceImpl(plans, new AdvertiserGuardUtils(advertisers),
-            Mappers.getMapper(PlanConverter.class), mock(SearchOutboxService.class),
+            Mappers.getMapper(PlanConverter.class),
             mock(ApplicationEventPublisher.class));
 
     @Test
     void rejectsEmptyRequestsButAllowsSingleFieldUpdates() {
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             var validator = factory.getValidator();
-            String advertiserId = "adv_" + "a".repeat(32);
-            String planId = "plan_" + "a".repeat(32);
+            Long advertiserId = 1L;
+            Long planId = 1L;
             assertThat(validator.validate(new UpdateAdvertiserRequest(advertiserId, null, null, null, null)))
                     .anyMatch(v -> v.getMessage().equals("请至少提供一个需要修改的字段"));
             assertThat(validator.validate(new UpdatePlanRequest(planId, null, null, null, null, null, null, null)))
@@ -50,18 +49,18 @@ class PartialUpdateTests {
     @Test
     void unchangedAdvertiserDoesNotWriteOnRepeatedRequests() {
         AdvertiserEntity existing = advertiser();
-        when(advertisers.selectOne(any())).thenReturn(existing);
-        var request = new UpdateAdvertiserRequest("adv_1", "广告主", null, null, null);
-        assertThat(advertiserService.update(request).publicId()).isEqualTo("adv_1");
+        when(advertisers.selectById(any())).thenReturn(existing);
+        var request = new UpdateAdvertiserRequest(1L, "广告主", null, null, null);
+        assertThat(advertiserService.update(request).id()).isEqualTo(1L);
         advertiserService.update(request);
         verify(advertisers, never()).updateById(any(AdvertiserEntity.class));
     }
 
     @Test
     void changedAdvertiserUpdatesOnlyProvidedFieldsAndChecksAffectedRows() {
-        when(advertisers.selectOne(any())).thenReturn(advertiser());
+        when(advertisers.selectById(any())).thenReturn(advertiser());
         when(advertisers.updateById(any(AdvertiserEntity.class))).thenReturn(1, 0);
-        var request = new UpdateAdvertiserRequest("adv_1", "新名称", null, null, null);
+        var request = new UpdateAdvertiserRequest(1L, "新名称", null, null, null);
         advertiserService.update(request);
         var captured = ArgumentCaptor.forClass(AdvertiserEntity.class);
         verify(advertisers).updateById(captured.capture());
@@ -73,21 +72,21 @@ class PartialUpdateTests {
 
     @Test
     void unchangedPlanDoesNotWriteOnRepeatedRequests() {
-        when(plans.selectOne(any())).thenReturn(plan());
-        var request = new UpdatePlanRequest("plan_1", "计划", 100L, null, null, null, null, null);
-        assertThat(planService.update(request).publicId()).isEqualTo("plan_1");
+        when(plans.selectById(any())).thenReturn(plan());
+        var request = new UpdatePlanRequest(1L, "计划", 100L, null, null, null, null, null);
+        assertThat(planService.update(request).id()).isEqualTo(1L);
         planService.update(request);
         verify(plans, never()).updateById(any(PlanEntity.class));
     }
 
     @Test
     void rejectsPartialBudgetChangesThatConflictWithStoredValues() {
-        when(plans.selectOne(any())).thenReturn(plan());
+        when(plans.selectById(any())).thenReturn(plan());
         assertThatThrownBy(() -> planService.update(new UpdatePlanRequest(
-                "plan_1", null, null, 101L, null, null, null, null)))
+                1L, null, null, 101L, null, null, null, null)))
                 .hasMessage("日预算必须小于等于总预算");
         assertThatThrownBy(() -> planService.update(new UpdatePlanRequest(
-                "plan_1", null, 5L, null, null, null, null, null)))
+                1L, null, 5L, null, null, null, null, null)))
                 .hasMessage("日预算必须小于等于总预算");
         verify(plans, never()).updateById(any(PlanEntity.class));
     }
@@ -95,21 +94,21 @@ class PartialUpdateTests {
     @Test
     void rejectsPartialTimeChangesThatConflictWithStoredValues() {
         PlanEntity existing = plan();
-        when(plans.selectOne(any())).thenReturn(existing);
+        when(plans.selectById(any())).thenReturn(existing);
         assertThatThrownBy(() -> planService.update(new UpdatePlanRequest(
-                "plan_1", null, null, null, null, null, existing.getEndTime(), null)))
+                1L, null, null, null, null, null, existing.getEndTime(), null)))
                 .hasMessage("结束时间必须晚于开始时间");
         assertThatThrownBy(() -> planService.update(new UpdatePlanRequest(
-                "plan_1", null, null, null, null, null, null, existing.getStartTime())))
+                1L, null, null, null, null, null, null, existing.getStartTime())))
                 .hasMessage("结束时间必须晚于开始时间");
         verify(plans, never()).updateById(any(PlanEntity.class));
     }
 
     @Test
     void acceptsValidPartialPlanUpdateWithUnchangedName() {
-        when(plans.selectOne(any())).thenReturn(plan());
+        when(plans.selectById(any())).thenReturn(plan());
         when(plans.updateById(any(PlanEntity.class))).thenReturn(1);
-        planService.update(new UpdatePlanRequest("plan_1", "计划", null, 20L, null, null, null, null));
+        planService.update(new UpdatePlanRequest(1L, "计划", null, 20L, null, null, null, null));
         var captured = ArgumentCaptor.forClass(PlanEntity.class);
         verify(plans).updateById(captured.capture());
         assertThat(captured.getValue().getId()).isEqualTo(2L);
@@ -121,9 +120,9 @@ class PartialUpdateTests {
     @Test
     void missingRecordsStillFail() {
         assertThatThrownBy(() -> advertiserService.update(new UpdateAdvertiserRequest(
-                "adv_1", "名称", null, null, null))).hasMessage("广告主不存在");
+                1L, "名称", null, null, null))).hasMessage("广告主不存在");
         assertThatThrownBy(() -> planService.update(new UpdatePlanRequest(
-                "plan_1", "名称", null, null, null, null, null, null))).hasMessage("广告计划不存在");
+                1L, "名称", null, null, null, null, null, null))).hasMessage("广告计划不存在");
     }
 
     private AdvertiserEntity advertiser() {
