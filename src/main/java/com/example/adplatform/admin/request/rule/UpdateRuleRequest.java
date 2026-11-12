@@ -15,13 +15,14 @@ import static com.example.adplatform.common.util.StringUtils.blankToNull;
 public record UpdateRuleRequest(
         @NotBlank @Pattern(regexp = RULE_PATTERN) String publicId,
         @Size(max = 128) String name,
-        @Size(max = 16) List<@Size(max = 32) String> deviceTypes,//？tonull?
-        @Size(max = 32) String gender,//？
+        @Size(min = 1 ,max = 16) List<@Size(max = 32)@NotBlank String> deviceTypes,
+        @Size(max = 32) String gender,
         @Min(0) @Max(120) Integer ageMin,
         @Min(0) @Max(120) Integer ageMax) {
 
     public UpdateRuleRequest {
         name = blankToNull(name);
+        gender = blankToNull(gender);
     }
 
     @AssertTrue(message = "请至少提供一个需要修改的字段")

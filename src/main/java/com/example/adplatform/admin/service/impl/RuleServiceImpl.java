@@ -1,9 +1,7 @@
 package com.example.adplatform.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.example.adplatform.admin.converter.RuleConverter;
 import com.example.adplatform.admin.entity.RuleEntity;
 import com.example.adplatform.admin.util.AdvertiserGuardUtils;
@@ -27,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
-import java.util.List;
 
 @RequiredArgsConstructor
 @Service
@@ -75,9 +72,8 @@ public class RuleServiceImpl implements RuleService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
         }
-        List<String> currentDevices = existing.getDeviceTypes() == null ? List.of() : existing.getDeviceTypes();//？
         boolean changed = (request.name() != null && !request.name().equals(existing.getName()))
-                || (request.deviceTypes() != null && !request.deviceTypes().equals(currentDevices))
+                || (request.deviceTypes() != null && !request.deviceTypes().equals(existing.getDeviceTypes()))
                 || (request.gender() != null && !Objects.equals(request.gender(), existing.getGender()))
                 || (request.ageMin() != null && !request.ageMin().equals(existing.getAgeMin()))
                 || (request.ageMax() != null && !request.ageMax().equals(existing.getAgeMax()));
@@ -90,20 +86,9 @@ public class RuleServiceImpl implements RuleService {
             throw new BusinessException(ErrorCode.PARAM_VALIDATION_FAILED, "最大年龄必须大于等于最小年龄");
         }
         RuleEntity entity = ruleConverter.updateRequestToEntity(request);
-        // null 表示不修改；显式传空列表时需要将对应列设为 NULL。
-        if (entity.getDeviceTypes() != null && entity.getDeviceTypes().isEmpty()) {
-            entity.setDeviceTypes(null);//?
-        }
+        entity.setId(existing.getId());
         try {
-            int updated = ruleMapper.update(new RuleEntity(), new LambdaUpdateWrapper<RuleEntity>()
-                    .eq(RuleEntity::getId, existing.getId())
-                    .set(request.name() != null, RuleEntity::getName, entity.getName())
-                    .set(request.deviceTypes() != null, RuleEntity::getDeviceTypes, entity.getDeviceTypes(),
-                            "jdbcType=VARCHAR,typeHandler=" + JacksonTypeHandler.class.getName())
-                    .set(request.gender() != null, RuleEntity::getGender, entity.getGender())
-                    .set(request.ageMin() != null, RuleEntity::getAgeMin, entity.getAgeMin())
-                    .set(request.ageMax() != null, RuleEntity::getAgeMax, entity.getAgeMax()));//?
-            if (updated == 0) {
+            if (ruleMapper.updateById(entity) == 0) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "定向规则不存在");
             }
         } catch (DuplicateKeyException ex) {

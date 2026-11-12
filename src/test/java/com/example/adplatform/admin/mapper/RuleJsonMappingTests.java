@@ -1,7 +1,6 @@
 package com.example.adplatform.admin.mapper;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.example.adplatform.admin.converter.RuleConverter;
@@ -17,7 +16,6 @@ import org.mockito.ArgumentCaptor;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 
@@ -43,7 +41,7 @@ class RuleJsonMappingTests {
     }
 
     @Test
-    void bindsUpdatedDeviceListAsJsonAndEmptyListAsSqlNull() throws Exception {
+    void bindsUpdatedDeviceListAndEmptyListAsJson() throws Exception {
         var configuration = new MybatisConfiguration();
         configuration.addMapper(RuleMapper.class);
         var mapper = mock(RuleMapper.class);
@@ -51,27 +49,28 @@ class RuleJsonMappingTests {
         stored.setId(1L);
         stored.setDeviceTypes(List.of("ANDROID"));
         when(mapper.selectOne(any())).thenReturn(stored);
-        when(mapper.update(any(RuleEntity.class), any())).thenReturn(1);
+        when(mapper.updateById(any(RuleEntity.class))).thenReturn(1);
         var service = new RuleServiceImpl(mapper, Mappers.getMapper(RuleConverter.class), mock(AdvertiserGuardUtils.class));
         service.update(new UpdateRuleRequest("rule_1", null, List.of("IOS"), null, null, null));
         var entity = ArgumentCaptor.forClass(RuleEntity.class);
-        var wrapper = ArgumentCaptor.forClass(Wrapper.class);
-        verify(mapper).update(entity.capture(), wrapper.capture());
-        var params = Map.of("et", entity.getValue(), "ew", wrapper.getValue());
-        var statement = configuration.getMappedStatement(RuleMapper.class.getName() + ".update");
+        verify(mapper).updateById(entity.capture());
+        var params = Map.of("et", entity.getValue());
+        var statement = configuration.getMappedStatement(RuleMapper.class.getName() + ".updateById");
         var boundSql = statement.getBoundSql(params);
+        assertThat(boundSql.getSql()).contains("device_type=")
+                .doesNotContain("name=", "gender=", "age_min=", "age_max=", "advertiser_id=");
         var jdbc = mock(PreparedStatement.class);
         configuration.newParameterHandler(statement, params, boundSql).setParameters(jdbc);
         verify(jdbc).setString(jsonParameterIndex(boundSql), "[\"IOS\"]");
 
         org.mockito.Mockito.clearInvocations(mapper);
         service.update(new UpdateRuleRequest("rule_1", null, List.of(), null, null, null));
-        verify(mapper).update(entity.capture(), wrapper.capture());
-        params = Map.of("et", entity.getValue(), "ew", wrapper.getValue());
+        verify(mapper).updateById(entity.capture());
+        params = Map.of("et", entity.getValue());
         boundSql = statement.getBoundSql(params);
         jdbc = mock(PreparedStatement.class);
         configuration.newParameterHandler(statement, params, boundSql).setParameters(jdbc);
-        verify(jdbc).setNull(jsonParameterIndex(boundSql), Types.VARCHAR);
+        verify(jdbc).setString(jsonParameterIndex(boundSql), "[]");
     }
 
     private int jsonParameterIndex(BoundSql boundSql) {
