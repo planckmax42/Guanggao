@@ -17,8 +17,10 @@ import static org.mockito.Mockito.verify;
 class AdminAssignedIdMapperTests {
     @Test
     void insertsAllAdminEntitiesWithAssignedIdAndNoPublicIdColumn() throws Exception {
-        var types = List.of(AdvertiserEntity.class, MaterialEntity.class, PlanEntity.class, RuleEntity.class, SlotEntity.class);
-        var mappers = List.of(AdvertiserMapper.class, MaterialMapper.class, PlanMapper.class, RuleMapper.class, SlotMapper.class);
+        var types = List.of(AdvertiserEntity.class, MaterialEntity.class, PlanEntity.class, RuleEntity.class,
+                SlotEntity.class, AdvertiserAssistantEntity.class, AdvertiserWalletEntity.class);
+        var mappers = List.of(AdvertiserMapper.class, MaterialMapper.class, PlanMapper.class, RuleMapper.class,
+                SlotMapper.class, AdvertiserAssistantMapper.class, AdvertiserWalletMapper.class);
         var generator = new DefaultIdentifierGenerator(3, 4);
         for (int i = 0; i < types.size(); i++) {
             var configuration = new MybatisConfiguration();

@@ -1,0 +1,25 @@
+package com.example.adplatform.admin.entity;
+
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@TableName("advertiser_wallet")
+public class AdvertiserWalletEntity {
+
+    @TableId(type = IdType.ASSIGN_ID)
+    private Long id;
+    private Long advertiserId;
+    private Long balanceMicro;
+    private Long frozenMicro;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
+}
