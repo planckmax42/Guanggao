@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
+package com.example.adplatform.infra.elasticsearch;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;

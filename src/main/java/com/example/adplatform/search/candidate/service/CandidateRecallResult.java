@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
+import com.example.adplatform.infra.elasticsearch.CandidateDocument;
 
 import java.util.List;
 

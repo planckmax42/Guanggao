@@ -1,7 +1,7 @@
 package com.example.adplatform.delivery.port;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
+import com.example.adplatform.infra.elasticsearch.CandidateDocument;
 
 import java.util.List;
 

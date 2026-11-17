@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
+import com.example.adplatform.infra.elasticsearch.ElasticSearchManager;
 import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

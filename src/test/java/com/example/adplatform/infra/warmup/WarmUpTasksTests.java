@@ -6,8 +6,8 @@ import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.ElasticSearchManager;
+import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
 import org.junit.jupiter.api.Test;
 

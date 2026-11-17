@@ -21,7 +21,7 @@ import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.query.PlanDailyMetricRow;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
+import com.example.adplatform.infra.elasticsearch.CandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
 import com.example.adplatform.search.candidate.service.CandidateTargetingMatcher;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;

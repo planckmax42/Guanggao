@@ -9,10 +9,12 @@ import java.util.List;
 public record AdDeliveryRequest(
         @NotNull Long userId,
         @NotBlank @Size(max = 64) String slotCode,
-        @NotBlank @Size(max = 64) String region,
-        @NotEmpty @Size(max = 16) List<@NotBlank @Size(max = 32) String> deviceTypes,
-        @NotBlank @Size(max = 32) String gender,
+        @NotNull Long bidPrice,
+        @NotBlank String billiType,
+        @NotBlank  String deviceType,
+        @NotBlank String gender,
         @NotNull @Min(0) @Max(120) Integer age,
+        @NotBlank  String region,
         @NotEmpty @Size(max = 16) List<@NotBlank @Size(max = 32) String> tags,
         @NotNull @Min(1) @Max(10) Integer size) {
 }

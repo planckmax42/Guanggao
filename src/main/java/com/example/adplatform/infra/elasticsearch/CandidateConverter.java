@@ -1,4 +1,4 @@
-package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
+package com.example.adplatform.infra.elasticsearch;
 
 import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import org.mapstruct.Mapper;
@@ -10,7 +10,7 @@ public interface CandidateConverter {
 
     @Mapping(target = "id", source = "documentId")
     @Mapping(target = "ageRange", expression = "java(toAgeRange(result.getAgeMin(), result.getAgeMax()))")
-    CandidateDocument queryToDocument(CandidateQueryResult result);
+    CandidateDocument queryResultToDocument(CandidateQueryResult result);
 
     default Range<Integer> toAgeRange(Integer min, Integer max) {
         return Range.of(

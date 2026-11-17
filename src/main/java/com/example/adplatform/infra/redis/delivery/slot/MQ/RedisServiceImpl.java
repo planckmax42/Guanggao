@@ -47,11 +47,9 @@ public class RedisServiceImpl implements DeliverySlotCachePort {
             return RedisOperationResult.cacheValueInvalid();
         }
         catch (CallNotPermittedException exception){
-            recordMetrics(RedisOperationStatus.CACHE_CIRCUIT_BREAK.toString(),READ_METRIC, startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"熔断器已熔断");
         }
         catch (DataAccessException exception){
-            recordMetrics(RedisOperationStatus.CACHE_SERVER_UNAVAILABLE.toString(),READ_METRIC, startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"缓存服务不可用");
         }
     }
@@ -71,11 +69,9 @@ public class RedisServiceImpl implements DeliverySlotCachePort {
             }
         }
         catch (CallNotPermittedException exception){
-            recordMetrics(RedisOperationStatus.CACHE_CIRCUIT_BREAK.toString(),DELETE_METRIC,startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"熔断器已熔断");
         }
         catch (DataAccessException exception){
-            recordMetrics(RedisOperationStatus.CACHE_SERVER_UNAVAILABLE.toString(),DELETE_METRIC, startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"缓存服务不可用");
         }
     }
@@ -91,11 +87,9 @@ public class RedisServiceImpl implements DeliverySlotCachePort {
             return RedisOperationResult.success();
         }
         catch (CallNotPermittedException exception){
-            recordMetrics(RedisOperationStatus.CACHE_CIRCUIT_BREAK.toString(),WRITE_METRIC,startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"熔断器已熔断");
         }
         catch (DataAccessException exception){
-            recordMetrics(RedisOperationStatus.CACHE_SERVER_UNAVAILABLE.toString(),WRITE_METRIC, startTime);
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"缓存服务不可用");
         }
     }

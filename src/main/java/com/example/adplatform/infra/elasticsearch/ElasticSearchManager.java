@@ -1,11 +1,10 @@
-package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
+package com.example.adplatform.infra.elasticsearch;
 
 import com.example.adplatform.infra.redis.delivery.search.MQ.CandidateEsRebuildGuard;
 import com.example.adplatform.infra.warmup.port.CandidateIndexInitialRebuildPort;
 import com.example.adplatform.search.candidate.query.CandidateQueryResult;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.search.port.CandidateIndexRebuildPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +57,7 @@ public class ElasticSearchManager implements CandidateIndexRebuildPort, Candidat
             List<CandidateQueryResult> rows = candidateSourceMapper.selectAllCandidateCombinations();//todo：后续应该转换成游标读，防止一次读取撑爆JVM
             for (List<CandidateQueryResult> batch : Lists.partition(rows, 500)) {
                 List<CandidateDocument> documents = batch.stream()
-                        .map(candidateConverter::queryToDocument)
+                        .map(candidateConverter::queryResultToDocument)
                         .toList();
                 elasticsearchOperations.save(documents, IndexCoordinates.of(indexName));
             }

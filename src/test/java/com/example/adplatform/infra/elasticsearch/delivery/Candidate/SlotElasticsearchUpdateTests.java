@@ -1,6 +1,7 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
 import com.example.adplatform.common.exception.DependencyException;
+import com.example.adplatform.infra.elasticsearch.EsProperties;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

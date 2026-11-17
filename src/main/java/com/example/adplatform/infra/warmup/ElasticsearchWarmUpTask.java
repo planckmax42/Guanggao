@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.ElasticSearchManager;
+import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

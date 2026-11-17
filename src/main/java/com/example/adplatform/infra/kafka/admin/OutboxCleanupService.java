@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
+import com.example.adplatform.infra.elasticsearch.EsProperties;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
