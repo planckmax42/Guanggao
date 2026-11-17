@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.warmup;
 
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import com.example.adplatform.infra.elasticsearch.ElasticSearchManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ElasticsearchWarmUpTask {
 
-    private final EsProperties properties;
+    private final ElasticSearchProperties properties;
     private final ElasticSearchManager elasticSearchManager;
 
     public void warmUp() {

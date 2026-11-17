@@ -1,7 +1,7 @@
 package com.example.adplatform.infra.elasticsearch.delivery.Candidate;
 
 import com.example.adplatform.common.exception.DependencyException;
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import com.example.adplatform.infra.redis.delivery.search.CandidateIndexRebuildGuard;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,7 +32,7 @@ class SlotElasticsearchUpdateTests {
 
     private final ElasticsearchOperations operations = mock(ElasticsearchOperations.class);
     private final CandidateIndexRebuildGuard rebuildGuard = mock(CandidateIndexRebuildGuard.class);
-    private final EsProperties properties = new EsProperties();
+    private final ElasticSearchProperties properties = new ElasticSearchProperties();
     private final EsIndexUpdateServiceImpl service = new EsIndexUpdateServiceImpl(
             properties, null, null, operations, rebuildGuard, null);
 

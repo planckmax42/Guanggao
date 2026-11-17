@@ -16,7 +16,7 @@ import java.time.Duration;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "app.elasticsearch")
-public class EsProperties {
+public class ElasticSearchProperties {
 
     /** 总开关；关闭后投放直接使用 MySQL 降级，启动阶段也不会构建候选索引。 */
     private boolean enabled = true;

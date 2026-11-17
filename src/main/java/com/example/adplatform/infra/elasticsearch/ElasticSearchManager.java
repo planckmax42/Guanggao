@@ -33,7 +33,7 @@ public class ElasticSearchManager implements CandidateIndexRebuildPort, Candidat
 
     private static final DateTimeFormatter INDEX_SUFFIX = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
-    private final EsProperties properties;
+    private final ElasticSearchProperties properties;
     private final ElasticsearchOperations elasticsearchOperations;
     private final CandidateEsRebuildGuard candidateEsRebuildGuard;
     private final CandidateSourceMapper candidateSourceMapper;

@@ -28,8 +28,6 @@ public class CandidateDocument {
     @Field(type = FieldType.Keyword)
     private String billingType;
     @Field(type = FieldType.Keyword)
-    private Long ruleId;
-    @Field(type = FieldType.Keyword)
     private List<String> deviceTypes;
     @Field(type = FieldType.Keyword)
     private String gender;

@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,12 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class OutboxCleanupService {
 
     private final OutboxMessageMapper outboxMessageMapper;
-    private final EsProperties properties;
+    private final ElasticSearchProperties properties;
 
     @Transactional
     public int cleanupExpired() {
         int retentionDays = properties.getOutbox().getRetentionDays();
-        if (properties.getOutbox().getTransport() == EsProperties.Transport.POLLING) {
+        if (properties.getOutbox().getTransport() == ElasticSearchProperties.Transport.POLLING) {
             return outboxMessageMapper.deleteSentBefore(retentionDays);
         }
         return outboxMessageMapper.deleteCreatedBefore(retentionDays);

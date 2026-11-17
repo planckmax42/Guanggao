@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.kafka.admin;
 
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import com.example.adplatform.search.outbox.entity.OutboxMessageEntity;
 import com.example.adplatform.search.outbox.mapper.OutboxMessageMapper;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class OutboxRelayService {
 
     private final OutboxMessageMapper outboxMessageMapper;
-    private final EsProperties properties;
+    private final ElasticSearchProperties properties;
     private final MeterRegistry meterRegistry;
 
     @Qualifier("outboxKafkaTemplate")

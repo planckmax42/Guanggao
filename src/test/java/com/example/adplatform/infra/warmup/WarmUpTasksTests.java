@@ -6,7 +6,7 @@ import com.example.adplatform.admin.port.slot.SlotCacheAdminPort;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.bloomfilter.tracking.materialMetadata.MaterialMetadataBloomService;
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import com.example.adplatform.infra.elasticsearch.ElasticSearchManager;
 import com.example.adplatform.infra.redis.delivery.budget.BudgetRedisServiceImpl;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,7 @@ class WarmUpTasksTests {
 
     @Test
     void shouldInitializeElasticsearchWhenEnabled() {
-        EsProperties properties = mock(EsProperties.class);
+        ElasticSearchProperties properties = mock(ElasticSearchProperties.class);
         when(properties.isEnabled()).thenReturn(true);
         ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
 
@@ -77,7 +77,7 @@ class WarmUpTasksTests {
 
     @Test
     void shouldSkipElasticsearchWhenDisabled() {
-        EsProperties properties = mock(EsProperties.class);
+        ElasticSearchProperties properties = mock(ElasticSearchProperties.class);
         ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
 
         new ElasticsearchWarmUpTask(properties, elasticSearchManager).warmUp();
@@ -88,7 +88,7 @@ class WarmUpTasksTests {
 
     @Test
     void shouldContinueWhenElasticsearchInitializationFails() {
-        EsProperties properties = mock(EsProperties.class);
+        ElasticSearchProperties properties = mock(ElasticSearchProperties.class);
         when(properties.isEnabled()).thenReturn(true);
         ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
         doThrow(new IllegalStateException("Elasticsearch unavailable"))

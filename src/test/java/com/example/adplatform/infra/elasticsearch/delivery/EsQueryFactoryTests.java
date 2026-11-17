@@ -4,7 +4,7 @@ import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.infra.elasticsearch.EsProperties;
+import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
@@ -17,12 +17,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EsQueryFactoryTests {
 
-    private EsProperties properties;
+    private ElasticSearchProperties properties;
     private EsQueryFactory queryFactory;
 
     @BeforeEach
     void setUp() {
-        properties = new EsProperties();
+        properties = new ElasticSearchProperties();
         queryFactory = new EsQueryFactory(properties);
     }
 
