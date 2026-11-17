@@ -11,8 +11,8 @@ import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
-import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
+import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -71,8 +71,8 @@ class AdDeliveryServiceImplTests {
                 registry,
                 mock(SlotRedisCircuitBreaker.class),
                 mock(SlotBloomOperationsService.class),
-                mock(SlotCacheLockManager.class),
-                mock(SlotMysqlCircuitBreaker.class),
+                mock(SlotRedisLockManager.class),
+                mock(MysqlCircuitBreaker.class),
                 mock(SlotMapper.class));
     }
 

@@ -10,8 +10,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.stereotype.Service;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheProperties;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheFailureLogLimiter;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisProperties;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisFailureLogLimiter;
 import org.springframework.dao.DataAccessException;
 
 import java.util.Collection;
@@ -37,8 +37,8 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
 
     private final StringRedisTemplate stringRedisTemplate;
     private final MeterRegistry meterRegistry;
-    private final SlotCacheProperties slotCacheProperties;
-    private final SlotCacheFailureLogLimiter failureLogLimiter;
+    private final SlotRedisProperties slotRedisProperties;
+    private final SlotRedisFailureLogLimiter failureLogLimiter;
 
     /** 添加或移除某个聚合的临时停投标记。定向规则本身不需要独立 stopped set。 */
     @Override
@@ -97,7 +97,7 @@ public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, Del
             });
         } catch (DataAccessException ex) {
             boolean effectiveFailClosed = failClosed
-                    && slotCacheProperties.getFailurePolicy() == SlotCacheProperties.FailurePolicy.FAIL_CLOSED;
+                    && slotRedisProperties.getFailurePolicy() == SlotRedisProperties.FailurePolicy.FAIL_CLOSED;
             String policy = effectiveFailClosed ? "fail-closed" : "fail-open";
             meterRegistry.counter("ad.delivery.stop.guard", "key", key, "result", policy).increment();
             if (failureLogLimiter.shouldLog("stop_guard_read")) {

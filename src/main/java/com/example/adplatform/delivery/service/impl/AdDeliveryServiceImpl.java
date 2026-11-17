@@ -15,13 +15,13 @@ import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.delivery.response.AdItemResponse;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
 import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;
-import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.report.mapper.DailyReportMapper;
 import com.example.adplatform.report.query.PlanDailyMetricRow;
-import com.example.adplatform.search.candidate.model.CandidateDocument;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
 import com.example.adplatform.search.candidate.service.CandidateRecallService;
 import com.example.adplatform.search.candidate.service.CandidateTargetingMatcher;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -59,8 +59,8 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final MeterRegistry meterRegistry;
     private final SlotRedisCircuitBreaker redisCircuitBreaker;
     private final SlotBloomOperationsService slotBloomOperationsService;
-    private final SlotCacheLockManager slotCacheLockManager;
-    private final SlotMysqlCircuitBreaker slotMysqlCircuitBreaker;
+    private final SlotRedisLockManager slotRedisLockManager;
+    private final MysqlCircuitBreaker slotMysqlCircuitBreaker;
     private final SlotMapper slotMapper;
 
     @Override//todo:增加CI/CD机制
@@ -126,7 +126,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         Set<Long> unavailablePlans = budgetRedisService.findUnavailablePlans(
                 planMap.values(), today);//传入Plan实体，返回预算不足列表
         Set<Long> frequencyExceededPlans = frequencyRedisService.findExceededPlans(//传入viewerId,PlanId集合，得到超出频控列表
-                request.viewerId(), planMap.keySet(), today, MAX_FREQUENCY_PER_USER_DAY);
+                request.userId(), planMap.keySet(), today, MAX_FREQUENCY_PER_USER_DAY);
         List<CandidateDocument> dynamicallyValid = guarded.stream()
                 .filter(candidate -> !unavailablePlans.contains(candidate.getPlanId()))
                 .filter(candidate -> !frequencyExceededPlans.contains(candidate.getPlanId()))
@@ -204,7 +204,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         try {
             slotId = redisCircuitBreaker.executeSupplier(()-> slotCacheDeliveryPort.getSlotIdFromCache(slotCode));
         }catch (DataAccessException exception){
-            meterRegistry.counter("delivery.slotPublicId.cacheUnavailable");
+            meterRegistry.counter("delivery.slotPublicId.cacheServerUnavailable");
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存服务不可用",exception);
         }
         catch (CallNotPermittedException exception){
@@ -212,7 +212,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"广告位缓存熔断器已熔断",exception);
         }
         if(slotId != null) return Optional.of(slotId);
-        LockAcquireAttempt lockAcquireAttempt = slotCacheLockManager.acquireStripLock(slotCode);
+        LockAcquireAttempt lockAcquireAttempt = slotRedisLockManager.acquireStripLock(slotCode);
         if(lockAcquireAttempt.isTimeOut()){
             meterRegistry.counter("delivery.slotPublicId.lockTimeOut");
             slotId = slotCacheDeliveryPort.getSlotIdFromCache(slotCode);

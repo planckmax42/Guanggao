@@ -26,7 +26,7 @@ public interface RuleConverter {
 
     RuleOperationResponse entityToOperationResponse(RuleEntity entity);
 
-    @Mapping(target = "deviceTypes", defaultExpression = "java(java.util.List.of())")
+    @Mapping(target = "tags", defaultExpression = "java(java.util.List.of())")
     RuleResponse entityToQueryResponse(RuleEntity entity);
 
     PageResponse<RuleResponse> pageToResponse(Page<RuleEntity> page);

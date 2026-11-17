@@ -1,7 +1,7 @@
 package com.example.adplatform.search.candidate.service;
 
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
-import com.example.adplatform.search.candidate.model.CandidateDocument;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

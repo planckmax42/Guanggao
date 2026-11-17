@@ -1,6 +1,6 @@
 package com.example.adplatform.infra.redis.delivery.slot;
 
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager.LockAcquireResult;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager.LockAcquireResult;
 
 import java.util.ArrayList;
 import java.util.List;

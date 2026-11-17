@@ -10,9 +10,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /** 对 Redis 故障堆栈按操作类型限频，被抑制日志改用指标统计。 */
 @Component
 @RequiredArgsConstructor
-public class SlotCacheFailureLogLimiter {
+public class SlotRedisFailureLogLimiter {
 
-    private final SlotCacheProperties properties;
+    private final SlotRedisProperties properties;
     private final MeterRegistry meterRegistry;
     private final ConcurrentHashMap<String, AtomicLong> lastLoggedAt = new ConcurrentHashMap<>();
 

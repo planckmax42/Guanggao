@@ -8,7 +8,7 @@ import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
-import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreakerProperties;
 import com.example.adplatform.infra.warmup.SlotWarmUpTask;
@@ -60,7 +60,7 @@ class SlotCacheConcurrencyTests {
             }
             return slot(1L, "NEW_CODE", CommonStatus.ENABLED);
         });
-        SlotCacheServiceImpl service = service(redisTemplate, slotMapper);
+        SlotRedisServiceImpl service = service(redisTemplate, slotMapper);
 
         CompletableFuture<SlotIdResult> olderRead = CompletableFuture.supplyAsync(
                 () -> service.getEnabledIdByCode("OLD_CODE"));
@@ -88,7 +88,7 @@ class SlotCacheConcurrencyTests {
             assertEquals(true, allowMysqlReturn.await(1, TimeUnit.SECONDS));
             return slot(1L, "HOME_BANNER", CommonStatus.ENABLED);
         });
-        SlotCacheServiceImpl service = service(
+        SlotRedisServiceImpl service = service(
                 redisTemplate(redis, distinctReadersMissedRedis),
                 slotMapper);
 
@@ -139,7 +139,7 @@ class SlotCacheConcurrencyTests {
         SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         SlotMapper slotMapper = mock(SlotMapper.class);
         when(slotMapper.selectOne(any())).thenReturn(null);
-        SlotCacheServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
+        SlotRedisServiceImpl service = service(redisTemplate(redis), slotMapper, bloomFilterService);
         when(bloomFilterService.regularRebuild()).thenReturn(new BloomRebuildResult(
                 SUCCESS, Optional.of(List.of("OLD_CODE")), 10_000L));
         SlotWarmUpTask warmUpTask = new SlotWarmUpTask(bloomFilterService, service);
@@ -149,23 +149,23 @@ class SlotCacheConcurrencyTests {
         assertFalse(redis.containsKey(DeliveryRedisKeys.slotCodeToId("OLD_CODE")));
     }
 
-    private SlotCacheServiceImpl service(StringRedisTemplate redisTemplate, SlotMapper slotMapper) {
+    private SlotRedisServiceImpl service(StringRedisTemplate redisTemplate, SlotMapper slotMapper) {
         return fixture(redisTemplate, slotMapper, Duration.ofMillis(100)).service();
     }
 
-    private SlotCacheServiceImpl service(
+    private SlotRedisServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             SlotBloomOperationsService bloomFilterService) {
-        SlotCacheProperties properties = properties(Duration.ofMillis(100));
-        return new SlotCacheServiceImpl(
+        SlotRedisProperties properties = properties(Duration.ofMillis(100));
+        return new SlotRedisServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
                 bloomFilterService,
-                mock(SlotMysqlCircuitBreaker.class),
+                mock(MysqlCircuitBreaker.class),
                 redisCircuitBreaker(),
-                new SlotCacheLockManager(properties),
+                new SlotRedisLockManager(properties),
                 new SimpleMeterRegistry(),
                 logLimiter(properties));
     }
@@ -174,14 +174,14 @@ class SlotCacheConcurrencyTests {
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             Duration readWaitTimeout) {
-        SlotCacheProperties properties = properties(readWaitTimeout);
+        SlotRedisProperties properties = properties(readWaitTimeout);
         SlotBloomOperationsService bloomFilterService = mock(SlotBloomOperationsService.class);
         when(bloomFilterService.definiteNotContain(anyString())).thenReturn(false);
-        SlotMysqlCircuitBreaker circuitBreaker = mock(SlotMysqlCircuitBreaker.class);
+        MysqlCircuitBreaker circuitBreaker = mock(MysqlCircuitBreaker.class);
         when(circuitBreaker.executeSupplier(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
-        SlotCacheLockManager lockManager = new SlotCacheLockManager(properties);
-        SlotCacheServiceImpl service = new SlotCacheServiceImpl(
+        SlotRedisLockManager lockManager = new SlotRedisLockManager(properties);
+        SlotRedisServiceImpl service = new SlotRedisServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
@@ -194,8 +194,8 @@ class SlotCacheConcurrencyTests {
         return new Fixture(service, lockManager);
     }
 
-    private SlotCacheProperties properties(Duration readWaitTimeout) {
-        SlotCacheProperties properties = new SlotCacheProperties();
+    private SlotRedisProperties properties(Duration readWaitTimeout) {
+        SlotRedisProperties properties = new SlotRedisProperties();
         properties.setRedisTtl(Duration.ofDays(1));
         properties.setStripes(1_024);
         properties.setReadWaitTimeout(readWaitTimeout);
@@ -208,8 +208,8 @@ class SlotCacheConcurrencyTests {
                 new SimpleMeterRegistry());
     }
 
-    private SlotCacheFailureLogLimiter logLimiter(SlotCacheProperties properties) {
-        return new SlotCacheFailureLogLimiter(properties, new SimpleMeterRegistry());
+    private SlotRedisFailureLogLimiter logLimiter(SlotRedisProperties properties) {
+        return new SlotRedisFailureLogLimiter(properties, new SimpleMeterRegistry());
     }
 
     @SuppressWarnings("unchecked")
@@ -252,7 +252,7 @@ class SlotCacheConcurrencyTests {
     }
 
     private record Fixture(
-            SlotCacheServiceImpl service,
-            SlotCacheLockManager lockManager) {
+            SlotRedisServiceImpl service,
+            SlotRedisLockManager lockManager) {
     }
 }

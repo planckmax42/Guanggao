@@ -1,7 +1,6 @@
 package com.example.adplatform.search;
 
-import com.example.adplatform.search.candidate.model.CandidateDocument;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsIndexUpdateServiceImpl;
+import com.example.adplatform.infra.elasticsearch.delivery.Candidate.CandidateDocument;
 import com.example.adplatform.infra.redis.delivery.stopguard.DeliveryStopGuardService;
 import com.example.adplatform.search.outbox.message.ConfigAggregateType;
 import com.example.adplatform.search.outbox.message.ConfigChangeMessage;

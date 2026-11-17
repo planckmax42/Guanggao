@@ -1,0 +1,108 @@
+# 本机三节点生产拓扑演练；使用方法见 elasticsearch/README.md。
+name: ad-platform-es
+
+x-es-environment: &es-environment
+  cluster.name: ad-platform-es
+  node.roles: master,data
+  discovery.seed_hosts: es01,es02,es03
+  # 仅首次创建集群时设置，形成集群后取消 ES_INITIAL_MASTER_NODES。
+  cluster.initial_master_nodes: ${ES_INITIAL_MASTER_NODES:-}
+  bootstrap.memory_lock: "true"
+  ES_JAVA_OPTS: -Xms1g -Xmx1g
+  ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?Please export ELASTIC_PASSWORD before running Compose}
+  xpack.security.enabled: "true"
+  xpack.security.enrollment.enabled: "false"
+  xpack.security.transport.ssl.enabled: "true"
+  # Docker 节点会公布动态容器 IP；传输层校验证书链，HTTP 仍校验主机名。
+  xpack.security.transport.ssl.verification_mode: certificate
+  xpack.security.transport.ssl.certificate_authorities: certs/ca/ca.crt
+  xpack.security.http.ssl.enabled: "true"
+  xpack.security.http.ssl.certificate_authorities: certs/ca/ca.crt
+
+x-es-node: &es-node
+  # 与项目 Spring Boot 3.3.5 管理的 ES 客户端版本一致；非最新生产版本推荐。
+  image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+  restart: unless-stopped
+  mem_limit: 2g
+  stop_grace_period: 120s
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    nofile:
+      soft: 65535
+      hard: 65535
+  depends_on:
+    certificates:
+      condition: service_completed_successfully
+  healthcheck:
+    test:
+      - CMD-SHELL
+      - 'curl --fail --silent --cacert config/certs/ca/ca.crt -u "elastic:$${ELASTIC_PASSWORD}" https://localhost:9200/_cluster/health > /dev/null'
+    interval: 10s
+    timeout: 5s
+    retries: 30
+    start_period: 60s
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  certificates:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    user: "0"
+    restart: "no"
+    entrypoint: ["bash", "/setup/create-certificates.sh"]
+    volumes:
+      - es-certs:/usr/share/elasticsearch/config/certs
+      - ./elasticsearch/create-certificates.sh:/setup/create-certificates.sh:ro
+
+  es01:
+    <<: *es-node
+    environment:
+      <<: *es-environment
+      node.name: es01
+      xpack.security.transport.ssl.key: certs/es01/es01.key
+      xpack.security.transport.ssl.certificate: certs/es01/es01.crt
+      xpack.security.http.ssl.key: certs/es01/es01.key
+      xpack.security.http.ssl.certificate: certs/es01/es01.crt
+    ports: ["127.0.0.1:9200:9200"]
+    volumes:
+      - es01-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
+
+  es02:
+    <<: *es-node
+    environment:
+      <<: *es-environment
+      node.name: es02
+      xpack.security.transport.ssl.key: certs/es02/es02.key
+      xpack.security.transport.ssl.certificate: certs/es02/es02.crt
+      xpack.security.http.ssl.key: certs/es02/es02.key
+      xpack.security.http.ssl.certificate: certs/es02/es02.crt
+    ports: ["127.0.0.1:9201:9200"]
+    volumes:
+      - es02-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
+
+  es03:
+    <<: *es-node
+    environment:
+      <<: *es-environment
+      node.name: es03
+      xpack.security.transport.ssl.key: certs/es03/es03.key
+      xpack.security.transport.ssl.certificate: certs/es03/es03.crt
+      xpack.security.http.ssl.key: certs/es03/es03.key
+      xpack.security.http.ssl.certificate: certs/es03/es03.crt
+    ports: ["127.0.0.1:9202:9200"]
+    volumes:
+      - es03-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
+
+volumes:
+  es-certs:
+  es01-data:
+  es02-data:
+  es03-data:

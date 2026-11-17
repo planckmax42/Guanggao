@@ -10,11 +10,11 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SlotCacheLockManagerTests {
+class SlotRedisLockManagerTests {
 
     @Test
     void shouldTimeOutReadLockWhileWriterOwnsStripe() throws Exception {
-        SlotCacheLockManager manager = new SlotCacheLockManager(properties(Duration.ofMillis(30)));
+        SlotRedisLockManager manager = new SlotRedisLockManager(properties(Duration.ofMillis(30)));
 
         try (LockAcquireAttempt ignored = manager.acquireForWrite("HOME_BANNER")) {
             CompletableFuture<Optional<LockAcquireAttempt>> attempt =
@@ -26,7 +26,7 @@ class SlotCacheLockManagerTests {
 
     @Test
     void shouldRestoreInterruptStatusWhenReadWaitIsInterrupted() throws Exception {
-        SlotCacheLockManager manager = new SlotCacheLockManager(properties(Duration.ofSeconds(1)));
+        SlotRedisLockManager manager = new SlotRedisLockManager(properties(Duration.ofSeconds(1)));
 
         try (LockAcquireAttempt ignored = manager.acquireForWrite("HOME_BANNER")) {
             CompletableFuture<Boolean> interrupted = new CompletableFuture<>();
@@ -44,13 +44,13 @@ class SlotCacheLockManagerTests {
     }
 
     private Optional<LockAcquireAttempt> tryAcquire(
-            SlotCacheLockManager manager,
+            SlotRedisLockManager manager,
             String slotCode) {
         return manager.tryAcquireForRead(slotCode);
     }
 
-    private SlotCacheProperties properties(Duration timeout) {
-        SlotCacheProperties properties = new SlotCacheProperties();
+    private SlotRedisProperties properties(Duration timeout) {
+        SlotRedisProperties properties = new SlotRedisProperties();
         properties.setStripes(1_024);
         properties.setReadWaitTimeout(timeout);
         return properties;

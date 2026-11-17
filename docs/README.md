@@ -35,7 +35,6 @@
 │   └── infra          # Redis、Kafka、ES、Debezium、布隆过滤器、熔断和预热
 ├── src/main/resources
 │   ├── application.yml
-│   ├── application-local.yml
 │   ├── logback-spring.xml
 │   ├── redis/scripts  # 预算扣费、事件统计、费用统计、日报快照 Lua
 │   └── sql            # 建表、历史迁移和演示数据
@@ -211,7 +210,7 @@ Debezium 与 Kafbat 使用 Linux host 网络访问本机服务。MySQL CDC 需�
 
 ### 应用配置
 
-默认 Profile 为 `local`，API 端口为 `8080`，配置位于 [application-local.yml](../src/main/resources/application-local.yml)。
+API 端口为 `8080`，配置统一位于 [application.yml](../src/main/resources/application.yml)，环境差异通过环境变量覆盖。
 
 | 环境变量 | 默认值 / 作用 |
 | --- | --- |
@@ -283,7 +282,7 @@ java -jar target/ad-platform-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 ```bash
 curl -X POST http://127.0.0.1:8080/api/delivery/ads \
   -H 'Content-Type: application/json' \
-  -d '{"viewerId":10001,"slotCode":"HOME_BANNER","region":"BEIJING","deviceType":"ANDROID","age":25,"gender":"MALE","tags":["shopping"],"size":3}'
+  -d '{"userId":10001,"slotCode":"HOME_BANNER","region":"BEIJING","deviceType":"ANDROID","age":25,"gender":"MALE","tags":["shopping"],"size":3}'
 ```
 
 投放响应的 `data` 包含 `requestId`、`totalCandidates`、`returnedCount` 和 `ads`。广告项包含计划、素材、广告位的公开标识，以及标题、描述、图片、落地页、出价和得分。
@@ -293,7 +292,7 @@ curl -X POST http://127.0.0.1:8080/api/delivery/ads \
 ```bash
 curl -X POST http://127.0.0.1:8080/api/tracking/events \
   -H 'Content-Type: application/json' \
-  -d '{"eventId":"demo-impression-001","requestId":"req_replace_with_actual","eventType":"IMPRESSION","materialPublicId":"mat_00000000000000000000000000000001","viewerId":10001}'
+  -d '{"eventId":"demo-impression-001","deliveryEventId":"req_replace_with_actual","eventType":"IMPRESSION","materialPublicId":"mat_00000000000000000000000000000001","userId":10001}'
 ```
 
 `eventTime` 可省略；显式传入时使用 `2026-11-11T10:00:00` 形式。接入成功的响应示例：

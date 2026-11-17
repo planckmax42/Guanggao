@@ -9,18 +9,18 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SlotCachePropertiesTests {
+class SlotRedisPropertiesTests {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
     void shouldRejectMissingRequiredConfiguration() {
-        assertFalse(validator.validate(new SlotCacheProperties()).isEmpty());
+        assertFalse(validator.validate(new SlotRedisProperties()).isEmpty());
     }
 
     @Test
     void shouldAcceptCompleteConfiguration() {
-        SlotCacheProperties properties = new SlotCacheProperties();
+        SlotRedisProperties properties = new SlotRedisProperties();
         properties.setRedisTtl(Duration.ofDays(1));
         properties.setStripes(1_024);
         properties.setReadWaitTimeout(Duration.ofMillis(100));

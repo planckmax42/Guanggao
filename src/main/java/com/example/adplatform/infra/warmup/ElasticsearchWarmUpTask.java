@@ -20,7 +20,7 @@ public class ElasticsearchWarmUpTask {
             return;
         }
         try {
-            elasticSearchManager.initialRebuild();
+            elasticSearchManager.isInitialed();
         } catch (RuntimeException ex) {
             log.warn("Elasticsearch bootstrap failed; delivery will use MySQL fallback", ex);
         }

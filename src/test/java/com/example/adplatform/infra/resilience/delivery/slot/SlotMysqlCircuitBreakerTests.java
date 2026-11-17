@@ -15,7 +15,7 @@ class SlotMysqlCircuitBreakerTests {
 
     @Test
     void shouldOpenAfterDatabaseFailuresReachThreshold() {
-        SlotMysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofSeconds(1));
+        MysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofSeconds(1));
 
         assertThrows(IllegalStateException.class,
                 () -> circuitBreaker.executeSupplier(() -> failedQuery("第一次查询失败")));
@@ -33,7 +33,7 @@ class SlotMysqlCircuitBreakerTests {
 
     @Test
     void shouldCountSlowDatabaseQueriesAndOpen() {
-        SlotMysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofMillis(1));
+        MysqlCircuitBreaker circuitBreaker = createCircuitBreaker(Duration.ofMillis(1));
 
         circuitBreaker.executeSupplier(this::slowQuery);
         circuitBreaker.executeSupplier(this::slowQuery);
@@ -41,7 +41,7 @@ class SlotMysqlCircuitBreakerTests {
         assertEquals(CircuitBreaker.State.OPEN, circuitBreaker.currentState());
     }
 
-    private SlotMysqlCircuitBreaker createCircuitBreaker(Duration slowCallThreshold) {
+    private MysqlCircuitBreaker createCircuitBreaker(Duration slowCallThreshold) {
         SlotMysqlCircuitBreakerProperties properties = new SlotMysqlCircuitBreakerProperties();
         properties.setSlidingWindowSize(2);
         properties.setMinimumNumberOfCalls(2);
@@ -50,7 +50,7 @@ class SlotMysqlCircuitBreakerTests {
         properties.setSlowCallDurationThreshold(slowCallThreshold);
         properties.setOpenStateWaitDuration(Duration.ofSeconds(10));
         properties.setPermittedCallsInHalfOpenState(1);
-        return new SlotMysqlCircuitBreaker(properties);
+        return new MysqlCircuitBreaker(properties);
     }
 
     private Long failedQuery(String message) {

@@ -12,7 +12,7 @@ import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.kafka.admin.port.SlotCacheKafkaPort;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -35,22 +35,26 @@ import java.util.concurrent.TimeUnit;
  */
 @RequiredArgsConstructor
 @Service
-public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort, SlotCacheKafkaPort {
+public class SlotRedisServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdminPort, SlotCacheKafkaPort {
 
-    private static final Logger log = LoggerFactory.getLogger(SlotCacheServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(SlotRedisServiceImpl.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final SlotMapper slotMapper;
-    private final SlotCacheProperties properties;
+    private final SlotRedisProperties properties;
     private final SlotBloomOperationsService slotBloomOperationsService;
-    private final SlotMysqlCircuitBreaker mysqlCircuitBreaker;
+    private final MysqlCircuitBreaker mysqlCircuitBreaker;
     private final SlotRedisCircuitBreaker redisCircuitBreaker;
-    private final SlotCacheLockManager lockManager;
+    private final SlotRedisLockManager lockManager;
     private final MeterRegistry meterRegistry;
-    private final SlotCacheFailureLogLimiter failureLogLimiter;
+    private final SlotRedisFailureLogLimiter failureLogLimiter;
 
     @Override
     public SlotIdResult getEnabledIdByCode(String slotCode) {
+        if (slotBloomOperationsService.definiteNotContain(slotCode)) {
+            slotBloomOperationsService.recordDefiniteNotContain();
+            return SlotIdResult.notFound();
+        }
         RedisReadResult firstRead = readSlotId(slotCode);
         if (firstRead.status() == RedisReadStatus.HIT) {
             return SlotIdResult.enabled(firstRead.slotId());
@@ -58,13 +62,6 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
         if (firstRead.status() == RedisReadStatus.UNAVAILABLE) {
             return SlotIdResult.cacheUnavailable();
         }
-
-        // Redis 先于本地布隆过滤器，避免多实例布隆快照延迟导致新广告位假阴性。
-        if (slotBloomOperationsService.definiteNotContain(slotCode)) {
-            slotBloomOperationsService.recordDefiniteNotContain();
-            return SlotIdResult.notFound();
-        }
-
         LockAcquireAttempt readLock = lockManager.tryAcquireForRead(slotCode).orElse(null);
         if (readLock == null) {
             if (Thread.currentThread().isInterrupted()) {
@@ -127,7 +124,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
         }
         try {
             cacheSlot(slot);
-        } catch (SlotCacheAccessException ex) {
+        } catch (SlotRedisAccessException ex) {
             // MySQL 已确认本次请求的状态，回填失败不影响当前结果。
             if (failureLogLimiter.shouldLog("backfill")) {
                 log.warn("广告位回源后写入 Redis 失败，slotCode={}", slotCode, ex);
@@ -179,7 +176,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
                     .get(DeliveryRedisKeys.slotCodeToId(slotCode)));
         } catch (DataAccessException | CallNotPermittedException ex) {
             recordOperation("read", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
-            boolean failClosed = properties.getFailurePolicy() == SlotCacheProperties.FailurePolicy.FAIL_CLOSED;
+            boolean failClosed = properties.getFailurePolicy() == SlotRedisProperties.FailurePolicy.FAIL_CLOSED;
             if (failureLogLimiter.shouldLog("read")) {
                 log.warn("读取广告位缓存失败，slotCode={}，policy={}",
                         slotCode, properties.getFailurePolicy(), ex);
@@ -199,7 +196,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
             try {
                 evictSlotCodeFromRedis(slotCode);
                 return RedisReadResult.miss();
-            } catch (SlotCacheAccessException deleteFailure) {
+            } catch (SlotRedisAccessException deleteFailure) {
                 return RedisReadResult.unavailable();
             }
         }
@@ -219,7 +216,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
             recordOperation("write", "success", startNanos);
         } catch (DataAccessException | CallNotPermittedException ex) {
             recordOperation("write", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
-            throw new SlotCacheAccessException("write", slotCode, ex);
+            throw new SlotRedisAccessException("write", slotCode, ex);
         }
     }
 
@@ -233,7 +230,7 @@ public class SlotCacheServiceImpl implements SlotCacheDeliveryPort, SlotCacheAdm
             recordOperation("evict", "success", startNanos);
         } catch (DataAccessException | CallNotPermittedException ex) {
             recordOperation("evict", ex instanceof CallNotPermittedException ? "rejected" : "failure", startNanos);
-            throw new SlotCacheAccessException("evict", slotCode, ex);
+            throw new SlotRedisAccessException("evict", slotCode, ex);
         }
     }
 

@@ -4,7 +4,7 @@ import com.example.adplatform.infra.debezium.admin.SlotCacheEvictPayload;
 import com.example.adplatform.infra.debezium.admin.SlotCacheUpdatePayload;
 import com.example.adplatform.infra.debezium.admin.SlotCacheWritePayload;
 import com.example.adplatform.infra.kafka.admin.port.SlotCacheKafkaPort;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheLockManager;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -21,7 +21,7 @@ public class SlotCacheConsumer {
 
     private final SlotCacheKafkaPort slotCacheKafkaPort;
 
-    private final SlotCacheLockManager lockManager;
+    private final SlotRedisLockManager lockManager;
 
     @KafkaListener(
             topics = "${app.kafka.topics.slot-cache-write}",

@@ -1,9 +1,7 @@
 package com.example.adplatform.infra.bloomfilter.delivery.slot;
 
-import com.example.adplatform.admin.entity.SlotEntity;
 import com.example.adplatform.admin.mapper.SlotMapper;
 import com.example.adplatform.admin.port.slot.SlotFilterPort;
-import com.example.adplatform.common.enums.CommonStatus;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 import io.micrometer.core.instrument.Gauge;
@@ -14,7 +12,6 @@ import org.springframework.util.StringUtils;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.BloomRebuildResult.RebuildStatus;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;

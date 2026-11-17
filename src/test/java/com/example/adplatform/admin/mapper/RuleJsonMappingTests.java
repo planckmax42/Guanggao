@@ -91,7 +91,7 @@ class RuleJsonMappingTests {
         assertThat(table.getResultMap()).isNotNull();
         var mapping = configuration.getResultMap(table.getResultMap()).getResultMappings().stream()
                 .filter(field -> field.getColumn().equals("device_type")).findFirst().orElseThrow();
-        assertThat(mapping.getProperty()).isEqualTo("deviceTypes");
+        assertThat(mapping.getProperty()).isEqualTo("tags");
         assertThat(mapping.getTypeHandler()).isInstanceOf(JacksonTypeHandler.class);
         var result = mock(ResultSet.class);
         when(result.getString("device_type")).thenReturn("[ \"ANDROID\", \"IOS\" ]", null, "[]");

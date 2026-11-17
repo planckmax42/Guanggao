@@ -17,7 +17,7 @@ import java.time.Duration;
 @Validated
 @Component
 @ConfigurationProperties(prefix = "app.slot-cache")
-public class SlotCacheProperties {
+public class SlotRedisProperties {
 
     /** 广告位编码到 ID 的 Redis 映射缓存过期时间。 */
     @NotNull

@@ -23,8 +23,8 @@ import org.springframework.kafka.listener.ListenerContainerPauseService;
 import org.springframework.kafka.listener.RetryListener;
 import org.springframework.kafka.KafkaException;
 import org.springframework.dao.DataAccessException;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheAccessException;
-import com.example.adplatform.infra.redis.delivery.slot.SlotCacheFailureLogLimiter;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisAccessException;
+import com.example.adplatform.infra.redis.delivery.slot.SlotRedisFailureLogLimiter;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.util.backoff.ExponentialBackOff;
@@ -68,7 +68,7 @@ public class SearchKafkaConfig {
         Map<String, Object> config = new HashMap<>(properties.buildConsumerProperties(sslBundles));
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        // application-local.yml 为原始事件消费者配置了默认 JSON 类型；字符串消费者必须移除。
+        // application.yml 为原始事件消费者配置了默认 JSON 类型；字符串消费者必须移除。
         config.remove("spring.json.value.default.type");
         config.remove("spring.json.trusted.packages");
         config.remove("spring.json.use.type.headers");
@@ -93,7 +93,7 @@ public class SearchKafkaConfig {
             @Qualifier("outboxKafkaTemplate") KafkaTemplate<String, String> outboxKafkaTemplate,
             @Value("${app.kafka.topics.slot-cache-sync-dlt}") String dltTopic,
             MeterRegistry meterRegistry,
-            SlotCacheFailureLogLimiter failureLogLimiter,
+            SlotRedisFailureLogLimiter failureLogLimiter,
             KafkaListenerEndpointRegistry registry,
             TaskScheduler taskScheduler) {
         Map<String, Object> config = new HashMap<>(properties.buildConsumerProperties(sslBundles));
@@ -117,7 +117,7 @@ public class SearchKafkaConfig {
                 new ContainerPausingBackOffHandler(pauseService));
         errorHandler.defaultFalse();
         errorHandler.addRetryableExceptions(
-                SlotCacheAccessException.class,
+                SlotRedisAccessException.class,
                 DataAccessException.class,
                 CallNotPermittedException.class);
         errorHandler.setRetryListeners(new RetryListener() {

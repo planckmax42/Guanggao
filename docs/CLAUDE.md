@@ -83,7 +83,7 @@ docker compose -f docker/docker-log.yml up -d          # Grafana + Prometheus + 
 - **条带锁**：`SlotCacheLockManager`、`EventMetadataCacheLockManager`，1024 条带细粒度并发控制
 - **单航班请求合并**（single-flight）：`ConcurrentHashMap<CompletableFuture>`，相同 key 的并发回源合并为一次 MySQL 查询
 - **Lua 脚本**：`try-charge.lua`（预算扣减）、`record-event.lua`/`record-cost.lua`（事件统计）、`pop-daily-stats.lua`（定时 flush）
-- **配置来源**：`application.yml` 只放框架配置，业务配置全部在 `application-local.yml` 的 `app.*` 下
+- **配置来源**：框架配置与业务配置统一放在 `application.yml`，业务配置主要位于 `app.*` 下
 
 ## 关键模块
 

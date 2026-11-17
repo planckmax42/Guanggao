@@ -5,7 +5,6 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.example.adplatform.delivery.request.AdDeliveryRequest;
 import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsProperties;
-import com.example.adplatform.infra.elasticsearch.delivery.Candidate.EsQueryFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
@@ -49,7 +48,7 @@ class EsQueryFactoryTests {
         assertThat(rangeValue(filters.get(1), "startTime", true)).isBetween(beforeBuild, afterBuild);
         assertThat(rangeValue(filters.get(2), "endTime", false)).isBetween(beforeBuild, afterBuild);
         assertOptionalStringTarget(filters.get(3), "regionAll", "regions", "BEIJING");
-        assertOptionalStringTarget(filters.get(4), "deviceAll", "deviceTypes", "ANDROID");
+        assertOptionalStringTarget(filters.get(4), "deviceAll", "tags", "ANDROID");
         assertOptionalStringTarget(filters.get(5), "genderAll", "gender", "FEMALE");
         assertAgeTarget(filters.get(6), 25);
         assertTagsTarget(filters.get(7), List.of("sports", "technology"));

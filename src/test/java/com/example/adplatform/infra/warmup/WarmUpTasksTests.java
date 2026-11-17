@@ -72,7 +72,7 @@ class WarmUpTasksTests {
 
         new ElasticsearchWarmUpTask(properties, elasticSearchManager).warmUp();
 
-        verify(elasticSearchManager).initialRebuild();
+        verify(elasticSearchManager).isInitialed();
     }
 
     @Test
@@ -92,12 +92,12 @@ class WarmUpTasksTests {
         when(properties.isEnabled()).thenReturn(true);
         ElasticSearchManager elasticSearchManager = mock(ElasticSearchManager.class);
         doThrow(new IllegalStateException("Elasticsearch unavailable"))
-                .when(elasticSearchManager).initialRebuild();
+                .when(elasticSearchManager).isInitialed();
 
         ElasticsearchWarmUpTask task = new ElasticsearchWarmUpTask(
                 properties, elasticSearchManager);
 
         assertDoesNotThrow(task::warmUp);
-        verify(elasticSearchManager).initialRebuild();
+        verify(elasticSearchManager).isInitialed();
     }
 }

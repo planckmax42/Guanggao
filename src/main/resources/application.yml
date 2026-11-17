@@ -1,11 +1,73 @@
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 400
+      min-spare: 50
+    accept-count: 1000
+    max-connections: 10000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.kafka.template: true
+        spring.kafka.listener: true
+        ad.event.consumer.processing: true
+        ad.slot.cache.operation.duration: true
+        ad.slot.cache.sync.delay: true
 spring:
   application:
     name: ad-platform
-  profiles:
-    active: local
-
-server:
-  port: 8080
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ad_platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&useAffectedRows=false}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    hikari:
+      pool-name: AdPlatformHikariPool
+      minimum-idle: 20
+      maximum-pool-size: 20
+      connection-timeout: 3000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${REDIS_COMMAND_TIMEOUT:300ms}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: com.example.adplatform.*
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.example.adplatform.tracking.message.EventMessage
+    listener:
+      concurrency: 3
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 1s
+    socket-timeout: 3s
 
 logging:
   file:
@@ -26,3 +88,118 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+admin:
+  id:
+    # 雪花 ID 节点编号：多部署合库时每个部署必须分配不同的 worker-id/datacenter-id 组合（0~31）
+    worker-id: ${ADMIN_ID_WORKER_ID:0}
+    datacenter-id: ${ADMIN_ID_DATACENTER_ID:0}
+
+app:
+  health:
+    mysql-timeout-ms: 2000
+    redis-timeout-ms: 2000
+  slot-cache:
+    redis-ttl: 1d
+    failure-policy: ${SLOT_CACHE_FAILURE_POLICY:FAIL_CLOSED}
+    failure-log-interval: 30s
+    lock:
+      stripes: 1024
+      read-wait-timeout: 100ms
+    bloom:
+      initial-capacity: 10000
+      false-positive-probability: 0.01
+      rebuild-delay: 5m
+      rebuild-initial-delay: 5m
+      minimum-absent-samples: 1000
+      expansion-factor: 2.0
+      max-expected-capacity: 1000000
+      expansion-cooldown: 10m
+      expansion-check-delay: 30s
+      expansion-check-initial-delay: 30s
+    mysql-circuit-breaker:
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+      failure-rate-threshold: 50
+      slow-call-rate-threshold: 50
+      slow-call-duration-threshold: 200ms
+      open-state-wait-duration: 10s
+      permitted-calls-in-half-open-state: 3
+    redis-circuit-breaker:
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+      failure-rate-threshold: 50
+      slow-call-rate-threshold: 50
+      slow-call-duration-threshold: 100ms
+      open-state-wait-duration: 10s
+      permitted-calls-in-half-open-state: 3
+  event-metadata-cache:
+    redis-ttl: 1h
+    redis-ttl-jitter: 10m
+    single-flight-wait-timeout: 500ms
+    lock:
+      stripes: 1024
+      read-wait-timeout: 100ms
+    bloom:
+      initial-capacity: 100000
+      false-positive-probability: 0.01
+      rebuild-delay-ms: 300000
+      rebuild-initial-delay-ms: 300000
+      expansion-factor: 2.0
+      max-capacity: 5000000
+      expansion-cooldown: 10m
+      expansion-check-delay-ms: 30000
+      expansion-check-initial-delay-ms: 30000
+  stats:
+    flush-delay-ms: 10000
+    flush-initial-delay-ms: 10000
+  kafka:
+    # eventKafkaTemplate 专用配置；不会改变 Outbox Producer。
+    event-producer:
+      delivery-timeout: 10s
+      request-timeout: 3s
+      retry-backoff: 200ms
+      max-block: 1s
+      linger: 5ms
+      batch-size: 65536
+      compression-type: lz4
+      circuit-breaker:
+        sliding-window-size: 50
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50
+        open-state-wait-duration: 10s
+        permitted-calls-in-half-open-state: 5
+    topics:
+      event: event-topic
+      config-change: ad-config-change
+      config-change-dlt: ad-config-change-dlt
+      slot-cache-write: ad-slot-write
+      slot-cache-update: ad-slot-update
+      slot-cache-evict: ad-slot-evict
+      slot-es-sync: ad-slot-es-sync
+      slot-cache-sync-dlt: ad-slot-cache-sync-dlt
+    consumer-groups:
+      legacy: tracking-consumer
+      archive: event-archive-consumer
+      billing: event-billing-consumer
+      statistics: event-statistics-consumer
+      slot-cache-write: slot-cache-write-consumer
+      slot-cache-update: slot_cache-update-consumer
+      slot-cache-evict: slot_cache-update-evict
+  elasticsearch:
+    enabled: ${ELASTICSEARCH_ENABLED:true}
+    candidate:
+      read-alias: ad-candidate-read
+      write-alias: ad-candidate-write
+      recall-size: 200
+      max-recall-size: 1000
+      query-timeout: 100ms
+      rebuild-lock-ttl: 10m
+    outbox:
+      # 默认由 Debezium 读取 MySQL Binlog；可临时设置 OUTBOX_TRANSPORT=polling 回退应用轮询。
+      transport: ${OUTBOX_TRANSPORT:debezium}
+      publish-delay-ms: 500
+      publish-initial-delay-ms: 3000
+      batch-size: 100
+      retention-days: 7
+      cleanup-cron: "0 20 3 * * *"

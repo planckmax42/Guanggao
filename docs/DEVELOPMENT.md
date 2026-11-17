@@ -187,7 +187,6 @@ ad-platform
 │           └── tracking
 └── src/main/resources
     ├── application.yml
-    ├── application-local.yml
     ├── application-docker.yml
     ├── mapper
     └── sql
@@ -210,7 +209,7 @@ ad-platform
 任务：
 
 - 创建 `pom.xml`
-- 创建 `application.yml` 和 `application-local.yml`
+- 创建统一配置文件 `application.yml`
 - 创建数据库 `ad_platform`
 - 编写基础 SQL 文件
 - 实现 `Result<T>` 统一返回结构
@@ -921,7 +920,7 @@ CREATE DATABASE ad_platform DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicod
 
 应用配置：
 
-- 本地配置放在 `application-local.yml`
+- 本地配置放在 `application.yml`
 - 默认启动 profile 使用 `local`
 - 不提交本机真实密码
 

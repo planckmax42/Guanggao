@@ -49,7 +49,7 @@ public class FrequencyRedisServiceImpl implements FrequencyControlPort {
             long current = value == null ? 0L : Long.parseLong(value);
             return current >= maxFrequency;
         } catch (RuntimeException ex) {
-            log.warn("读取用户频控缓存失败，viewerId={}，planId={}，本次投放放行：{}", viewerId, planId, ex.getMessage());
+            log.warn("读取用户频控缓存失败，userId={}，planId={}，本次投放放行：{}", viewerId, planId, ex.getMessage());
             return false;
         }
     }
@@ -79,7 +79,7 @@ public class FrequencyRedisServiceImpl implements FrequencyControlPort {
             }
             return exceeded;
         } catch (RuntimeException ex) {
-            log.warn("批量读取用户频控失败，viewerId={}，本次投放放行", viewerId, ex);
+            log.warn("批量读取用户频控失败，userId={}，本次投放放行", viewerId, ex);
             return Set.of();
         }
     }
@@ -101,7 +101,7 @@ public class FrequencyRedisServiceImpl implements FrequencyControlPort {
             stringRedisTemplate.opsForValue().increment(key);
             stringRedisTemplate.expire(key, FREQUENCY_TTL);
         } catch (RuntimeException ex) {
-            log.warn("写入用户频控缓存失败，viewerId={}，planId={}：{}", viewerId, planId, ex.getMessage());
+            log.warn("写入用户频控缓存失败，userId={}，planId={}：{}", viewerId, planId, ex.getMessage());
         }
     }
 }

@@ -18,7 +18,7 @@ class CandidateQueryConversionTests {
         CandidateQueryResult row = row();
         row.setAdvertiserPublicId("adv_1");
         row.setDeviceType("[\"ANDROID\",\"IOS\"]");
-        row.setRegionCode("[\"BEIJING\",\"SHANGHAI\"]");
+        row.setRegions("[\"BEIJING\",\"SHANGHAI\"]");
         row.setGender("FEMALE");
         row.setAgeMin(18);
         row.setAgeMax(35);
@@ -29,10 +29,10 @@ class CandidateQueryConversionTests {
 
         var document = service.fromQueryResultToDocument(row);
 
-        assertThat(document.getDeviceType()).containsExactly("ANDROID", "IOS");
-        assertThat(document.getRegionCode()).containsExactly("BEIJING", "SHANGHAI");
+        assertThat(document.getDeviceTypes()).containsExactly("ANDROID", "IOS");
+        assertThat(document.getRegions()).containsExactly("BEIJING", "SHANGHAI");
         assertThat(document.getAgeRange()).isEqualTo(Range.closed(18, 35));
-        assertThat(document.getAdvertiserPublicId()).isEqualTo("adv_1");
+        assertThat(document.getMaterialId()).isEqualTo("adv_1");
         assertThat(document.getGender()).isEqualTo("FEMALE");
         assertThat(document.getBidPrice()).isEqualTo(123456L);
         assertThat(document.getBillingType()).isEqualTo("CPC");
@@ -48,9 +48,9 @@ class CandidateQueryConversionTests {
         CandidateQueryResult row = row();
         row.setRulePublicId(null);
         var document = service.fromQueryResultToDocument(row);
-        assertThat(document.getRulePublicId()).isNull();
-        assertThat(document.getDeviceType()).isEmpty();
-        assertThat(document.getRegionCode()).isEmpty();
+        assertThat(document.getSlotId()).isNull();
+        assertThat(document.getDeviceTypes()).isEmpty();
+        assertThat(document.getRegions()).isEmpty();
         assertThat(document.getAgeRange()).isEqualTo(Range.<Integer>unbounded());
 
         row.setAgeMin(18);

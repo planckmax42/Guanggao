@@ -27,15 +27,15 @@ class SlotCacheCreateListenerTests {
                 mock(SlotCacheOutboxService.class),
                 mock(ApplicationEventPublisher.class),
                 cachePort,
-                new SlotCacheLockManager(properties()));
+                new SlotRedisLockManager(properties()));
 
         service.afterCommit(new SlotServiceImpl.SlotCacheWriteEvent("HOME_BANNER", 1L));
 
         verify(cachePort).writeSlotToRedis(1L, "HOME_BANNER");
     }
 
-    private SlotCacheProperties properties() {
-        SlotCacheProperties properties = new SlotCacheProperties();
+    private SlotRedisProperties properties() {
+        SlotRedisProperties properties = new SlotRedisProperties();
         properties.setRedisTtl(Duration.ofDays(1));
         properties.setStripes(32);
         properties.setReadWaitTimeout(Duration.ofMillis(50));

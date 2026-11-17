@@ -32,7 +32,7 @@ class CreateRuleRequestValidationTests {
     void acceptsCurrentRuleFieldsWithoutRemovedRegionsAndTags() throws Exception {
         var json = new ObjectMapper();
         var request = json.readValue("""
-                {"advertiserId":"%s","name":"规则一","deviceTypes":["ANDROID"],
+                {"advertiserId":"%s","name":"规则一","tags":["ANDROID"],
                  "gender":"MALE","ageMin":18,"ageMax":45}
                 """.formatted(ADVERTISER_ID), CreateRuleRequest.class);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
@@ -49,7 +49,7 @@ class CreateRuleRequestValidationTests {
             var request = new CreateRuleRequest(null, null, null, null, null, null);
             assertThat(factory.getValidator().validate(request))
                     .extracting(v -> v.getPropertyPath().toString())
-                    .containsExactlyInAnyOrder("advertiserId", "name", "deviceTypes", "gender",
+                    .containsExactlyInAnyOrder("advertiserId", "name", "tags", "gender",
                             "ageMin", "ageMax");
         }
     }
@@ -60,7 +60,7 @@ class CreateRuleRequestValidationTests {
             var request = new CreateRuleRequest(ADVERTISER_ID, "规则一", List.of(), " ", 0, 120);
             assertThat(factory.getValidator().validate(request))
                     .extracting(v -> v.getPropertyPath().toString())
-                    .containsExactlyInAnyOrder("deviceTypes", "gender");
+                    .containsExactlyInAnyOrder("tags", "gender");
         }
     }
 
@@ -72,7 +72,7 @@ class CreateRuleRequestValidationTests {
                 var request = new CreateRuleRequest(ADVERTISER_ID, "规则一", values, "FEMALE", 18, 45);
                 assertThat(factory.getValidator().validate(request))
                         .extracting(v -> v.getPropertyPath().toString())
-                        .containsExactlyInAnyOrder("deviceTypes[0].<list element>");
+                        .containsExactlyInAnyOrder("tags[0].<list element>");
             }
         }
     }

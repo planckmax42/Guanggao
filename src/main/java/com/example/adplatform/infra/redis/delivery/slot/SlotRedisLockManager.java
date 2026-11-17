@@ -12,12 +12,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /** 使用固定数量的本地条带锁协调 Slot 缓存回填与提交后刷新。 */
 @Component
-public class SlotCacheLockManager {
+public class SlotRedisLockManager {
 
     private final ReentrantLock[] stripeLocks;
     private final Duration waitTimeout;
 
-    public SlotCacheLockManager(SlotCacheProperties properties) {
+    public SlotRedisLockManager(SlotRedisProperties properties) {
         this.stripeLocks = new ReentrantLock[properties.getStripes()];
         Arrays.setAll(this.stripeLocks, ignored -> new ReentrantLock());
         this.waitTimeout = properties.getReadWaitTimeout();

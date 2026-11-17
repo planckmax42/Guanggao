@@ -6,7 +6,7 @@ import com.example.adplatform.common.enums.CommonStatus;
 import com.example.adplatform.delivery.port.SlotIdResult;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.DeliveryRedisKeys;
-import com.example.adplatform.infra.resilience.delivery.slot.SlotMysqlCircuitBreaker;
+import com.example.adplatform.infra.resilience.delivery.slot.MysqlCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreaker;
 import com.example.adplatform.infra.resilience.delivery.slot.SlotRedisCircuitBreakerProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -53,8 +53,8 @@ class SlotCacheTransactionTests {
         org.mockito.Mockito.doThrow(new DataAccessResourceFailureException("redis down"))
                 .when(values).set(any(), any(), any(Duration.class));
 
-        SlotCacheAccessException failure = assertThrows(
-                SlotCacheAccessException.class,
+        SlotRedisAccessException failure = assertThrows(
+                SlotRedisAccessException.class,
                 () -> service(redisTemplate, mock(SlotMapper.class), new SimpleMeterRegistry())
                         .writeSlotToRedis(1L, "HOME_BANNER"));
 
@@ -79,26 +79,26 @@ class SlotCacheTransactionTests {
         verify(redisTemplate).delete(DeliveryRedisKeys.slotCodeToId("NEW_CODE"));
     }
 
-    private SlotCacheServiceImpl service(
+    private SlotRedisServiceImpl service(
             StringRedisTemplate redisTemplate,
             SlotMapper slotMapper,
             SimpleMeterRegistry meterRegistry) {
-        SlotCacheProperties properties = new SlotCacheProperties();
+        SlotRedisProperties properties = new SlotRedisProperties();
         properties.setRedisTtl(Duration.ofDays(1));
         properties.setStripes(32);
         properties.setReadWaitTimeout(Duration.ofMillis(50));
-        SlotMysqlCircuitBreaker mysqlCircuitBreaker = mock(SlotMysqlCircuitBreaker.class);
+        MysqlCircuitBreaker mysqlCircuitBreaker = mock(MysqlCircuitBreaker.class);
         when(mysqlCircuitBreaker.executeSupplier(any())).thenAnswer(invocation ->
                 ((Supplier<?>) invocation.getArgument(0)).get());
-        return new SlotCacheServiceImpl(
+        return new SlotRedisServiceImpl(
                 redisTemplate,
                 slotMapper,
                 properties,
                 mock(SlotBloomOperationsService.class),
                 mysqlCircuitBreaker,
                 new SlotRedisCircuitBreaker(new SlotRedisCircuitBreakerProperties(), meterRegistry),
-                new SlotCacheLockManager(properties),
+                new SlotRedisLockManager(properties),
                 meterRegistry,
-                new SlotCacheFailureLogLimiter(properties, meterRegistry));
+                new SlotRedisFailureLogLimiter(properties, meterRegistry));
     }
 }

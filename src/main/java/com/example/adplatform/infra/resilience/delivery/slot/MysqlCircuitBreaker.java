@@ -1,5 +1,6 @@
 package com.example.adplatform.infra.resilience.delivery.slot;
 
+import com.example.adplatform.infra.redis.delivery.slot.MQ.RedisCircuitBreakerPort;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,7 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Component
-public class SlotMysqlCircuitBreaker {
+public class MysqlCircuitBreaker implements RedisCircuitBreakerPort {
 
     /** Resilience4j 提供的熔断器实例，内部维护 CLOSED、OPEN 和 HALF_OPEN 状态。 */
     private final CircuitBreaker circuitBreaker;
@@ -27,7 +28,7 @@ public class SlotMysqlCircuitBreaker {
      * @param properties 包含滑动窗口、失败率、慢调用率和半开探测参数的配置
      * @throws IllegalArgumentException 熔断参数不符合 Resilience4j 约束时抛出
      */
-    public SlotMysqlCircuitBreaker(SlotMysqlCircuitBreakerProperties properties) {
+    public MysqlCircuitBreaker(SlotMysqlCircuitBreakerProperties properties) {
         /*
          * 构建 Resilience4j 熔断规则。这些配置只负责统计调用和切换熔断状态，
          * 不会替代数据库驱动本身的连接超时或 SQL 执行超时配置。
@@ -78,7 +79,9 @@ public class SlotMysqlCircuitBreaker {
     public <T> T executeSupplier(Supplier<T> supplier) {
         return circuitBreaker.executeSupplier(supplier);
     }
-
+    public void executeRunnable(Runnable runnable) {
+        circuitBreaker.executeRunnable(runnable);
+    }
     /**
      * 返回熔断器当前状态，可用于健康检查或监控。
      *

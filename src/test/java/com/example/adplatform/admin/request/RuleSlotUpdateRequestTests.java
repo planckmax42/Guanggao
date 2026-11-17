@@ -38,7 +38,7 @@ class RuleSlotUpdateRequestTests {
         var json = new ObjectMapper();
         Long advertiserId = 1L;
         var request = json.readValue("""
-                {"advertiserId":"%s","name":"规则一","deviceTypes":["ANDROID"],
+                {"advertiserId":"%s","name":"规则一","tags":["ANDROID"],
                  "gender":"FEMALE","ageMin":18,"ageMax":45}
                 """.formatted(advertiserId), CreateRuleRequest.class);
         assertThat(request.advertiserId()).isEqualTo(advertiserId);
@@ -68,7 +68,7 @@ class RuleSlotUpdateRequestTests {
                     .contains("请至少提供一个需要修改的字段");
             var clear = new UpdateRuleRequest(1L, null, List.of(), null, null, null);
             assertThat(validator.validate(clear)).extracting(v -> v.getPropertyPath().toString())
-                    .containsExactly("deviceTypes");
+                    .containsExactly("tags");
         }
     }
 
