@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @TableName("plan")
 public class PlanEntity {
 
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId
     private Long id;
     @TableField("advertiser_id")
     private Long advertiserId;

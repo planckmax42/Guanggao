@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Setter
 @TableName("slot")
 public class SlotEntity {
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId
     private Long id;
     private String slotCode;
     private String name;

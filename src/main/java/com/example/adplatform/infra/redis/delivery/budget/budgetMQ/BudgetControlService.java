@@ -45,7 +45,7 @@ public class BudgetControlService implements DeliveryBudgetControlPort {
                 String.valueOf(dailyLimit), String.valueOf(dailySpent),
                 String.valueOf(totalLimit), String.valueOf(totalSpent),
                 String.valueOf(TTL_SECONDS));
-    }
+    }//应该写入快照还是增量？
 
     /**
      * 返回日预算和总预算都未耗尽的计划 ID，保留输入顺序并去重。

@@ -5,17 +5,19 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 @Getter
 @Setter
-@TableName("material")
+@TableName(value = "material", autoResultMap = true)
 public class MaterialEntity {
 
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId
     private Long id;
     @TableField("advertiser_id")
     private Long advertiserId;
@@ -25,6 +27,8 @@ public class MaterialEntity {
     private String description;
     private String imageUrl;
     private String landingPageUrl;
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private List<String> tags;
     private String auditStatus;
     private Integer status;
     @TableField(fill = FieldFill.INSERT)

@@ -15,6 +15,5 @@ public record DeliveryRequest(
         @NotBlank String gender,
         @NotNull @Min(0) @Max(120) Integer age,
         @NotBlank  String region,
-        @NotEmpty @Size(max = 16) List<@NotBlank @Size(max = 32) String> tags,
         @NotNull @Min(1) @Max(10) Integer size) {
 }

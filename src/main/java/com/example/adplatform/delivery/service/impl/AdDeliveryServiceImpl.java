@@ -13,7 +13,7 @@ import com.example.adplatform.delivery.port.*;
 import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
-import com.example.adplatform.delivery.response.MaterialMetadata;
+import com.example.adplatform.infra.redis.delivery.materialMetadata.MaterialMetadata;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
 import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;

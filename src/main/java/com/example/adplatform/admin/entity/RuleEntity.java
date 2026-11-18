@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @TableName(value = "`rule`", autoResultMap = true)
 public class RuleEntity {
 
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId
     private Long id;
     private String name;
     @TableField("advertiser_id")

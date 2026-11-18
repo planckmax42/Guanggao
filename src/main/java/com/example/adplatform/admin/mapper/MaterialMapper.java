@@ -3,6 +3,7 @@ package com.example.adplatform.admin.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.adplatform.admin.entity.MaterialEntity;
 import com.example.adplatform.admin.query.MaterialPlanJoinRow;
+import com.example.adplatform.infra.redis.delivery.materialMetadata.MaterialMetadata;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -38,4 +39,15 @@ public interface MaterialMapper extends BaseMapper<MaterialEntity> {
 
     @Select("SELECT public_id FROM material WHERE plan_id = #{planId}")
     List<String> selectMaterialPublicIdsByPlanId(@Param("planId") Long planId);
+
+    @Select("""
+        SELECT id AS materialId,
+               title AS name,
+               description,
+               image_url AS imageUrl,
+               landing_page_url AS landingPageUrl
+        FROM material
+        WHERE id = #{materialId}
+        """)
+    MaterialMetadata selectMetadataById(@Param("materialId") Long materialId);
 }

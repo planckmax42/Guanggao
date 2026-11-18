@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @TableName("advertiser_wallet")
 public class AdvertiserWalletEntity {
 
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId
     private Long id;
     private Long advertiserId;
     private Long balanceMicro;
