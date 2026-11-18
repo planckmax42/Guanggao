@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.search.port.CandidateSearchPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -38,7 +38,7 @@ public class CandidateRecallService {
      * @param request 投放请求
      * @return 候选列表及 ELASTICSEARCH/MYSQL_* 来源标识
      */
-    public CandidateRecallResult recall(AdDeliveryRequest request) {
+    public CandidateRecallResult recall(DeliveryRequest request) {
         long startNanos = System.nanoTime();
         CandidateRecallResult result;
         if (!elasticsearchRecall.isEnabled()) {//ES不可用时降级进入Mysql，todo:后续加入熔断器保护降级策略

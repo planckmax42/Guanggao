@@ -10,10 +10,10 @@ import com.example.adplatform.common.exception.BusinessException;
 import com.example.adplatform.common.exception.DependencyException;
 import com.example.adplatform.common.exception.ErrorCode;
 import com.example.adplatform.delivery.port.*;
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
-import com.example.adplatform.delivery.response.AdItemResponse;
+import com.example.adplatform.delivery.response.MaterialMetadata;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
 import com.example.adplatform.infra.redis.delivery.slot.LockAcquireAttempt;
@@ -64,7 +64,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
     private final SlotMapper slotMapper;
 
     @Override//todo:增加CI/CD机制
-    public AdDeliveryResponse deliver(AdDeliveryRequest request) {
+    public AdDeliveryResponse deliver(DeliveryRequest request) {
         String requestId = "req_" + UUID.randomUUID().toString().replace("-", "");
         SlotIdResult slotIdResult = slotCacheDeliveryPort.getEnabledIdByCode(request.slotCode());
         if (slotIdResult.status() == SlotIdResult.Status.CACHE_UNAVAILABLE) {
@@ -144,7 +144,7 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
                 .collect(Collectors.toMap(PlanDailyMetricRow::getPlanId, Function.identity()));//查询daily计划当天的指标，转化成map
 
         int limit = request.size() == null ? DEFAULT_RETURN_SIZE : request.size();//不传入时使用兜地默认值
-        List<AdItemResponse> ads = dynamicallyValid.stream()
+        List<MaterialMetadata> ads = dynamicallyValid.stream()
                 .map(candidate -> score(candidate, metricMap.get(candidate.getPlanId())))//转化成带打分的实体
                 .sorted(Comparator.comparingDouble(ScoredCandidate::score).reversed()//指定排序规则，优先按照分数高低，同分时根据其他Id等字段
                         .thenComparing(item -> item.candidate().getMaterialId(), Comparator.reverseOrder()))
@@ -164,9 +164,9 @@ public class AdDeliveryServiceImpl implements AdDeliveryService {
         return new ScoredCandidate(candidate, value);
     }
 
-    private AdItemResponse toAdItemResponse(ScoredCandidate item) {
+    private MaterialMetadata toAdItemResponse(ScoredCandidate item) {
         CandidateDocument candidate = item.candidate();
-        return new AdItemResponse(
+        return new MaterialMetadata(
                 candidate.getPlanPublicId(),
                 candidate.getMaterialPublicId(),
                 candidate.getSlotPublicId(),

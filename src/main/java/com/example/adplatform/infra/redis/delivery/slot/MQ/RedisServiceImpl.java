@@ -75,7 +75,7 @@ public class RedisServiceImpl implements DeliverySlotCachePort {
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"缓存服务不可用");
         }
     }
-    public RedisOperationResult writeSlotIdFromRedis(String slotCode,Long slotId){
+    public void writeSlotIdFromRedis(String slotCode, Long slotId){
         long startTime = System.nanoTime();
         try {
             circuitBreaker.executeRunnable(() ->
@@ -84,7 +84,6 @@ public class RedisServiceImpl implements DeliverySlotCachePort {
                         String.valueOf(slotId),
                         TTL));
             recordMetrics(RedisOperationStatus.SUCCESS.toString(),WRITE_METRIC,startTime);
-            return RedisOperationResult.success();
         }
         catch (CallNotPermittedException exception){
             throw new DependencyException(ErrorCode.DEPENDENCY_SERVICE_UNAVAILABLE,"熔断器已熔断");

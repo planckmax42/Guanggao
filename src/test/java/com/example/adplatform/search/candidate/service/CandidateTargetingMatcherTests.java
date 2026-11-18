@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.infra.elasticsearch.CandidateDocument;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +13,7 @@ class CandidateTargetingMatcherTests {
     @Test
     void shouldMatchWhenEveryTargetingDimensionIsUnrestricted() {
         CandidateDocument candidate = candidate(true, true, true, true, true);
-        AdDeliveryRequest request = new AdDeliveryRequest(
+        DeliveryRequest request = new DeliveryRequest(
                 1001L, "HOME_BANNER", null, null, null, null, List.of(), 3);
 
         assertThat(CandidateTargetingMatcher.matches(candidate, request)).isTrue();
@@ -28,7 +28,7 @@ class CandidateTargetingMatcherTests {
         candidate.setAgeMin(18);
         candidate.setAgeMax(35);
         candidate.setTags(List.of("fresh", "family"));
-        AdDeliveryRequest request = new AdDeliveryRequest(
+        DeliveryRequest request = new DeliveryRequest(
                 1001L, "HOME_BANNER", "beijing", "ios", 35,
                 "female", List.of("shopping", "FAMILY"), 3);
 
@@ -46,13 +46,13 @@ class CandidateTargetingMatcherTests {
         candidate.setTags(List.of("fresh"));
 
         assertThat(CandidateTargetingMatcher.matches(candidate,
-                new AdDeliveryRequest(1L, "HOME_BANNER", "SHANGHAI", "IOS", 20,
+                new DeliveryRequest(1L, "HOME_BANNER", "SHANGHAI", "IOS", 20,
                         "FEMALE", List.of("fresh"), 1))).isFalse();
         assertThat(CandidateTargetingMatcher.matches(candidate,
-                new AdDeliveryRequest(1L, "HOME_BANNER", "BEIJING", "IOS", 36,
+                new DeliveryRequest(1L, "HOME_BANNER", "BEIJING", "IOS", 36,
                         "FEMALE", List.of("fresh"), 1))).isFalse();
         assertThat(CandidateTargetingMatcher.matches(candidate,
-                new AdDeliveryRequest(1L, "HOME_BANNER", "BEIJING", "IOS", 20,
+                new DeliveryRequest(1L, "HOME_BANNER", "BEIJING", "IOS", 20,
                         "FEMALE", List.of(), 1))).isFalse();
     }
 

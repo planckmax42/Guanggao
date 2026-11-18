@@ -3,7 +3,7 @@ package com.example.adplatform.infra.elasticsearch.delivery;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.infra.elasticsearch.ElasticSearchProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class EsQueryFactoryTests {
         properties.getCandidate().setRecallSize(1500);
         properties.getCandidate().setMaxRecallSize(1000);
         properties.getCandidate().setQueryTimeout(Duration.ofMillis(80));
-        AdDeliveryRequest request = new AdDeliveryRequest(
+        DeliveryRequest request = new DeliveryRequest(
                 1L, "home_banner", "beijing", "android", 25, "female",
                 List.of("Sports", "Technology"), 3);
 
@@ -65,7 +65,7 @@ class EsQueryFactoryTests {
 
     @Test
     void shouldOnlyMatchUnrestrictedTargetingWhenProfileIsMissing() {
-        AdDeliveryRequest request = new AdDeliveryRequest(
+        DeliveryRequest request = new DeliveryRequest(
                 1L, "HOME_BANNER", null, " ", null, null, List.of("", " "), 1);
 
         List<Query> filters = queryFactory.build(request).getQuery().bool().filter();

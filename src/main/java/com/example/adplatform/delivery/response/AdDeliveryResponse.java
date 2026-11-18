@@ -7,6 +7,5 @@ import java.util.List;
  */
 public record AdDeliveryResponse(
         Long deliveryEventId,
-        Integer returnedCount,
-        List<AdItemResponse> ads) {
+        List<MaterialMetadata> ads) {
 }

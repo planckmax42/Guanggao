@@ -8,7 +8,7 @@ import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
 import com.example.adplatform.delivery.port.FrequencyControlPort;
 import com.example.adplatform.delivery.port.SlotCacheDeliveryPort;
 import com.example.adplatform.delivery.port.SlotIdResult;
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import com.example.adplatform.infra.bloomfilter.delivery.slot.SlotBloomOperationsService;
 import com.example.adplatform.infra.redis.delivery.slot.SlotRedisLockManager;
@@ -76,8 +76,8 @@ class AdDeliveryServiceImplTests {
                 mock(SlotMapper.class));
     }
 
-    private AdDeliveryRequest request() {
-        return new AdDeliveryRequest(
+    private DeliveryRequest request() {
+        return new DeliveryRequest(
                 1L, "HOME_BANNER", "CN", "ANDROID", 25, "UNKNOWN", List.of(), 3);
     }
 }

@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.search.port.CandidateDocumentFactory;
 import com.example.adplatform.search.candidate.mapper.CandidateSourceMapper;
 import com.example.adplatform.infra.elasticsearch.CandidateDocument;
@@ -23,7 +23,7 @@ public class MysqlCandidateRecallService {
     private final CandidateDocumentFactory documentFactory;
 
     /** 从 MySQL 真实数据源构造并过滤候选快照。 */
-    public List<CandidateDocument> recall(AdDeliveryRequest request) {
+    public List<CandidateDocument> recall(DeliveryRequest request) {
         return sourceMapper.selectEligibleBySlotCode(request.slotCode()).stream()
                 .map(documentFactory::from)
                 .filter(candidate -> CandidateTargetingMatcher.matches(candidate, request))

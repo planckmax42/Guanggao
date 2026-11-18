@@ -1,127 +1,91 @@
 package com.example.adplatform.infra.redis.delivery.stopguard;
 
-import com.example.adplatform.admin.port.slot.SlotCacheStopGuardPort;
-import com.example.adplatform.search.outbox.message.ConfigAggregateType;
-import com.example.adplatform.delivery.port.DeliveryStopGuardQueryPort;
-import com.example.adplatform.search.port.DeliveryStopGuardWritePort;
+import com.example.adplatform.delivery.portMQ.DeliveryStopGuardPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.stereotype.Service;
-import com.example.adplatform.infra.redis.delivery.slot.SlotRedisProperties;
-import com.example.adplatform.infra.redis.delivery.slot.SlotRedisFailureLogLimiter;
-import org.springframework.dao.DataAccessException;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
-/**
- * 配置变更最终一致窗口内的 Redis 紧急停投保护。
- *
- * <p>计划、素材或广告位被暂停后，事务提交监听器立即把 ID 写入 stopped set；待 Kafka
- * 消费者已更新并 refresh ES 后再移除。读取使用 pipeline 批量执行，避免候选数量增加时
- * 产生 N 次网络往返。Redis 故障时当前策略为 fail-open，以保证投放接口可用。</p>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DeliveryStopGuardService implements DeliveryStopGuardQueryPort, DeliveryStopGuardWritePort, SlotCacheStopGuardPort {
+public class DeliveryStopGuardService implements DeliveryStopGuardPort {
 
     private static final String STOPPED_PLANS = "ad-platform:stopguard:plans";
     private static final String STOPPED_MATERIALS = "ad-platform:stopguard:materials";
     private static final String STOPPED_SLOTS = "ad-platform:stopguard:slots";
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final MeterRegistry meterRegistry;
-    private final SlotRedisProperties slotRedisProperties;
-    private final SlotRedisFailureLogLimiter failureLogLimiter;
 
-    /** 添加或移除某个聚合的临时停投标记。定向规则本身不需要独立 stopped set。 */
     @Override
-    public void mark(ConfigAggregateType type, Long id, boolean stopped) {
-        String key = keyFor(type);
-        if (key == null || id == null) {
-            return;
-        }
-        try {
-            if (stopped) {
-                stringRedisTemplate.opsForSet().add(key, id.toString());
-            } else {
-                stringRedisTemplate.opsForSet().remove(key, id.toString());
-            }
-        } catch (DataAccessException ex) {
-            if (failureLogLimiter.shouldLog("stop_guard_write")) {
-                log.warn("Failed entityToOperationResponse update delivery stop guard, type={}, id={}, stopped={}", type, id, stopped, ex);
-            }
-        }
-    }
-    public void writeToStopGuardCache(String slotCode){
-        stringRedisTemplate.opsForSet().add(STOPPED_SLOTS,slotCode);
-    }
-    public void evictFromStopGuardCache(String slotCode){
-        stringRedisTemplate.opsForSet().remove(STOPPED_SLOTS,slotCode);
-    }
-    public boolean isMemberStopGuardCache(String slotCode){
-        return Boolean.TRUE.equals(stringRedisTemplate.opsForSet().isMember(STOPPED_SLOTS, slotCode));
-    }
-    @Override
-    public Set<Long> findStoppedPlans(Collection<Long> planIds) {
-        return findMembers(STOPPED_PLANS, planIds, false);
+    public void stopPlan(Long planId) {
+        addStopped(STOPPED_PLANS, planId);
     }
 
     @Override
-    public Set<Long> findStoppedMaterials(Collection<Long> materialIds) {
-        return findMembers(STOPPED_MATERIALS, materialIds, false);
+    public void stopMaterial(Long materialId) {
+        addStopped(STOPPED_MATERIALS, materialId);
     }
 
     @Override
-    public Set<Long> findStoppedSlots(Collection<Long> slotIds) {
-        return findMembers(STOPPED_SLOTS, slotIds, true);
+    public void stopSlot(Long slotId) {
+        addStopped(STOPPED_SLOTS, slotId);
     }
 
-    private Set<Long> findMembers(String key, Collection<Long> ids, boolean failClosed) {
-        if (ids == null || ids.isEmpty()) {//传入参数为空直接返回
+    @Override
+    public void resumePlan(Long planId) {
+        removeStopped(STOPPED_PLANS, planId);
+    }
+
+    @Override
+    public void resumeMaterial(Long materialId) {
+        removeStopped(STOPPED_MATERIALS, materialId);
+    }
+
+    @Override
+    public void resumeSlot(Long slotId) {
+        removeStopped(STOPPED_SLOTS, slotId);
+    }
+
+    @Override
+    public Set<Long> findAllowedPlans(Collection<Long> planIds) {
+        return findAllowedIds(STOPPED_PLANS, planIds);
+    }
+
+    @Override
+    public Set<Long> findAllowedMaterials(Collection<Long> materialIds) {
+        return findAllowedIds(STOPPED_MATERIALS, materialIds);
+    }
+
+    @Override
+    public Set<Long> findAllowedSlots(Collection<Long> slotIds) {
+        return findAllowedIds(STOPPED_SLOTS, slotIds);
+    }
+
+    public boolean isSlotStopped(String slotCode){
+        return Boolean.TRUE.equals(stringRedisTemplate.opsForSet().isMember(STOPPED_SLOTS,slotCode));
+    }
+
+    private void addStopped(String key, Long id) {
+        stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
+    }
+
+    private void removeStopped(String key, Long id) {
+        stringRedisTemplate.opsForSet().remove(key, String.valueOf(id));
+    }
+
+    private Set<Long> findAllowedIds(String key, Collection<Long> ids) {
+        if (ids.isEmpty()) {
             return Set.of();
         }
-        List<Object> results;
-        try {
-            // 一条 Redis pipeline 承载全部 DISMEMBER，返回顺序与 ids 遍历顺序一致。
-            results = stringRedisTemplate.executePipelined(//批量调用集合成员存在判断函数，减少网络开销
-                    (RedisCallback<Object>) connection -> {
-                ids.forEach(id -> connection.setCommands().sIsMember(key.getBytes(), id.toString().getBytes()));
-                return null;
-            });
-        } catch (DataAccessException ex) {
-            boolean effectiveFailClosed = failClosed
-                    && slotRedisProperties.getFailurePolicy() == SlotRedisProperties.FailurePolicy.FAIL_CLOSED;
-            String policy = effectiveFailClosed ? "fail-closed" : "fail-open";
-            meterRegistry.counter("ad.delivery.stop.guard", "key", key, "result", policy).increment();
-            if (failureLogLimiter.shouldLog("stop_guard_read")) {
-                log.warn("Failed entityToOperationResponse read delivery stop guards, key={}, policy={}", key, policy, ex);
-            }
-            return effectiveFailClosed ? new HashSet<>(ids) : Set.of();
-        }
-        Set<Long> stopped = new HashSet<>();
-        int index = 0;
-        for (Long id : ids) {//遍历集合得到停用Id
-            if (index < results.size() && Boolean.TRUE.equals(results.get(index))) {
-                stopped.add(id);
-            }
-            index++;
-        }
-        return stopped;
-    }
-
-    private String keyFor(ConfigAggregateType type) {
-        return switch (type) {
-            case PLAN -> STOPPED_PLANS;
-            case MATERIAL -> STOPPED_MATERIALS;
-            case SLOT -> STOPPED_SLOTS;
-            case RULE -> null;
-        };
+        String[] members = ids.stream().map(String::valueOf).toArray(String[]::new);
+        Map<Object, Boolean> results =
+                stringRedisTemplate.opsForSet().isMember(key, (Object[]) members);
+        return ids.stream()
+                .filter(id -> Boolean.FALSE.equals(results.get(id.toString())))
+                .collect(Collectors.toSet());
     }
 }

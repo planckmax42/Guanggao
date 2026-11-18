@@ -105,7 +105,7 @@ class SearchPipelineIT {
                     UUID.randomUUID().toString(), ConfigAggregateType.PLAN,
                     "plan_00000000000000000000000000000001"));
         } catch (RuntimeException ignored) {
-            deliveryStopGuardService.mark(ConfigAggregateType.PLAN, 1L, false);
+            deliveryStopGuardService.resumePlan(1L);
         }
         if (outboxSnapshotTaken) {
             jdbcTemplate.update(
@@ -151,7 +151,7 @@ class SearchPipelineIT {
         await(Duration.ofSeconds(20), () -> candidateDocumentExists(
                 "mat_00000000000000000000000000000001"));
         await(Duration.ofSeconds(5), () ->
-                !deliveryStopGuardService.findStoppedPlans(List.of(1L)).contains(1L));
+                deliveryStopGuardService.findAllowedPlans(List.of(1L)).contains(1L));
 
         // 连续配置消息必须保持幂等，不能依赖 Kafka 重试掩盖 ES 近实时版本冲突。
         esIndexUpdateServiceImpl.update(new ConfigChangeMessage(

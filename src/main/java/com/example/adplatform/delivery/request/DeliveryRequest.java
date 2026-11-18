@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * 广告投放请求，包含广告位编码和用户上下文，供召回、定向过滤和排序使用。
  */
-public record AdDeliveryRequest(
+public record DeliveryRequest(
         @NotNull Long userId,
         @NotBlank @Size(max = 64) String slotCode,
         @NotNull Long bidPrice,

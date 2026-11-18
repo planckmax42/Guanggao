@@ -29,16 +29,6 @@ public class FrequencyRedisServiceImpl implements FrequencyControlPort {
 
     private final StringRedisTemplate stringRedisTemplate;
 
-    /**
-     * {@inheritDoc}
-     * 判断同一用户当天看到同一计划的次数是否已经达到上限。
-     *
-     * @param viewerId 用户标识
-     * @param planId 广告计划标识
-     * @param statDate 统计日期
-     * @param maxFrequency 允许的最大曝光次数
-     * @return 当前次数已达上限时返回 {@code true}
-     */
     public boolean isViewerPlanFrequencyExceeded(Long viewerId, Long planId, LocalDate statDate, int maxFrequency) {
         if (viewerId == null || planId == null || maxFrequency <= 0) {
             return false;
@@ -84,14 +74,6 @@ public class FrequencyRedisServiceImpl implements FrequencyControlPort {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     * 曝光事件消费成功后，累加同一用户当天看到同一计划的次数。
-     *
-     * @param viewerId 用户标识
-     * @param planId 广告计划标识
-     * @param statDate 统计日期
-     */
     public void incrementViewerPlanImpression(Long viewerId, Long planId, LocalDate statDate) {
         if (viewerId == null || planId == null) {
             return;

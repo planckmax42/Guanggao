@@ -1,7 +1,7 @@
 package com.example.adplatform.delivery.controller;
 
 import com.example.adplatform.common.response.Result;
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.delivery.service.AdDeliveryService;
 import com.example.adplatform.delivery.response.AdDeliveryResponse;
 import jakarta.validation.Valid;
@@ -22,7 +22,7 @@ public class AdDeliveryController {
      * 根据广告位和用户上下文召回广告，并完成状态、预算、频控、定向过滤和排序。
      */
     @PostMapping("/ads")
-    public Result<AdDeliveryResponse> deliver(@Valid @RequestBody AdDeliveryRequest request) {
+    public Result<AdDeliveryResponse> deliver(@Valid @RequestBody DeliveryRequest request) {
         return Result.success(adDeliveryService.deliver(request));
     }
 }

@@ -1,6 +1,6 @@
 package com.example.adplatform.search.candidate.service;
 
-import com.example.adplatform.delivery.request.AdDeliveryRequest;
+import com.example.adplatform.delivery.request.DeliveryRequest;
 import com.example.adplatform.search.port.CandidateSearchPort;
 import com.example.adplatform.infra.elasticsearch.CandidateDocument;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -16,7 +16,7 @@ class CandidateRecallServiceTests {
     private StubElasticsearchRecall elasticsearchRecall;
     private StubMysqlRecall mysqlRecall;
     private CandidateRecallService recallService;
-    private AdDeliveryRequest request;
+    private DeliveryRequest request;
 
     @BeforeEach
     void setUp() {
@@ -24,7 +24,7 @@ class CandidateRecallServiceTests {
         mysqlRecall = new StubMysqlRecall();
         recallService = new CandidateRecallService(
                 elasticsearchRecall, mysqlRecall, new SimpleMeterRegistry());
-        request = new AdDeliveryRequest(
+        request = new DeliveryRequest(
                 1001L, "HOME_BANNER", "BEIJING", "IOS", 28, "FEMALE", List.of("fresh"), 3);
     }
 
@@ -75,7 +75,7 @@ class CandidateRecallServiceTests {
         }
 
         @Override
-        public List<CandidateDocument> recall(AdDeliveryRequest request) {
+        public List<CandidateDocument> recall(DeliveryRequest request) {
             calls++;
             if (failure != null) throw failure;
             return result;
@@ -91,7 +91,7 @@ class CandidateRecallServiceTests {
         }
 
         @Override
-        public List<CandidateDocument> recall(AdDeliveryRequest request) {
+        public List<CandidateDocument> recall(DeliveryRequest request) {
             calls++;
             return result;
         }
